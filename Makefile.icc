@@ -1,0 +1,35 @@
+# Makefile for ICC/NMAKE
+.PHONY : all
+
+.SUFFIXES : .exe .lib .obj .c .h
+
+CC = icc
+CFLAGS = /W3 /Ss /Gm /q /DNO_LONGLONG /DINLINE=
+
+RM = del
+
+.c.obj :
+    $(CC) $(CFLAGS) /c /Fo$@ $<
+
+all : kai.lib kaidemo.exe
+
+kai.lib : kai.obj kai_dart.obj kai_uniaud.obj
+    -$(RM) $@
+    ilib /nobackup /nologo $@ $**,,
+
+kai.obj : kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
+
+kai_dart.obj : kai_dart.c kai.h kai_internal.h kai_dart.h
+
+kai_uniaud.obj : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h kai_uniaud.h
+
+kaidemo.exe : kaidemo.obj kai.lib
+    $(CC) /Fe$@ $** mmpm2.lib
+
+kaidemo.obj : kaidemo.c kai.h
+
+clean :
+    -$(RM) *.bak
+    -$(RM) *.obj
+    -$(RM) *.lib
+    -$(RM) *.exe
