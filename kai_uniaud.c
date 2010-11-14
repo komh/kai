@@ -38,6 +38,10 @@
 #include "kai_internal.h"
 #include "kai_uniaud.h"
 
+// EAGAIN is different in according to a compiler
+// So define macro for UNIAUD
+#define UNIAUD_EAGAIN   11
+
 typedef struct ReSampleContext1
 {
     void   *resample_context;
@@ -436,7 +440,7 @@ static void uniaudFillThread( void *arg )
             if (ret == -77)
                 uniaud_pcm_prepare( m_pcm );
 
-            if (err == -EAGAIN)
+            if (err == -UNIAUD_EAGAIN)
             {
                 state = uniaud_pcm_state( m_pcm );
                 printf("eagain. written: %i of %i. state: %i\n", written, count, state );
