@@ -447,10 +447,10 @@ static void uniaudFillThread( void *arg )
 
             err = uniaud_pcm_write( m_pcm, m_pchBuffer + written, count - written );
             ret = uniaud_pcm_wait( m_pcm, timeout );
-            if (ret == -77)
+            if( ret == -77 )
                 uniaud_pcm_prepare( m_pcm );
 
-            if (err == -UNIAUD_EAGAIN)
+            if( err == -UNIAUD_EAGAIN )
             {
                 state = uniaud_pcm_state( m_pcm );
                 printf("eagain. written: %i of %i. state: %i\n", written, count, state );
