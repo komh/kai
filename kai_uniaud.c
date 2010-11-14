@@ -324,7 +324,17 @@ static BOOL loadUniaud( VOID )
     if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_put_spdif_status", ( PFN * )&uniaud_mixer_put_spdif_status ))
         goto exit_error;
 
-    return TRUE;
+    switch( uniaud_get_version())
+    {
+        case -2 :   // uniaud not detected
+        case -1 :   // uniaud error
+            break;
+
+        default :
+            if( uniaud_get_cards()) // audio card detected ?
+                return TRUE;
+            break;
+    }
 
 exit_error :
     freeUniaud();
