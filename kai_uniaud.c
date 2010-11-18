@@ -453,7 +453,7 @@ static void uniaudFillThread( void *arg )
             if( err == -UNIAUD_EAGAIN )
             {
                 state = uniaud_pcm_state( m_pcm );
-                printf("eagain. written: %i of %i. state: %i\n", written, count, state );
+                printf("EAGAIN : written = %i of %i, state = %i\n", written, count, state );
                 if( written > 0 )
                     break;
 
@@ -477,7 +477,7 @@ static void uniaudFillThread( void *arg )
                 {
                     DosSleep( 1 );
 
-                    printf("part written %i from %i.err: %i\n", written, count, err );
+                    printf("part written = %i from %i, err = %i\n", written, count, err );
                     break; // internal uniaud error
                 }
 
