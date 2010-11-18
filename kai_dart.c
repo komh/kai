@@ -220,7 +220,7 @@ static APIRET APIENTRY dartDone( VOID )
 
 static APIRET APIENTRY dartError( APIRET rc )
 {
-    if(( USHORT )rc )
+    if( LOUSHORT( rc ))
     {
         m_pfnmciGetErrorString( rc,
                                 ( PSZ )m_DART.szErrorCode,
@@ -228,7 +228,7 @@ static APIRET APIENTRY dartError( APIRET rc )
 
         fprintf( stderr, "\nDART error(%lx):%s\n", rc, m_DART.szErrorCode );
 
-        return rc;
+        return LOUSHORT( rc );
     }
 
     m_DART.szErrorCode[ 0 ] = 0;
