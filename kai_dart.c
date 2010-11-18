@@ -216,7 +216,7 @@ static APIRET APIENTRY dartStop(void)
                               ( PVOID )&GenericParms,
                               0 );
     if( dartError( rc ))
-        return rc;
+        return LOUSHORT( rc );
 
 #ifndef USE_UNIAUD_WORKAROUND
     m_DART.fPlaying = FALSE;
@@ -270,7 +270,7 @@ static APIRET APIENTRY dartFreeBuffers( VOID )
                               MCI_WAIT | MCI_DEALLOCATE_MEMORY,
                               ( PVOID )&m_BufferParms, 0 );
     if( dartError( rc ))
-        return rc;
+        return LOUSHORT( rc );
 
     free( m_pMixBuffers );
     m_pMixBuffers = NULL;
@@ -421,7 +421,7 @@ static APIRET APIENTRY dartOpen( PKAISPEC pks )
                               ( PVOID )&AmpOpenParms,
                               0 );
     if( dartError( rc ))
-        return rc;
+        return LOUSHORT( rc );
 
     m_usDeviceID = AmpOpenParms.usDeviceID;
 
@@ -525,7 +525,7 @@ exit_close :
                          ( PVOID )&GenericParms,
                          0 );
 
-    return rc;
+    return LOUSHORT( rc );
 }
 
 
@@ -548,7 +548,7 @@ static APIRET APIENTRY dartClose( VOID )
                                   ( PVOID )&GenericParms,
                                   0 );
         if( dartError( rc ))
-            return rc;
+            return LOUSHORT( rc );
     }
 
     rc = m_pfnmciSendCommand( m_usDeviceID,
@@ -557,7 +557,7 @@ static APIRET APIENTRY dartClose( VOID )
                               ( PVOID )&GenericParms,
                               0 );
     if( dartError( rc ))
-        return rc;
+        return LOUSHORT( rc );
 
     free( m_DART.mixBuffer.pBuffer );
     m_DART.mixBuffer.pBuffer = NULL;
@@ -605,7 +605,7 @@ static APIRET APIENTRY dartPlay( VOID )
     {
         dartStop();
 
-        return rc;
+        return LOUSHORT( rc );
     }
 
     return KAIE_NO_ERROR;
@@ -626,7 +626,7 @@ static APIRET APIENTRY dartPause( VOID )
                               ( PVOID )&GenericParms,
                               0 );
     if( dartError( rc ))
-        return rc;
+        return LOUSHORT( rc );
 
     m_DART.fPaused = TRUE;
 
@@ -648,7 +648,7 @@ static APIRET APIENTRY dartResume( VOID )
                               ( PVOID )&GenericParms,
                               0 );
     if( dartError( rc ))
-        return rc;
+        return LOUSHORT( rc );
 
     // setting volume of channels separately can be failed.
     if( LOUSHORT( m_ulCurrVolume ) == HIUSHORT( m_ulCurrVolume ))
@@ -698,7 +698,7 @@ static APIRET APIENTRY dartSetPos( ULONG ulNewPos )
                               ( PVOID )&SeekParms,
                               0 );
     if( dartError( rc ))
-        return rc;
+        return LOUSHORT( rc );
 
     return KAIE_NO_ERROR;
 }
@@ -721,7 +721,7 @@ static APIRET APIENTRY dartSetSoundState( ULONG ulCh, BOOL fState)
                               MCI_WAIT | MCI_SET_AUDIO | usSt,
                               ( PVOID)&SetParms, 0 );
     if( dartError( rc ))
-        return rc;
+        return LOUSHORT( rc );
 
     return KAIE_NO_ERROR;
 }
@@ -739,7 +739,7 @@ static APIRET APIENTRY dartSetVolume( ULONG ulCh, USHORT usVol)
                               MCI_SET_VOLUME,
                               ( PVOID )&SetParms, 0);
     if( dartError( rc ))
-        return rc;
+        return LOUSHORT( rc );
 
     return KAIE_NO_ERROR;
 }
@@ -851,6 +851,6 @@ exit:
     freeMDM();
 #endif
 
-    return ulRC;
+    return LOUSHORT( ulRC );
 }
 
