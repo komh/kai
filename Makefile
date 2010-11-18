@@ -27,7 +27,7 @@ RM = rm -f
 .a.lib :
 	emxomf -o $@ $<
 
-all : kai.a kai.lib kaidemo.exe
+all : kai.a kai.lib kaidemo.exe kaidemo2.exe
 
 kai.a : kai.o kai_dart.o kai_uniaud.o
 	$(AR) rc $@ $^
@@ -42,6 +42,11 @@ kaidemo.exe : kaidemo.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
 
 kaidemo.o : kaidemo.c kai.h
+
+kaidemo2.exe : kaidemo2.o kai.lib
+	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
+
+kaidemo2.o : kaidemo2.c kai.h
 
 clean :
 	$(RM) *.bak
@@ -62,7 +67,8 @@ distclean : clean
 	$(RM) *.zip
 
 src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c kai_uniaud.h \
-      kaidemo.c daudio.wav Makefile Makefile.icc Makefile.wat \
+      kaidemo.c kaidemo2.c demo1.wav demo2.wav demo3.wav \
+      Makefile Makefile.icc Makefile.wat \
       uniaud.h unidef.h unierrno.h uniaud.dll
 	$(RM) src.zip
 	zip src.zip $^

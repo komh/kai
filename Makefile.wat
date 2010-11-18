@@ -15,7 +15,7 @@ RM = del
 .c.obj :
     $(CC) $(CFLAGS) -fo=$@ $[@
 
-all : .SYMBOLIC kai.lib kaidemo.exe
+all : .SYMBOLIC kai.lib kaidemo.exe kaidemo2.exe
 
 kai.lib : kai.obj kai_dart.obj kai_uniaud.obj
     -$(RM) $@
@@ -31,6 +31,11 @@ kaidemo.exe : kaidemo.obj kai.lib
     $(LINK) $(LFLAGS) system os2v2 name $@ file { $< } library mmpm2
 
 kaidemo.obj : kaidemo.c kai.h
+
+kaidemo2.exe : kaidemo2.obj kai.lib
+    $(LINK) $(LFLAGS) system os2v2 name $@ file { $< } library mmpm2
+
+kaidemo2.obj : kaidemo2.c kai.h
 
 clean : .SYMBOLIC
     -$(RM) *.bak
