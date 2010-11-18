@@ -35,7 +35,7 @@
 extern "C" {
 #endif
 
-#define KAI_VERSION     "1.1.0"
+#define KAI_VERSION     "1.1.1"
 
 #define KAIM_AUTO       0
 #define KAIM_DART       1
