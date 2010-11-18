@@ -20,6 +20,7 @@
 #include <os2.h>
 
 #include <string.h>
+#include <stdlib.h>
 
 #include "kai.h"
 #include "kai_internal.h"
@@ -29,10 +30,8 @@
 static BOOL     m_fInited = FALSE;
 static KAIAPIS  m_kai = { NULL, };
 static BOOL     m_fOpened = FALSE;
+static KAICAPS  m_kaic = { 0, };
 
-static ULONG m_ulMode;
-static ULONG m_ulMaxChannels;
-static CHAR  m_szPDDName[ 256 ];
 
 APIRET APIENTRY kaiInit( ULONG ulMode )
 {
@@ -43,7 +42,7 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
 
     if( ulMode == KAIM_UNIAUD || ulMode == KAIM_AUTO )
     {
-        rc = kaiUniaudInit( &m_kai, &m_ulMaxChannels );
+        rc = kaiUniaudInit( &m_kai, &m_kaic.ulMaxChannels );
         if( rc )
         {
             if( ulMode != KAIM_AUTO )
@@ -55,7 +54,7 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
 
     if( ulMode == KAIM_DART || ulMode == KAIM_AUTO )
     {
-        rc = kaiDartInit( &m_kai, &m_ulMaxChannels );
+        rc = kaiDartInit( &m_kai, &m_kaic.ulMaxChannels );
         if( rc )
         {
             if( ulMode != KAIM_AUTO )
@@ -67,8 +66,8 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
 
     if( !rc )
     {
-        m_ulMode = ulMode;
-        kaiOSLibGetAudioPDDName( m_szPDDName );
+        m_kaic.ulMode = ulMode;
+        kaiOSLibGetAudioPDDName( m_kaic.szPDDName );
 
         m_fOpened = FALSE;
 
@@ -102,9 +101,7 @@ APIRET APIENTRY kaiCaps( PKAICAPS pkc )
     if( !pkc )
         return KAIE_INVALID_PARAMETER;
 
-    pkc->ulMode        = m_ulMode;
-    pkc->ulMaxChannels = m_ulMaxChannels;
-    strcpy( pkc->szPDDName, m_szPDDName );
+    memcpy( pkc, &m_kaic, sizeof( KAICAPS ));
 
     return KAIE_NO_ERROR;
 }
