@@ -106,13 +106,14 @@
 #pragma pack( 1 )
 typedef struct DARTSTRUCT
 {
-    volatile BOOL    fPlaying;
-    volatile BOOL    fPaused;
-             BOOL    fCompleted;
-             ULONG   ulBufferSize;
-             ULONG   ulNumBuffers;
-             BYTE    bSilence;
-             CHAR    szErrorCode[ CCHMAXPATH ];
+    volatile BOOL               fPlaying;
+    volatile BOOL               fPaused;
+             BOOL               fCompleted;
+             ULONG              ulBufferSize;
+             ULONG              ulNumBuffers;
+             BYTE               bSilence;
+             CHAR               szErrorCode[ CCHMAXPATH ];
+             MCI_MIX_BUFFER     mixBuffer;
 } DARTSTRUCT, *PDARTSTRUCT;
 #pragma pack()
 
@@ -121,7 +122,6 @@ static DARTSTRUCT m_DART = { 0 };
 static HEV   m_hevFill = NULLHANDLE;
 static HEV   m_hevFillDone = NULLHANDLE;
 static TID   m_tidFillThread = 0;
-static PVOID m_pFillArg = NULL;
 
 static BOOL               m_fWaitStreamEnd = FALSE;
 static BOOL               m_fShareable = FALSE;
@@ -286,8 +286,6 @@ static APIRET APIENTRY dartStop(void)
     DosCloseEventSem( m_hevFillDone );
 #endif
 
-    m_pFillArg = NULL;
-
     return KAIE_NO_ERROR;
 }
 
@@ -309,10 +307,7 @@ static ULONG dartFillBuffer( PMCI_MIX_BUFFER pBuffer )
 
     ulWritten = m_pfndicb( m_pCBData, pBuffer->pBuffer, m_DART.ulBufferSize );
     if( ulWritten < m_DART.ulBufferSize )
-    {
         pBuffer->ulFlags = MIX_BUFFER_EOS;
-        m_fWaitStreamEnd = TRUE;
-    }
     else
         pBuffer->ulFlags = 0;
 
@@ -333,9 +328,7 @@ static APIRET APIENTRY dartFreeBuffers( VOID )
     if( dartError( rc ))
         return rc;
 
-    if( m_pMixBuffers )
-        free( m_pMixBuffers );
-
+    free( m_pMixBuffers );
     m_pMixBuffers = NULL;
 
     return KAIE_NO_ERROR;
@@ -356,21 +349,32 @@ static void dartFillThread( void *arg )
             break;
 
         // Transfer buffer to DART
-        dartFillBuffer( m_pFillArg );
+        dartFillBuffer( &m_DART.mixBuffer );
 
         DosPostEventSem( m_hevFillDone );
     }
 }
 
-#define DART_FILL_BUFFERS( pBuffer ) \
-{\
-    static ULONG ulPost = 0;\
-\
-    m_pFillArg = pBuffer;\
-    DosPostEventSem( m_hevFill );\
-\
-    while( DosWaitEventSem( m_hevFillDone, SEM_INDEFINITE_WAIT ) == ERROR_INTERRUPT );\
-    DosResetEventSem( m_hevFillDone, &ulPost );\
+void DART_FILL_BUFFERS( PMCI_MIX_BUFFER pBuffer )
+{
+    ULONG ulPost;
+
+    if( DosWaitEventSem( m_hevFillDone, SEM_IMMEDIATE_RETURN ) == NO_ERROR )
+    {
+        DosResetEventSem( m_hevFillDone, &ulPost );
+
+        memcpy( pBuffer->pBuffer, m_DART.mixBuffer.pBuffer, m_DART.ulBufferSize );
+        pBuffer->ulFlags = m_DART.mixBuffer.ulFlags;
+        if( pBuffer->ulFlags == MIX_BUFFER_EOS )
+            m_fWaitStreamEnd = TRUE;
+
+        DosPostEventSem( m_hevFill );
+
+        return;
+    }
+
+    memset( pBuffer->pBuffer, m_DART.bSilence, m_DART.ulBufferSize );
+    pBuffer->ulFlags = 0;
 }
 
 static LONG APIENTRY MixHandler( ULONG ulStatus, PMCI_MIX_BUFFER pBuffer, ULONG ulFlags )
@@ -392,7 +396,7 @@ static LONG APIENTRY MixHandler( ULONG ulStatus, PMCI_MIX_BUFFER pBuffer, ULONG 
             {
                 DART_FILL_BUFFERS( pBuffer );
 
-                m_MixSetupParms.pmixWrite( m_MixSetupParms.ulMixHandle, m_pFillArg, 1 );
+                m_MixSetupParms.pmixWrite( m_MixSetupParms.ulMixHandle, pBuffer, 1 );
             }
             break;
         }
@@ -542,6 +546,10 @@ static APIRET APIENTRY dartOpen( PKAISPEC pks )
     m_DART.ulNumBuffers = m_BufferParms.ulNumBuffers;
     m_DART.ulBufferSize = m_BufferParms.ulBufferSize;
 
+    m_DART.mixBuffer.pBuffer = malloc( m_DART.ulBufferSize );
+    if( !m_DART.mixBuffer.pBuffer )
+        goto exit_deallocate;
+
     m_pfndicb = pks->pfnCallBack;
     m_pCBData = pks->pCallBackData;
 
@@ -607,6 +615,9 @@ static APIRET APIENTRY dartClose( VOID )
     if( dartError( rc ))
         return rc;
 
+    free( m_DART.mixBuffer.pBuffer );
+    m_DART.mixBuffer.pBuffer = NULL;
+
     return KAIE_NO_ERROR;
 }
 
@@ -623,7 +634,7 @@ static APIRET APIENTRY dartPlay( VOID )
     m_DART.fPaused    = FALSE;
     m_DART.fCompleted = FALSE;
 
-    DosCreateEventSem( NULL, &m_hevFill, 0, FALSE );
+    DosCreateEventSem( NULL, &m_hevFill, 0, TRUE );
     DosCreateEventSem( NULL, &m_hevFillDone, 0, FALSE );
     m_tidFillThread = _beginthread( dartFillThread, NULL, 256 * 1024, NULL );
 
