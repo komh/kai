@@ -13,58 +13,46 @@
 
 #define BUF_SIZE    1024
 
-BYTE abBuf[ BUF_SIZE ];
-int  iBufIndex = 0;
-int  iBufLen = 0;
+static BYTE m_abBuf[ BUF_SIZE ];
+static int  m_iBufIndex = 0;
+static int  m_iBufLen = 0;
 
-HMMIO hmmio;
-int   switch_sign = FALSE;
+static HMMIO m_hmmio;
 
-volatile ULONG ulStatus;
+static volatile ULONG m_ulStatus = 0;
 
 ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
 {
-  PBYTE pbBuffer = Buffer;
-  LONG  len;
+    PBYTE   pbBuffer = Buffer;
+    LONG    lLen;
 
-  if( ulStatus & KAIS_COMPLETED )
-    mmioSeek( hmmio, 0, SEEK_SET );
+    if( m_ulStatus & KAIS_COMPLETED )
+        mmioSeek( m_hmmio, 0, SEEK_SET );
 
-  while( BufferSize > 0 )
-  {
-    if( iBufIndex >= iBufLen )
+    while( BufferSize > 0 )
     {
-        iBufLen = mmioRead( hmmio, abBuf, BUF_SIZE );
-        if( iBufLen == 0 )
-            break;
-        iBufIndex = 0;
+        if( m_iBufIndex >= m_iBufLen )
+        {
+            m_iBufLen = mmioRead( m_hmmio, m_abBuf, BUF_SIZE );
+            if( m_iBufLen == 0 )
+                break;
+
+            m_iBufIndex = 0;
+        }
+
+        lLen = m_iBufLen - m_iBufIndex;
+        if( lLen > BufferSize )
+            lLen = BufferSize;
+        memcpy( pbBuffer, &m_abBuf[ m_iBufIndex ], lLen );
+        m_iBufIndex  += lLen;
+        pbBuffer     += lLen;
+        BufferSize   -= lLen;
     }
 
-    len = iBufLen - iBufIndex;
-    if( len > BufferSize )
-        len = BufferSize;
-    memcpy( pbBuffer, &abBuf[ iBufIndex ], len );
-    iBufIndex += len;
-    pbBuffer += len;
-    BufferSize -= len;
-  }
-
-  if (switch_sign)
-  {
-    char *sample = (char *)Buffer;
-    char *lastsample = pbBuffer;
-    while (sample < lastsample)
-    {
-      sample++;
-      *sample ^= 0x80;
-      sample++;
-    } /* endwhile */
-  } /* endif */
-
-  return pbBuffer - ( PBYTE )Buffer;
+    return pbBuffer - ( PBYTE )Buffer;
 }
 
-int read_key(void)
+int read_key( void )
 {
     KBDKEYINFO Char;
 
@@ -76,72 +64,72 @@ int read_key(void)
     return 0;
 }
 
-const char *getStatusName( ULONG ulStatus )
+const char *getStatusName( ULONG m_ulStatus )
 {
-    if( ulStatus & KAIS_COMPLETED )
+    if( m_ulStatus & KAIS_COMPLETED )
         return "COMPLETED";
 
-    if( ulStatus & KAIS_PAUSED )
+    if( m_ulStatus & KAIS_PAUSED )
         return "PAUSED";
 
-    if( ulStatus & KAIS_PLAYING )
+    if( m_ulStatus & KAIS_PLAYING )
         return "PLAYING";
 
     return "STOPPED";
 }
 
-int main( int argc, char **argv )
+int main( int argc, char *argv[])
 {
     MMIOINFO        mmioInfo;
     MMAUDIOHEADER   mmAudioHeader;
     LONG            lBytesRead;
-    HKAI            hkai;
-    int             key;
-    APIRET          rc;
-    const char     *modeName[] = {"DART", "UNIAUD"};
     KAICAPS         kaic;
     KAISPEC         ksWanted, ksObtained;
+    HKAI            hkai;
+    int             key;
+    ULONG           ulMode;
+    const char     *modeName[] = {"DART", "UNIAUD"};
 
     if( argc < 2 )
     {
-        fprintf( stderr, "Usage : kaidemo WAVE-file [audio-mode=0:auto, 1:dart, 2:uniaud]\r\n" );
+        fprintf( stderr, "Usage : kaidemo WAVE-file [mode] (mode : 0 = auto, 1 = dart, 2 = uniaud )\n");
 
-        return 0;
+        return 1;
     }
 
-   /* Open the audio file.
-    */
-   memset( &mmioInfo, '\0', sizeof( MMIOINFO ));
-   mmioInfo.fccIOProc = mmioFOURCC( 'W', 'A', 'V', 'E' );
-   hmmio = mmioOpen( argv[ 1 ], &mmioInfo, MMIO_READ | MMIO_DENYNONE );
-
-   if( !hmmio )
-   {
-      fprintf( stderr, "Unable to open wave file\r\n" );
-
-      return 0;
-   }
-
-   /* Get the audio file header.
-    */
-   mmioGetHeader( hmmio,
-                  &mmAudioHeader,
-                  sizeof( MMAUDIOHEADER ),
-                  &lBytesRead,
-                  0,
-                  0);
-
-    if( kaiInit( argc > 2 ? atoi( argv[ 2 ]) : KAIM_AUTO ))
+    ulMode = argc > 2 ? atoi( argv[ 2 ]) : KAIM_AUTO;
+    if( kaiInit( ulMode ))
     {
-        fprintf( stderr, "Unable to init kai\n");
+        fprintf( stderr, "Failed to init kai\n");
 
-        return 0;
+        return 1;
     }
 
     kaiCaps( &kaic );
 
     printf("Mode = %s, Available channels = %ld, PDD Name = %s\n",
            modeName[ kaic.ulMode - 1 ], kaic.ulMaxChannels, kaic.szPDDName );
+
+    /* Open the audio file.
+     */
+    memset( &mmioInfo, '\0', sizeof( MMIOINFO ));
+    mmioInfo.fccIOProc = mmioFOURCC( 'W', 'A', 'V', 'E' );
+    m_hmmio = mmioOpen( argv[ 1 ], &mmioInfo, MMIO_READ | MMIO_DENYNONE );
+    if( !m_hmmio )
+    {
+        fprintf( stderr, "Failed to open wave file\n");
+
+        return 1;
+    }
+
+    /* Get the audio file header.
+     */
+    mmioGetHeader( m_hmmio,
+                   &mmAudioHeader,
+                   sizeof( MMAUDIOHEADER ),
+                   &lBytesRead,
+                   0,
+                   0);
 
     ksWanted.usDeviceIndex      = 0;
     ksWanted.ulType             = KAIT_PLAY;
@@ -176,25 +164,25 @@ int main( int argc, char **argv )
 
     while( 1 )
     {
-        ulStatus = kaiStatus( hkai );
-        printf("Status = %04lx [%9s]\r", ulStatus, getStatusName( ulStatus ));
+        m_ulStatus = kaiStatus( hkai );
+        printf("Status : [%9s]\r", getStatusName( m_ulStatus ));
         fflush( stdout );
 
         key = read_key();
 
-        if (key == 27)    /* ESC */
+        if( key == 27 )    /* ESC */
             break;
 
-        if (key == 'q')
+        if( key == 'q')
             kaiStop( hkai );
 
-        if (key == 'w')
+        if( key == 'w')
             kaiPlay( hkai );
 
-        if (key == 'e')
+        if( key == 'e')
             kaiPause( hkai );
 
-        if (key == 'r')
+        if( key == 'r')
             kaiResume( hkai );
 
         DosSleep( 1 );
@@ -204,9 +192,11 @@ int main( int argc, char **argv )
 
     kaiClose( hkai );
 
-    kaiDone();
+exit_mmio_close :
 
-    mmioClose( hmmio, 0 );
+    mmioClose( m_hmmio, 0 );
+
+    kaiDone();
 
     return 0;
 }
