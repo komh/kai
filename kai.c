@@ -29,9 +29,75 @@
 
 static BOOL     m_fInited = FALSE;
 static KAIAPIS  m_kai = { NULL, };
-static BOOL     m_fOpened = FALSE;
 static KAICAPS  m_kaic = { 0, };
 
+typedef struct tagINSTANCELIST INSTANCELIST, *PINSTANCELIST;
+struct tagINSTANCELIST
+{
+    HKAI          hkai;
+    PINSTANCELIST pilNext;
+};
+
+PINSTANCELIST   m_pilStart = NULL;
+
+static VOID instanceAdd( HKAI hkai )
+{
+    PINSTANCELIST pilNew;
+
+    pilNew          = malloc( sizeof( INSTANCELIST ));
+    pilNew->hkai    = hkai;
+    pilNew->pilNext = m_pilStart;
+    m_pilStart      = pilNew;
+}
+
+static VOID instanceDel( HKAI hkai )
+{
+    PINSTANCELIST pil, pilPrev = NULL;
+
+    for( pil = m_pilStart; pil; pil = pil->pilNext )
+    {
+        if( pil->hkai == hkai )
+            break;
+
+        pilPrev = pil;
+    }
+
+    if( !pil )
+        return;
+
+    if( pilPrev )
+        pilPrev->pilNext = pil->pilNext;
+    else
+        m_pilStart = pil->pilNext;
+
+    free( pil );
+}
+
+static VOID instanceDelAll( VOID )
+{
+    PINSTANCELIST pil, pilNext;
+
+    for( pil = m_pilStart; pil; pil = pilNext )
+    {
+        pilNext = pil->pilNext;
+        free( pil );
+    }
+
+    m_pilStart = NULL;
+}
+
+static PINSTANCELIST instanceVerify( HKAI hkai )
+{
+    PINSTANCELIST pil;
+
+    for( pil = m_pilStart; pil; pil = pil->pilNext )
+    {
+        if( pil->hkai == hkai )
+            break;
+    }
+
+    return pil;
+}
 
 APIRET APIENTRY kaiInit( ULONG ulMode )
 {
@@ -69,8 +135,6 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
         m_kaic.ulMode = ulMode;
         kaiOSLibGetAudioPDDName( m_kaic.szPDDName );
 
-        m_fOpened = FALSE;
-
         m_fInited = TRUE;
     }
 
@@ -87,6 +151,8 @@ APIRET APIENTRY kaiDone( VOID )
     rc = m_kai.pfnDone();
     if( rc )
         return rc;
+
+    instanceDelAll();
 
     m_fInited = FALSE;
 
@@ -106,17 +172,14 @@ APIRET APIENTRY kaiCaps( PKAICAPS pkc )
     return KAIE_NO_ERROR;
 }
 
-APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained )
+APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained, PHKAI phkai )
 {
     APIRET rc;
 
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( m_fOpened )
-        return KAIE_ALREADY_OPENED;
-
-    if( !pksWanted || !pksObtained )
+    if( !pksWanted || !pksObtained || !phkai )
         return KAIE_INVALID_PARAMETER;
 
     if( !pksWanted->pfnCallBack )
@@ -124,129 +187,129 @@ APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained )
 
     memcpy( pksObtained, pksWanted, sizeof( KAISPEC ));
 
-    rc = m_kai.pfnOpen( pksObtained );
+    rc = m_kai.pfnOpen( pksObtained, phkai );
     if( rc )
         return rc;
 
-    m_fOpened = TRUE;
+    instanceAdd( *phkai );
 
     return KAIE_NO_ERROR;
 }
 
-APIRET APIENTRY kaiClose( VOID )
+APIRET APIENTRY kaiClose( HKAI hkai )
 {
     APIRET rc;
 
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    rc = m_kai.pfnClose();
+    rc = m_kai.pfnClose( hkai );
     if( rc )
         return rc;
 
-    m_fOpened = FALSE;
+    instanceDel( hkai );
 
     return KAIE_NO_ERROR;
 }
 
-APIRET APIENTRY kaiPlay( VOID )
+APIRET APIENTRY kaiPlay( HKAI hkai )
 {
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnPlay();
+    return m_kai.pfnPlay( hkai );
 }
 
-APIRET APIENTRY kaiStop( VOID )
+APIRET APIENTRY kaiStop( HKAI hkai )
 {
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnStop();
+    return m_kai.pfnStop( hkai );
 }
 
-APIRET APIENTRY kaiPause( VOID )
+APIRET APIENTRY kaiPause( HKAI hkai )
 {
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnPause();
+    return m_kai.pfnPause( hkai );
 }
 
-APIRET APIENTRY kaiResume( VOID )
+APIRET APIENTRY kaiResume( HKAI hkai )
 {
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnResume();
+    return m_kai.pfnResume( hkai );
 }
 
-APIRET APIENTRY kaiSetSoundState( ULONG ulCh, BOOL fState )
+APIRET APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
 {
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnSetSoundState( ulCh, fState );
+    return m_kai.pfnSetSoundState( hkai, ulCh, fState );
 }
 
-APIRET APIENTRY kaiSetVolume( ULONG ulCh, USHORT usVol )
+APIRET APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
 {
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnSetVolume( ulCh, usVol );
+    return m_kai.pfnSetVolume( hkai, ulCh, usVol );
 }
 
-APIRET APIENTRY kaiGetVolume( ULONG ulCh )
+APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
 {
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnGetVolume( ulCh );
+    return m_kai.pfnGetVolume( hkai, ulCh );
 }
 
-APIRET APIENTRY kaiClearBuffer( VOID )
+APIRET APIENTRY kaiClearBuffer( HKAI hkai )
 {
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnClearBuffer();
+    return m_kai.pfnClearBuffer( hkai );
 }
 
-APIRET APIENTRY kaiStatus( VOID )
+APIRET APIENTRY kaiStatus( HKAI hkai )
 {
     if( !m_fInited )
         return KAIE_NOT_INITIALIZED;
 
-    if( !m_fOpened )
-        return KAIE_NOT_OPENED;
+    if( !instanceVerify( hkai ))
+        return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnStatus();
+    return m_kai.pfnStatus( hkai );
 }

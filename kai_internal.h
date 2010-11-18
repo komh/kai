@@ -33,17 +33,17 @@ exter "C" {
 typedef struct tagKAIAPIS
 {
     DECLARE_PFN( APIRET, APIENTRY, pfnDone, ( VOID ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnOpen, ( PKAISPEC ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnClose, ( VOID ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnPlay, ( VOID ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnStop, ( VOID ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnPause, ( VOID ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnResume, ( VOID ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnSetSoundState, ( ULONG, BOOL ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnSetVolume, ( ULONG, USHORT ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnGetVolume, ( ULONG ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnClearBuffer, ( VOID ));
-    DECLARE_PFN( APIRET, APIENTRY, pfnStatus, ( VOID ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnOpen, ( PKAISPEC, PHKAI ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnClose, ( HKAI ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnPlay, ( HKAI ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnStop, ( HKAI ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnPause, ( HKAI ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnResume, ( HKAI ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnSetSoundState, ( HKAI, ULONG, BOOL ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnSetVolume, ( HKAI, ULONG, USHORT ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnGetVolume, ( HKAI, ULONG ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnClearBuffer, ( HKAI ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnStatus, ( HKAI ));
 } KAIAPIS, *PKAIAPIS;
 
 #ifdef __cplusplus

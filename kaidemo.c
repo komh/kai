@@ -95,6 +95,7 @@ int main( int argc, char **argv )
     MMIOINFO        mmioInfo;
     MMAUDIOHEADER   mmAudioHeader;
     LONG            lBytesRead;
+    HKAI            hkai;
     int             key;
     APIRET          rc;
     const char     *modeName[] = {"DART", "UNIAUD"};
@@ -154,7 +155,7 @@ int main( int argc, char **argv )
     ksWanted.pfnCallBack        = kaiCallback;
     ksWanted.pCallBackData      = NULL;
 
-    rc = kaiOpen( &ksWanted, &ksObtained );
+    rc = kaiOpen( &ksWanted, &ksObtained, &hkai );
 
     printf("Number of buffers = %lu\n", ksObtained.ulNumBuffers );
     printf("Buffer size = %lu\n", ksObtained.ulBufferSize );
@@ -162,16 +163,16 @@ int main( int argc, char **argv )
 
     printf("ESC = quit, q = stop, w = play, e = pause, r = resume\n");
 
-    kaiSetVolume( MCI_SET_AUDIO_ALL, 50 );
-    kaiSetSoundState( MCI_SET_AUDIO_ALL, TRUE );
+    kaiSetVolume( hkai, MCI_SET_AUDIO_ALL, 50 );
+    kaiSetSoundState( hkai, MCI_SET_AUDIO_ALL, TRUE );
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
-    kaiPlay();
+    kaiPlay( hkai );
     //DosSetPriority( PRTYS_THREAD, PRTYC_REGULAR, 0, 0 );
 
     while( 1 )
     {
-        ulStatus = kaiStatus();
+        ulStatus = kaiStatus( hkai );
         printf("Status = %04lx [%9s]\r", ulStatus, getStatusName( ulStatus ));
         fflush( stdout );
 
@@ -181,23 +182,23 @@ int main( int argc, char **argv )
             break;
 
         if (key == 113)   /* q */
-            kaiStop();
+            kaiStop( hkai );
 
         if (key == 119)   /* w */
-            kaiPlay();
+            kaiPlay( hkai );
 
         if (key == 101)   /* e */
-            kaiPause();
+            kaiPause( hkai );
 
         if (key == 114)   /* r */
-            kaiResume();
+            kaiResume( hkai );
 
         DosSleep( 1 );
     }
 
     printf("\n");
 
-    kaiClose();
+    kaiClose( hkai );
 
     kaiDone();
 

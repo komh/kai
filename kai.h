@@ -43,6 +43,8 @@ extern "C" {
 #define KAIE_NOT_OPENED             ( -5 )
 #define KAIE_ALREADY_OPENED         ( -6 )
 #define KAIE_NOT_ENOUGH_MEMORY      ( -7 )
+#define KAIE_INVALID_HANDLE         ( -8 )
+#define KAIE_NOT_READY              ( -9 )
 
 #define KAIT_PLAY       0
 #define KAIT_RECORD     1
@@ -83,20 +85,22 @@ typedef struct tagKAISPEC
 } KAISPEC, *PKAISPEC;
 #pragma pack()
 
+typedef ULONG HKAI, *PHKAI;
+
 APIRET APIENTRY kaiInit( ULONG ulKaiMode );
 APIRET APIENTRY kaiDone( VOID );
 APIRET APIENTRY kaiCaps( PKAICAPS pkc );
-APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained );
-APIRET APIENTRY kaiClose( VOID );
-APIRET APIENTRY kaiPlay( VOID );
-APIRET APIENTRY kaiStop( VOID );
-APIRET APIENTRY kaiPause( VOID );
-APIRET APIENTRY kaiResume( VOID );
-APIRET APIENTRY kaiSetSoundState( ULONG ulCh, BOOL fState );
-APIRET APIENTRY kaiSetVolume( ULONG ulCh, USHORT usVol );
-APIRET APIENTRY kaiGetVolume( ULONG ulCh );
-APIRET APIENTRY kaiClearBuffer( VOID );
-APIRET APIENTRY kaiStatus( VOID );
+APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained, PHKAI phkai );
+APIRET APIENTRY kaiClose( HKAI hkai );
+APIRET APIENTRY kaiPlay( HKAI hkai );
+APIRET APIENTRY kaiStop( HKAI hkai );
+APIRET APIENTRY kaiPause( HKAI hkai );
+APIRET APIENTRY kaiResume( HKAI hkai );
+APIRET APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState );
+APIRET APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol );
+APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh );
+APIRET APIENTRY kaiClearBuffer( HKAI hkai );
+APIRET APIENTRY kaiStatus( HKAI hkai );
 
 #ifdef __cpluslus
 }

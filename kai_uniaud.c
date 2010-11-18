@@ -42,6 +42,7 @@
 // So define macro for UNIAUD
 #define UNIAUD_EAGAIN   11
 
+#pragma pack( 1 )
 typedef struct ReSampleContext1
 {
     void   *resample_context;
@@ -52,21 +53,23 @@ typedef struct ReSampleContext1
     int     input_channels, output_channels, filter_channels;
 } ReSampleContext1;
 
-static volatile BOOL m_fPlaying   = FALSE;
-static volatile BOOL m_fPaused    = FALSE;
-static          BOOL m_fCompleted = FALSE;
-
-static BYTE m_bSilence;
-
-static HEV m_hevFill       = NULLHANDLE;
-static HEV m_hevFillDone   = NULLHANDLE;
-static TID m_tidPlayThread = 0;
-
-static PFNKAICB  m_pfnUniaudCB   = NULL;
-static PVOID     m_pUniaudCBData = NULL;
-
-static PCH          m_pchBuffer = NULL;
-static uniaud_pcm  *m_pcm       = NULL;
+typedef struct tagUNIAUDINFO
+{
+    uniaud_pcm      *pcm;
+    BYTE             bSilence;
+    PFNKAICB         pfnUniaudCB;
+    PVOID            pUniaudCBData;
+    PCH              pchBuffer;
+    HEV              hevFill;
+    HEV              hevFillDone;
+    TID              tidPlayThread;
+    INT              nFillSize;
+    ULONG   volatile ulCount;
+    BOOL    volatile fPlaying;
+    BOOL    volatile fPaused;
+    BOOL    volatile fCompleted;
+} UNIAUDINFO, *PUNIAUDINFO;
+#pragma pack()
 
 #define uniaud_mixer_get_power_state        m_pfnUniaudMixerGetPowerState
 #define uniaud_mixer_set_power_state        m_pfnUniaudMixerSetPowerState
@@ -163,18 +166,18 @@ static DECLARE_PFN( int, _System, uniaud_mixer_put_spdif_status, ( int, char *, 
 static HMODULE m_hmodUniaud = NULLHANDLE;
 
 static APIRET APIENTRY uniaudDone( VOID );
-static APIRET APIENTRY uniaudOpen( PKAISPEC pks );
-static APIRET APIENTRY uniaudClose( VOID );
-static APIRET APIENTRY uniaudPlay( VOID );
-static APIRET APIENTRY uniaudStop( VOID );
-static APIRET APIENTRY uniaudPause( VOID );
-static APIRET APIENTRY uniaudResume( VOID );
-static APIRET APIENTRY uniaudSetSoundState( ULONG ulCh, BOOL fState );
-static APIRET APIENTRY uniaudSetVolume( ULONG ulCh, USHORT usVol );
-static APIRET APIENTRY uniaudGetVolume( ULONG );
+static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai );
+static APIRET APIENTRY uniaudClose( HKAI hkai );
+static APIRET APIENTRY uniaudPlay( HKAI hkai );
+static APIRET APIENTRY uniaudStop( HKAI hkai );
+static APIRET APIENTRY uniaudPause( HKAI hkai );
+static APIRET APIENTRY uniaudResume( HKAI hkai );
+static APIRET APIENTRY uniaudSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState );
+static APIRET APIENTRY uniaudSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol );
+static APIRET APIENTRY uniaudGetVolume( HKAI hkai, ULONG ulCh );
 static APIRET APIENTRY uniaudChNum( VOID );
-static APIRET APIENTRY uniaudClearBuffer( VOID );
-static APIRET APIENTRY uniaudStatus( VOID );
+static APIRET APIENTRY uniaudClearBuffer( HKAI hkai );
+static APIRET APIENTRY uniaudStatus( HKAI hkai );
 
 static VOID freeUniaud( VOID )
 {
@@ -367,7 +370,6 @@ APIRET APIENTRY kaiUniaudInit( PKAIAPIS pkai, PULONG pulMaxChannels )
     *pulMaxChannels  = uniaudChNum();
 
     return KAIE_NO_ERROR;
-
 }
 
 static APIRET APIENTRY uniaudDone( VOID )
@@ -377,132 +379,137 @@ static APIRET APIENTRY uniaudDone( VOID )
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY uniaudStop(void)
+static APIRET APIENTRY uniaudStop( HKAI hkai )
 {
-    if( !m_fPlaying )
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+
+    if( !pui->fPlaying )
         return KAIE_NO_ERROR;
 
-    uniaud_pcm_drop( m_pcm );
+    uniaud_pcm_drop( pui->pcm );
 
-    m_fPlaying = FALSE;
-    m_fPaused  = FALSE;
+    pui->fPlaying = FALSE;
+    pui->fPaused  = FALSE;
 
-    while( DosWaitThread( &m_tidPlayThread, DCWW_WAIT ) == ERROR_INTERRUPT );
+    while( DosWaitThread( &pui->tidPlayThread, DCWW_WAIT ) == ERROR_INTERRUPT );
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY uniaudClearBuffer( VOID )
+static APIRET APIENTRY uniaudClearBuffer( HKAI hkai )
 {
-    memset( m_pchBuffer,0, m_pcm->bufsize );
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+
+    memset( pui->pchBuffer,0, pui->pcm->bufsize );
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY uniaudFreeBuffers( VOID )
+static APIRET APIENTRY uniaudFreeBuffers( HKAI hkai )
 {
-    free( m_pchBuffer );
-    m_pchBuffer = NULL;
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+
+    free( pui->pchBuffer );
+    pui->pchBuffer = NULL;
 
     return KAIE_NO_ERROR;
 }
-
-static int   m_nFillSize;
-static ULONG m_ulCount;
 
 static void uniaudFillThread( void *arg )
 {
-    ULONG ulPost;
+    PUNIAUDINFO pui = arg;
+    ULONG       ulPost;
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
 
     for(;;)
     {
-        while( DosWaitEventSem( m_hevFill, SEM_INDEFINITE_WAIT ) == ERROR_INTERRUPT );
-        DosResetEventSem( m_hevFill, &ulPost );
+        while( DosWaitEventSem( pui->hevFill, SEM_INDEFINITE_WAIT ) == ERROR_INTERRUPT );
+        DosResetEventSem( pui->hevFill, &ulPost );
 
-        if( !m_fPlaying )
+        if( !pui->fPlaying )
             break;
 
-        memset( m_pchBuffer, m_bSilence, m_nFillSize );
-        m_ulCount = m_pfnUniaudCB( m_pUniaudCBData, m_pchBuffer, m_nFillSize );
+        pui->ulCount = pui->pfnUniaudCB( pui->pUniaudCBData, pui->pchBuffer, pui->nFillSize );
 
-        DosPostEventSem( m_hevFillDone );
+        DosPostEventSem( pui->hevFillDone );
     }
 }
 
 static void uniaudPlayThread( void *arg )
 {
-    int   count, timeout = 20;
-    int   err, ret, state;
-    int   written;
-    TID   tidFillThread;
-    ULONG ulPost;
-    PCH   pchBuffer;
+    PUNIAUDINFO pui = arg;
+    int         count, timeout = 20;
+    int         err, ret, state;
+    int         written;
+    TID         tidFillThread;
+    ULONG       ulPost;
+    PCH         pchBuffer;
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
 
-    if( m_pcm->multi_channels > 0 )
-        m_nFillSize = m_pcm->bufsize;
+    if( pui->pcm->multi_channels > 0 )
+        pui->nFillSize = pui->pcm->bufsize;
     else
     {
-        if( m_pcm->resample && (( ReSampleContext1 * )( m_pcm->resample ))->ratio >= 2.0f )
-            m_nFillSize = m_pcm->period_size;
+        if( pui->pcm->resample && (( ReSampleContext1 * )( pui->pcm->resample ))->ratio >= 2.0f )
+            pui->nFillSize = pui->pcm->period_size;
         else
-            m_nFillSize = m_pcm->period_size * 2;
+            pui->nFillSize = pui->pcm->period_size * 2;
     }
 
-    pchBuffer = malloc( m_nFillSize );
+    pchBuffer = malloc( pui->nFillSize );
     if( !pchBuffer )
     {
-        m_fPlaying = FALSE;
+        pui->fPlaying = FALSE;
 
         return;
     }
 
-    DosCreateEventSem( NULL, &m_hevFill, 0, TRUE );
-    DosCreateEventSem( NULL, &m_hevFillDone, 0, FALSE );
-    tidFillThread = _beginthread( uniaudFillThread, NULL, 256 * 1024, NULL );
+    DosCreateEventSem( NULL, &pui->hevFill, 0, TRUE );
+    DosCreateEventSem( NULL, &pui->hevFillDone, 0, FALSE );
+    tidFillThread = _beginthread( uniaudFillThread, NULL, 256 * 1024, pui );
 
-    timeout *= m_pcm->channels;
+    timeout *= pui->pcm->channels;
 
-    while( m_fPlaying )
+    while( pui->fPlaying )
     {
-        if( DosWaitEventSem( m_hevFillDone, SEM_IMMEDIATE_RETURN ) == NO_ERROR )
+        if( DosWaitEventSem( pui->hevFillDone, SEM_IMMEDIATE_RETURN ) == NO_ERROR )
         {
-            DosResetEventSem( m_hevFillDone, &ulPost );
+            DosResetEventSem( pui->hevFillDone, &ulPost );
 
-            memcpy( pchBuffer, m_pchBuffer, m_nFillSize );
-            count = m_ulCount;
+            memcpy( pchBuffer, pui->pchBuffer, pui->nFillSize );
+            count = pui->ulCount;
 
-            DosPostEventSem( m_hevFill );
+            if( pui->ulCount == pui->nFillSize )
+                DosPostEventSem( pui->hevFill );
         }
         else
         {
-            memset( pchBuffer, m_bSilence, m_nFillSize );
-            count = m_nFillSize;
+            memset( pchBuffer, pui->bSilence, pui->nFillSize );
+            count = pui->nFillSize;
         }
 
         written = 0;
-        while( m_fPlaying && written < count )
+        while( pui->fPlaying && written < count )
         {
-            if( m_fPaused )
+            if( pui->fPaused )
             {
                 DosSleep( 1 );
                 continue;
             }
 
-            err = uniaud_pcm_write( m_pcm, pchBuffer + written, count - written );
-            ret = uniaud_pcm_wait( m_pcm, timeout );
+            err = uniaud_pcm_write( pui->pcm, pchBuffer + written, count - written );
+            ret = uniaud_pcm_wait( pui->pcm, timeout );
             if( ret == -77 )
-                uniaud_pcm_prepare( m_pcm );
+                uniaud_pcm_prepare( pui->pcm );
 
             if( err == -UNIAUD_EAGAIN )
             {
-                state = uniaud_pcm_state( m_pcm );
-                printf("EAGAIN : written = %i of %i, state = %i\n", written, count, state );
+                state = uniaud_pcm_state( pui->pcm );
+                fprintf( stderr, "EAGAIN : written = %i of %i, state = %i\n", written, count, state );
 
-                uniaud_pcm_drop( m_pcm );
+                uniaud_pcm_drop( pui->pcm );
 
                 DosSleep( 1 );
                 continue;
@@ -516,43 +523,43 @@ static void uniaudPlayThread( void *arg )
                 if( err < -10000 )
                 {
                     DosSleep( 1 );
-                    printf("part written = %i from %i, err = %i\n", written, count, err );
+                    fprintf( stderr, "part written = %i from %i, err = %i\n", written, count, err );
                     break; // internal uniaud error
                 }
 
                 DosSleep( 0 );
-                state = uniaud_pcm_state( m_pcm );
+                state = uniaud_pcm_state( pui->pcm );
                 if((( state != SND_PCM_STATE_PREPARED ) &&
                     ( state != SND_PCM_STATE_RUNNING ) &&
                     ( state != SND_PCM_STATE_DRAINING )) || err == -32 )
                 {
-                    ret = uniaud_pcm_prepare( m_pcm );
+                    ret = uniaud_pcm_prepare( pui->pcm );
                     if( ret < 0 )
                     {
-                        uniaud_pcm_drop( m_pcm );
+                        uniaud_pcm_drop( pui->pcm );
                         break;
                     }
                 }
             }
         }
 
-        if( count < m_nFillSize )
+        if( count < pui->nFillSize )
         {
             // stop playing
-            m_fPlaying = FALSE;
-            m_fPaused  = FALSE;
-            uniaud_pcm_drop( m_pcm );
+            pui->fPlaying = FALSE;
+            pui->fPaused  = FALSE;
+            uniaud_pcm_drop( pui->pcm );
 
-            m_fCompleted = TRUE;
+            pui->fCompleted = TRUE;
             break;
         }
     }
 
-    DosPostEventSem( m_hevFill );
+    DosPostEventSem( pui->hevFill );
     while( DosWaitThread( &tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
-    DosCloseEventSem( m_hevFill );
+    DosCloseEventSem( pui->hevFill );
 
-    DosCloseEventSem( m_hevFillDone );
+    DosCloseEventSem( pui->hevFillDone );
 
     free( pchBuffer );
 }
@@ -562,14 +569,15 @@ static APIRET APIENTRY uniaudChNum( VOID )
     return uniaud_get_max_channels( 0 );
 }
 
-static APIRET APIENTRY uniaudOpen( PKAISPEC pks )
+static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
 {
-    int format;
-    int err;
+    PUNIAUDINFO pui;
+    int         format;
+    int         err;
 
-    m_fPlaying   = FALSE;
-    m_fPaused    = FALSE;
-    m_fCompleted = FALSE;
+    pui = calloc( 1, sizeof( UNIAUDINFO ));
+    if( !pui )
+        return KAIE_NOT_ENOUGH_MEMORY;
 
     switch( pks->ulBitsPerSample )
     {
@@ -591,162 +599,180 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks )
     }
 
     err = uniaud_pcm_open( pks->usDeviceIndex, PCM_TYPE_WRITE, 0, pks->fShareable,
-                           pks->ulSamplingRate, pks->ulChannels, format, &m_pcm);
+                           pks->ulSamplingRate, pks->ulChannels, format, &pui->pcm);
 
-    if( !m_pcm || err )
+    if( !pui->pcm || err )
     {
-        printf("m_pcm open error %d\n", err );
+        fprintf( stderr, "pcm open error %d\n", err );
 
-        m_pcm = NULL;
-
-        return err;
+        goto exit_free;
     }
 
-    m_pchBuffer = malloc( m_pcm->bufsize );
-    if( !m_pchBuffer )
+    pui->pchBuffer = malloc( pui->pcm->bufsize );
+    if( !pui->pchBuffer )
     {
-        uniaud_pcm_close( m_pcm );
+        err = KAIE_NOT_ENOUGH_MEMORY;
 
-        m_pcm = NULL;
-
-        return KAIE_NOT_ENOUGH_MEMORY;
+        goto exit_close;
     }
 
-    m_pfnUniaudCB   = pks->pfnCallBack;
-    m_pUniaudCBData = pks->pCallBackData;
-    m_bSilence      = ( pks->ulBitsPerSample == BPS_8 ) ? 0x80 : 0x00;
+    pui->pfnUniaudCB   = pks->pfnCallBack;
+    pui->pUniaudCBData = pks->pCallBackData;
+    pui->bSilence      = ( pks->ulBitsPerSample == BPS_8 ) ? 0x80 : 0x00;
 
-    memset( m_pchBuffer, m_bSilence, m_pcm->bufsize );
+    memset( pui->pchBuffer, pui->bSilence, pui->pcm->bufsize );
 
-    pks->ulNumBuffers = m_pcm->periods;
-    pks->ulBufferSize = m_pcm->period_size;
-    pks->bSilence     = m_bSilence;
+    pks->ulNumBuffers = pui->pcm->periods;
+    pks->ulBufferSize = pui->pcm->period_size;
+    pks->bSilence     = pui->bSilence;
 
-    uniaud_pcm_prepare( m_pcm );
+    uniaud_pcm_prepare( pui->pcm );
+
+    *phkai = ( HKAI )pui;
+
+    return KAIE_NO_ERROR;
+
+exit_close :
+    uniaud_pcm_close( pui->pcm );
+
+exit_free :
+    free( pui );
+
+    return err;
+}
+
+static APIRET APIENTRY uniaudClose( HKAI hkai )
+{
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+
+    uniaudStop( hkai );
+    uniaudFreeBuffers( hkai );
+
+    uniaud_pcm_close( pui->pcm );
+
+    free( pui );
 
     return KAIE_NO_ERROR;
 }
 
-
-static APIRET APIENTRY uniaudClose( VOID )
+static APIRET APIENTRY uniaudPlay( HKAI hkai )
 {
-    uniaudStop();
-    uniaudFreeBuffers();
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
 
-    uniaud_pcm_close( m_pcm );
-
-    m_pcm = NULL;
-
-    return KAIE_NO_ERROR;
-}
-
-static APIRET APIENTRY uniaudPlay( VOID )
-{
-    if( m_fPlaying )
+    if( pui->fPlaying )
         return KAIE_NO_ERROR;
 
-    uniaud_pcm_prepare( m_pcm );
+    uniaud_pcm_prepare( pui->pcm );
 
-    m_fPlaying   = TRUE;
-    m_fPaused    = FALSE;
-    m_fCompleted = FALSE;
+    pui->fPlaying   = TRUE;
+    pui->fPaused    = FALSE;
+    pui->fCompleted = FALSE;
 
-    m_tidPlayThread = _beginthread( uniaudPlayThread, NULL, 256 * 1024, NULL );
+    pui->tidPlayThread = _beginthread( uniaudPlayThread, NULL, 256 * 1024, pui );
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY uniaudPause( VOID )
+static APIRET APIENTRY uniaudPause( HKAI hkai )
 {
-    if( m_fPaused )
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+
+    if( pui->fPaused )
         return KAIE_NO_ERROR;
 
-    uniaud_pcm_drop( m_pcm );
-    m_fPaused = TRUE;
+    uniaud_pcm_drop( pui->pcm );
+    pui->fPaused = TRUE;
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY uniaudResume( VOID )
+static APIRET APIENTRY uniaudResume( HKAI hkai )
 {
-    if( !m_fPaused )
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+
+    if( !pui->fPaused )
         return KAIE_NO_ERROR;
 
-    uniaud_pcm_start( m_pcm );
-    m_fPaused = FALSE;
+    uniaud_pcm_start( pui->pcm );
+    pui->fPaused = FALSE;
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY uniaudSetSoundState( ULONG ulCh, BOOL fState )
+static APIRET APIENTRY uniaudSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
 {
-    uniaud_mixer_put_value_by_name( m_pcm->card_id, "PCM Playback Switch", fState, 1, 0 );
-    uniaud_mixer_put_value_by_name( m_pcm->card_id, "PCM Playback Switch", fState, 0, 0 );
-    uniaud_mixer_put_value_by_name( m_pcm->card_id, "Front Playback Switch", fState, 1, 0 );
-    uniaud_mixer_put_value_by_name( m_pcm->card_id, "Front Playback Switch", fState, 0, 0 );
-    uniaud_mixer_put_value_by_name( m_pcm->card_id, "Surround Playback Switch", fState, 1, 0 );
-    uniaud_mixer_put_value_by_name( m_pcm->card_id, "Surround Playback Switch", fState, 0, 0 );
-    uniaud_mixer_put_value_by_name( m_pcm->card_id, "LFE Playback Switch", fState, 0, 0 );
-    uniaud_mixer_put_value_by_name( m_pcm->card_id, "Center Playback Switch", fState, 0, 0 );
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+
+    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "PCM Playback Switch", fState, 1, 0 );
+    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "PCM Playback Switch", fState, 0, 0 );
+    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Front Playback Switch", fState, 1, 0 );
+    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Front Playback Switch", fState, 0, 0 );
+    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Surround Playback Switch", fState, 1, 0 );
+    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Surround Playback Switch", fState, 0, 0 );
+    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "LFE Playback Switch", fState, 0, 0 );
+    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Center Playback Switch", fState, 0, 0 );
 
     return KAIE_NO_ERROR;
 }
 
-static void set_perc_vol( char *name, int vol, int stereo )
+static void set_perc_vol( HKAI hkai, char *name, int vol, int stereo )
 {
-    int ctl_id, min, max, new_vol;
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+    int         ctl_id, min, max, new_vol;
 
-    ctl_id = uniaud_get_id_by_name( m_pcm->card_id, name, 0 );
+    ctl_id = uniaud_get_id_by_name( pui->pcm->card_id, name, 0 );
     if( ctl_id > 0 )
     {
-        uniaud_mixer_get_min_max( m_pcm->card_id, ctl_id, &min, &max );
+        uniaud_mixer_get_min_max( pui->pcm->card_id, ctl_id, &min, &max );
         new_vol = (( float )( max - min ) / 100.0f ) * vol;
 
-        uniaud_mixer_put_value( m_pcm->card_id, ctl_id, new_vol, 0 );
+        uniaud_mixer_put_value( pui->pcm->card_id, ctl_id, new_vol, 0 );
         if( stereo )
-            uniaud_mixer_put_value( m_pcm->card_id, ctl_id, new_vol, 1 );
+            uniaud_mixer_put_value( pui->pcm->card_id, ctl_id, new_vol, 1 );
     }
 }
 
-static APIRET APIENTRY uniaudSetVolume( ULONG ulCh, USHORT usVol )
+static APIRET APIENTRY uniaudSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
 {
-    set_perc_vol("PCM Playback Volume", usVol, 1 );
-    set_perc_vol("Front Playback Volume", usVol, 1 );
-    set_perc_vol("Wave Playback Volume", usVol, 1 );
-    set_perc_vol("Wave Surround Playback Volume", usVol, 1 );
-    set_perc_vol("Wave Center Playback Volume", usVol, 0 );
-    set_perc_vol("Wave LFE Playback Volume", usVol, 0 );
-    set_perc_vol("Playback Volume", usVol, 1 );
-    set_perc_vol("Surround Playback Volume", usVol, 1 );
-    set_perc_vol("Center Playback Volume", usVol, 0 );
-    set_perc_vol("LFE Playback Volume", usVol, 0 );
+    set_perc_vol( hkai, "PCM Playback Volume", usVol, 1 );
+    set_perc_vol( hkai, "Front Playback Volume", usVol, 1 );
+    set_perc_vol( hkai, "Wave Playback Volume", usVol, 1 );
+    set_perc_vol( hkai, "Wave Surround Playback Volume", usVol, 1 );
+    set_perc_vol( hkai, "Wave Center Playback Volume", usVol, 0 );
+    set_perc_vol( hkai, "Wave LFE Playback Volume", usVol, 0 );
+    set_perc_vol( hkai, "Playback Volume", usVol, 1 );
+    set_perc_vol( hkai, "Surround Playback Volume", usVol, 1 );
+    set_perc_vol( hkai, "Center Playback Volume", usVol, 0 );
+    set_perc_vol( hkai, "LFE Playback Volume", usVol, 0 );
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY uniaudGetVolume( ULONG ulCh )
+static APIRET APIENTRY uniaudGetVolume( HKAI hkai, ULONG ulCh )
 {
-    int ctl_id, min, max, new_vol;
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+    int         ctl_id, min, max, new_vol;
 
-    ctl_id = uniaud_get_id_by_name( m_pcm->card_id, "PCM Playback Volume", 0 );
+    ctl_id = uniaud_get_id_by_name( pui->pcm->card_id, "PCM Playback Volume", 0 );
 
-    uniaud_mixer_get_min_max( m_pcm->card_id, ctl_id, &min, &max );
-    new_vol = uniaud_mixer_get_value( m_pcm->card_id, ctl_id, 0 );
+    uniaud_mixer_get_min_max( pui->pcm->card_id, ctl_id, &min, &max );
+    new_vol = uniaud_mixer_get_value( pui->pcm->card_id, ctl_id, 0 );
 
     return new_vol * ( 100.0f / ( max - min ));
 }
 
-static APIRET APIENTRY uniaudStatus( VOID )
+static APIRET APIENTRY uniaudStatus( HKAI hkai )
 {
-    ULONG ulStatus = 0;
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+    ULONG       ulStatus = 0;
 
-    if( m_fPlaying )
+    if( pui->fPlaying )
         ulStatus |= KAIS_PLAYING;
 
-    if( m_fPaused )
+    if( pui->fPaused )
         ulStatus |= KAIS_PAUSED;
 
-    if( m_fCompleted )
+    if( pui->fCompleted )
         ulStatus |= KAIS_COMPLETED;
 
     return ulStatus;

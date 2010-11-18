@@ -48,56 +48,55 @@
 #define DART_MIN_BUFFERS     2
 
 #pragma pack( 1 )
-typedef struct DARTSTRUCT
+typedef struct DARTINFO
 {
-    volatile BOOL               fPlaying;
-    volatile BOOL               fPaused;
-             BOOL               fCompleted;
-             ULONG              ulBufferSize;
-             ULONG              ulNumBuffers;
-             BYTE               bSilence;
-             CHAR               szErrorCode[ CCHMAXPATH ];
-             MCI_MIX_BUFFER     mixBuffer;
-} DARTSTRUCT, *PDARTSTRUCT;
+    USHORT              usDeviceID;
+    BYTE                bSilence;
+    BOOL                fShareable;
+    USHORT              usLeftVol;
+    USHORT              usRightVol;
+    PMCI_MIX_BUFFER     pMixBuffers;
+    MCI_MIXSETUP_PARMS  MixSetupParms;
+    MCI_BUFFER_PARMS    BufferParms;
+    ULONG               ulBufferSize;
+    ULONG               ulNumBuffers;
+    BOOL                fWaitStreamEnd;
+    PFNKAICB            pfndicb;
+    PVOID               pCBData;
+    MCI_MIX_BUFFER      mixBuffer;
+    HEV                 hevFill;
+    HEV                 hevFillDone;
+    TID                 tidFillThread;
+    BOOL volatile       fPlaying;
+    BOOL volatile       fPaused;
+    BOOL volatile       fCompleted;
+} DARTINFO, *PDARTINFO;
 #pragma pack()
-
-static DARTSTRUCT m_DART = { 0 };
-
-static HEV   m_hevFill = NULLHANDLE;
-static HEV   m_hevFillDone = NULLHANDLE;
-static TID   m_tidFillThread = 0;
-
-static BOOL               m_fWaitStreamEnd = FALSE;
-static BOOL               m_fShareable = FALSE;
-static ULONG              m_ulCurrVolume = 0;
-static USHORT             m_usDeviceID = 0;
-static PMCI_MIX_BUFFER    m_pMixBuffers = NULL;
-static MCI_MIXSETUP_PARMS m_MixSetupParms = { 0 , };
-static MCI_BUFFER_PARMS   m_BufferParms = { 0, };
-static PFNKAICB           m_pfndicb = NULL;
-static PVOID              m_pCBData = NULL;
 
 static HMODULE m_hmodMDM = NULLHANDLE;
 
-static DECLARE_PFN( ULONG, APIENTRY, m_pfnmciSendCommand, ( USHORT, USHORT, ULONG, PVOID, USHORT ));
-static DECLARE_PFN( ULONG, APIENTRY, m_pfnmciGetErrorString, ( ULONG, PSZ, USHORT ));
+#define mciSendCommand      m_pfnmciSendCommand
+#define mciGetErrorString   m_pfnmciGetErrorString
+
+static DECLARE_PFN( ULONG, APIENTRY, mciSendCommand, ( USHORT, USHORT, ULONG, PVOID, USHORT ));
+static DECLARE_PFN( ULONG, APIENTRY, mciGetErrorString, ( ULONG, PSZ, USHORT ));
 
 static APIRET APIENTRY dartDone( VOID );
-static APIRET APIENTRY dartOpen( PKAISPEC pks );
-static APIRET APIENTRY dartClose( VOID );
-static APIRET APIENTRY dartPlay( VOID );
-static APIRET APIENTRY dartStop( VOID );
-static APIRET APIENTRY dartPause( VOID );
-static APIRET APIENTRY dartResume( VOID );
-static APIRET APIENTRY dartGetPos( VOID );
-static APIRET APIENTRY dartSetPos( ULONG ulNewPos );
+static APIRET APIENTRY dartOpen( PKAISPEC pks, PHKAI phkai );
+static APIRET APIENTRY dartClose( HKAI hkai );
+static APIRET APIENTRY dartPlay( HKAI hkai );
+static APIRET APIENTRY dartStop( HKAI hkai );
+static APIRET APIENTRY dartPause( HKAI hkai );
+static APIRET APIENTRY dartResume( HKAI hkai );
+static APIRET APIENTRY dartGetPos( HKAI hkai );
+static APIRET APIENTRY dartSetPos( HKAI hkai, ULONG ulNewPos );
 static APIRET APIENTRY dartError( APIRET rc );
-static APIRET APIENTRY dartSetSoundState( ULONG ulCh, BOOL fState );
-static APIRET APIENTRY dartSetVolume( ULONG ulCh, USHORT usVol );
-static APIRET APIENTRY dartGetVolume( ULONG );
+static APIRET APIENTRY dartSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState );
+static APIRET APIENTRY dartSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol );
+static APIRET APIENTRY dartGetVolume( HKAI hkai, ULONG ulCh );
 static APIRET APIENTRY dartChNum( VOID );
-static APIRET APIENTRY dartClearBuffer( VOID );
-static APIRET APIENTRY dartStatus( VOID );
+static APIRET APIENTRY dartClearBuffer( HKAI hkai );
+static APIRET APIENTRY dartStatus( HKAI hkai );
 
 static VOID freeMDM( VOID )
 {
@@ -115,10 +114,10 @@ static BOOL loadMDM( VOID )
     if( DosLoadModule( szFailedName, sizeof( szFailedName ), "MDM", &m_hmodMDM ))
         return FALSE;
 
-    if( DosQueryProcAddr( m_hmodMDM, 1, NULL, ( PFN * )&m_pfnmciSendCommand ))
+    if( DosQueryProcAddr( m_hmodMDM, 1, NULL, ( PFN * )&mciSendCommand ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodMDM, 3, NULL, ( PFN * )&m_pfnmciGetErrorString ))
+    if( DosQueryProcAddr( m_hmodMDM, 3, NULL, ( PFN * )&mciGetErrorString ))
         goto exit_error;
 
     return TRUE;
@@ -166,28 +165,29 @@ static APIRET APIENTRY dartError( APIRET rc )
 {
     if( LOUSHORT( rc ))
     {
-        m_pfnmciGetErrorString( rc,
-                                ( PSZ )m_DART.szErrorCode,
-                                sizeof( m_DART.szErrorCode ));
+        CHAR szErrorCode[ 256 ];
 
-        fprintf( stderr, "\nDART error(%lx):%s\n", rc, m_DART.szErrorCode );
+        mciGetErrorString( rc,
+                           ( PSZ )szErrorCode,
+                           sizeof( szErrorCode ));
+
+        fprintf( stderr, "\nDART error(%lx):%s\n", rc, szErrorCode );
 
         return LOUSHORT( rc );
     }
 
-    m_DART.szErrorCode[ 0 ] = 0;
-
-    return 0;
+    return MCIERR_SUCCESS;
 }
 
 #define USE_UNIAUD_WORKAROUND
 
-static APIRET APIENTRY dartStop(void)
+static APIRET APIENTRY dartStop( HKAI hkai )
 {
+    PDARTINFO         pdi = ( PDARTINFO )hkai;
     MCI_GENERIC_PARMS GenericParms;
     ULONG             rc;
 
-    if( !m_DART.fPlaying )
+    if( !pdi->fPlaying )
         return KAIE_NO_ERROR;
 
 #ifdef USE_UNIAUD_WORKAROUND
@@ -195,129 +195,131 @@ static APIRET APIENTRY dartStop(void)
     // clean up thread before MCI_STOP
     // otherwise looping sound or dead lock can occur when trying to stop
     // but assume that MCI_STOP always succeeds
-    m_DART.fPlaying = FALSE;
-    m_DART.fPaused  = FALSE;
+    pdi->fPlaying = FALSE;
+    pdi->fPaused  = FALSE;
 
-    DosPostEventSem( m_hevFill );
-    while( DosWaitThread( &m_tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
-    DosCloseEventSem( m_hevFill );
+    DosPostEventSem( pdi->hevFill );
+    while( DosWaitThread( &pdi->tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
+    DosCloseEventSem( pdi->hevFill );
 
-    DosPostEventSem( m_hevFillDone);
-    DosCloseEventSem( m_hevFillDone );
+    DosCloseEventSem( pdi->hevFillDone );
 #endif
 
     memset( &GenericParms, 0, sizeof( GenericParms ));
 
     GenericParms.hwndCallback = 0;
 
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_STOP,
-                              MCI_WAIT,
-                              ( PVOID )&GenericParms,
-                              0 );
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_STOP,
+                         MCI_WAIT,
+                         ( PVOID )&GenericParms,
+                         0 );
     if( dartError( rc ))
         return LOUSHORT( rc );
 
 #ifndef USE_UNIAUD_WORKAROUND
-    m_DART.fPlaying = FALSE;
-    m_DART.fPaused  = FALSE;
+    pdi->fPlaying = FALSE;
+    pdi->fPaused  = FALSE;
 
-    DosPostEventSem( m_hevFill );
-    while( DosWaitThread( &m_tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
-    DosCloseEventSem( m_hevFill );
+    DosPostEventSem( pdi->hevFill );
+    while( DosWaitThread( &pdi->tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
+    DosCloseEventSem( pdi->hevFill );
 
-    DosPostEventSem( m_hevFillDone);
-    DosCloseEventSem( m_hevFillDone );
+    DosCloseEventSem( pdi->hevFillDone );
 #endif
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY dartClearBuffer( VOID )
+static APIRET APIENTRY dartClearBuffer( HKAI hkai )
 {
-    int i;
+    PDARTINFO pdi = ( PDARTINFO )hkai;
+    int       i;
 
-    for( i = 0; i < m_DART.ulNumBuffers; i++)
-       memset( m_pMixBuffers[ i ].pBuffer, m_DART.bSilence, m_DART.ulBufferSize );
+    for( i = 0; i < pdi->ulNumBuffers; i++)
+       memset( pdi->pMixBuffers[ i ].pBuffer, pdi->bSilence, pdi->ulBufferSize );
 
     return KAIE_NO_ERROR;
 }
 
-static ULONG dartFillBuffer( PMCI_MIX_BUFFER pBuffer )
+static APIRET APIENTRY dartFreeBuffers( HKAI hkai )
+{
+    PDARTINFO pdi = ( PDARTINFO )hkai;
+    APIRET    rc;
+
+    if( pdi->pMixBuffers == NULL )
+        return KAIE_NO_ERROR;
+
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_BUFFER,
+                         MCI_WAIT | MCI_DEALLOCATE_MEMORY,
+                         ( PVOID )&pdi->BufferParms, 0 );
+    if( dartError( rc ))
+        return LOUSHORT( rc );
+
+    free( pdi->pMixBuffers );
+    pdi->pMixBuffers = NULL;
+
+    return KAIE_NO_ERROR;
+}
+
+static ULONG dartFillBuffer( PDARTINFO pdi )
 {
     ULONG ulWritten;
 
-    memset( pBuffer->pBuffer, m_DART.bSilence, m_DART.ulBufferSize );
-
-    ulWritten = m_pfndicb( m_pCBData, pBuffer->pBuffer, m_DART.ulBufferSize );
-    if( ulWritten < m_DART.ulBufferSize )
-        pBuffer->ulFlags = MIX_BUFFER_EOS;
+    ulWritten = pdi->pfndicb( pdi->pCBData, pdi->mixBuffer.pBuffer, pdi->ulBufferSize );
+    if( ulWritten < pdi->ulBufferSize )
+    {
+        memset(( PCH )pdi->mixBuffer.pBuffer + ulWritten, pdi->bSilence, pdi->ulBufferSize - ulWritten );
+        pdi->mixBuffer.ulFlags = MIX_BUFFER_EOS;
+    }
     else
-        pBuffer->ulFlags = 0;
+        pdi->mixBuffer.ulFlags = 0;
 
     return ulWritten;
 }
 
-static APIRET APIENTRY dartFreeBuffers( VOID )
-{
-    APIRET  rc;
-
-    if( m_pMixBuffers == NULL )
-        return KAIE_NO_ERROR;
-
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_BUFFER,
-                              MCI_WAIT | MCI_DEALLOCATE_MEMORY,
-                              ( PVOID )&m_BufferParms, 0 );
-    if( dartError( rc ))
-        return LOUSHORT( rc );
-
-    free( m_pMixBuffers );
-    m_pMixBuffers = NULL;
-
-    return KAIE_NO_ERROR;
-}
-
 static void dartFillThread( void *arg )
 {
+    PDARTINFO pdi = arg;
     ULONG ulPost;
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
 
     for(;;)
     {
-        while( DosWaitEventSem( m_hevFill, SEM_INDEFINITE_WAIT ) == ERROR_INTERRUPT );
-        DosResetEventSem( m_hevFill, &ulPost );
+        while( DosWaitEventSem( pdi->hevFill, SEM_INDEFINITE_WAIT ) == ERROR_INTERRUPT );
+        DosResetEventSem( pdi->hevFill, &ulPost );
 
-        if( !m_DART.fPlaying )
+        if( !pdi->fPlaying )
             break;
 
         // Transfer buffer to DART
-        dartFillBuffer( &m_DART.mixBuffer );
+        dartFillBuffer( pdi );
 
-        DosPostEventSem( m_hevFillDone );
+        DosPostEventSem( pdi->hevFillDone );
     }
 }
 
-void DART_FILL_BUFFERS( PMCI_MIX_BUFFER pBuffer )
+void DART_FILL_BUFFERS( PDARTINFO pdi, PMCI_MIX_BUFFER pBuffer )
 {
     ULONG ulPost;
 
-    if( DosWaitEventSem( m_hevFillDone, SEM_IMMEDIATE_RETURN ) == NO_ERROR )
+    if( DosWaitEventSem( pdi->hevFillDone, SEM_IMMEDIATE_RETURN ) == NO_ERROR )
     {
-        DosResetEventSem( m_hevFillDone, &ulPost );
+        DosResetEventSem( pdi->hevFillDone, &ulPost );
 
-        memcpy( pBuffer->pBuffer, m_DART.mixBuffer.pBuffer, m_DART.ulBufferSize );
-        pBuffer->ulFlags = m_DART.mixBuffer.ulFlags;
+        memcpy( pBuffer->pBuffer, pdi->mixBuffer.pBuffer, pdi->ulBufferSize );
+        pBuffer->ulFlags = pdi->mixBuffer.ulFlags;
         if( pBuffer->ulFlags == MIX_BUFFER_EOS )
-            m_fWaitStreamEnd = TRUE;
-
-        DosPostEventSem( m_hevFill );
+            pdi->fWaitStreamEnd = TRUE;
+        else
+            DosPostEventSem( pdi->hevFill );
 
         return;
     }
 
-    memset( pBuffer->pBuffer, m_DART.bSilence, m_DART.ulBufferSize );
+    memset( pBuffer->pBuffer, pdi->bSilence, pdi->ulBufferSize );
     pBuffer->ulFlags = 0;
 }
 
@@ -329,18 +331,20 @@ static LONG APIENTRY MixHandler( ULONG ulStatus, PMCI_MIX_BUFFER pBuffer, ULONG 
             // on error, fill next buffer and continue
         case MIX_WRITE_COMPLETE:
         {
+            PDARTINFO pdi = ( PDARTINFO )pBuffer->ulUserParm;
+
             // If this is the last buffer, stop
             if( pBuffer->ulFlags & MIX_BUFFER_EOS)
             {
-                dartStop();
+                dartStop(( HKAI )pdi );
 
-                m_DART.fCompleted = TRUE;
+                pdi->fCompleted = TRUE;
             }
-            else if( m_DART.fPlaying && !m_fWaitStreamEnd )
+            else if( pdi->fPlaying && !pdi->fWaitStreamEnd )
             {
-                DART_FILL_BUFFERS( pBuffer );
+                DART_FILL_BUFFERS( pdi, pBuffer );
 
-                m_MixSetupParms.pmixWrite( m_MixSetupParms.ulMixHandle, pBuffer, 1 );
+                pdi->MixSetupParms.pmixWrite( pdi->MixSetupParms.ulMixHandle, pBuffer, 1 );
             }
             break;
         }
@@ -362,7 +366,7 @@ static APIRET APIENTRY dartChNum( VOID )
     AmpOpenParms.usDeviceID = 0;
     AmpOpenParms.pszDeviceType = (PSZ)( MCI_DEVTYPE_AUDIO_AMPMIX |
                                         ( 0 << 16 ));
-    if( m_pfnmciSendCommand( 0, MCI_OPEN, ulDartFlags, ( PVOID )&AmpOpenParms, 0 ))
+    if( mciSendCommand( 0, MCI_OPEN, ulDartFlags, ( PVOID )&AmpOpenParms, 0 ))
         return 0;
 
     ulChannels = 6; // first, try 6 channels
@@ -374,236 +378,278 @@ static APIRET APIENTRY dartChNum( VOID )
     MixSetupParms.ulFormatMode = MCI_PLAY;
     MixSetupParms.ulDeviceType = MCI_DEVTYPE_WAVEFORM_AUDIO;
     MixSetupParms.pmixEvent = NULL;
-    if( m_pfnmciSendCommand( AmpOpenParms.usDeviceID,
-                             MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT,
-                             ( PVOID )&MixSetupParms, 0 ))
+    if( mciSendCommand( AmpOpenParms.usDeviceID,
+                        MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT,
+                        ( PVOID )&MixSetupParms, 0 ))
     {
         ulChannels = 4; // failed. try 4 channels
         MixSetupParms.ulChannels = ulChannels;
-        if( m_pfnmciSendCommand( AmpOpenParms.usDeviceID,
-                                 MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT,
-                                 ( PVOID )&MixSetupParms, 0 ))
+        if( mciSendCommand( AmpOpenParms.usDeviceID,
+                            MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT,
+                            ( PVOID )&MixSetupParms, 0 ))
             ulChannels = 2; // failed again...so, drivers support only 2 channels
     }
 
-    m_pfnmciSendCommand( AmpOpenParms.usDeviceID,
-                         MCI_CLOSE, MCI_WAIT,
-                         ( PVOID )&GenericParms, 0 );
+    mciSendCommand( AmpOpenParms.usDeviceID,
+                    MCI_CLOSE, MCI_WAIT,
+                    ( PVOID )&GenericParms, 0 );
 
     return ulChannels;
 }
 
-static APIRET APIENTRY dartOpen( PKAISPEC pks )
+static APIRET APIENTRY dartOpen( PKAISPEC pks, PHKAI phkai )
 {
-    APIRET              rc;
+    PDARTINFO           pdi;
     ULONG               ulDartFlags;
     MCI_AMP_OPEN_PARMS  AmpOpenParms;
     MCI_GENERIC_PARMS   GenericParms;
+    APIRET              rc;
 
-    memset( &m_DART, 0, sizeof( DARTSTRUCT ));
+    pdi = calloc( 1, sizeof( DARTINFO ));
+    if( !pdi )
+        return KAIE_NOT_ENOUGH_MEMORY;
 
-    m_DART.bSilence = ( pks->ulBitsPerSample == BPS_8 ) ? 0x80 : 0x00;
+    pdi->bSilence = ( pks->ulBitsPerSample == BPS_8 ) ? 0x80 : 0x00;
 
-    m_fShareable = pks->fShareable;
-    if( m_fShareable )
-        ulDartFlags = MCI_WAIT | MCI_OPEN_TYPE_ID | MCI_OPEN_SHAREABLE;
-    else
-        ulDartFlags = MCI_WAIT | MCI_OPEN_TYPE_ID;
+    pdi->fShareable = pks->fShareable;
+
+    ulDartFlags = MCI_WAIT | MCI_OPEN_TYPE_ID;
+    if( pdi->fShareable )
+        ulDartFlags |= MCI_OPEN_SHAREABLE;
 
     memset( &AmpOpenParms, 0, sizeof( MCI_AMP_OPEN_PARMS ));
 
     AmpOpenParms.usDeviceID = 0;
     AmpOpenParms.pszDeviceType = (PSZ)( MCI_DEVTYPE_AUDIO_AMPMIX |
                                         (( ULONG )pks->usDeviceIndex << 16 ));
-    rc = m_pfnmciSendCommand( 0,
-                              MCI_OPEN,
-                              ulDartFlags,
-                              ( PVOID )&AmpOpenParms,
-                              0 );
+    rc = mciSendCommand( 0,
+                         MCI_OPEN,
+                         ulDartFlags,
+                         ( PVOID )&AmpOpenParms,
+                         0 );
     if( dartError( rc ))
-        return LOUSHORT( rc );
+        goto exit_free;
 
-    m_usDeviceID = AmpOpenParms.usDeviceID;
+    pdi->usDeviceID = AmpOpenParms.usDeviceID;
 
-    if( !m_fShareable )
+    if( !pdi->fShareable )
     {
         // Grab exclusive rights to device instance (NOT entire device)
         GenericParms.hwndCallback = 0;
-        rc = m_pfnmciSendCommand( m_usDeviceID,
-                                  MCI_ACQUIREDEVICE,
-                                  MCI_WAIT | MCI_EXCLUSIVE_INSTANCE,
-                                  ( PVOID )&GenericParms,
-                                  0 );
+        rc = mciSendCommand( pdi->usDeviceID,
+                             MCI_ACQUIREDEVICE,
+                             MCI_WAIT | MCI_EXCLUSIVE_INSTANCE,
+                             ( PVOID )&GenericParms,
+                             0 );
         if( dartError( rc ))
-            goto exit_release;
+            goto exit_close;
     }
 
     // Setup the mixer for playback of wave data
-    memset( &m_MixSetupParms, 0, sizeof( MCI_MIXSETUP_PARMS ));
+    memset( &pdi->MixSetupParms, 0, sizeof( MCI_MIXSETUP_PARMS ));
 
-    m_MixSetupParms.ulBitsPerSample = pks->ulBitsPerSample;
-    m_MixSetupParms.ulSamplesPerSec = pks->ulSamplingRate;
-    m_MixSetupParms.ulFormatTag     = pks->ulDataFormat;
-    m_MixSetupParms.ulChannels      = pks->ulChannels;
-    m_MixSetupParms.ulFormatMode    = MCI_PLAY;
-    m_MixSetupParms.ulDeviceType    = MCI_DEVTYPE_WAVEFORM_AUDIO;
-    m_MixSetupParms.pmixEvent       = ( MIXEREVENT * )MixHandler;
+    pdi->MixSetupParms.ulBitsPerSample = pks->ulBitsPerSample;
+    pdi->MixSetupParms.ulSamplesPerSec = pks->ulSamplingRate;
+    pdi->MixSetupParms.ulFormatTag     = pks->ulDataFormat;
+    pdi->MixSetupParms.ulChannels      = pks->ulChannels;
+    pdi->MixSetupParms.ulFormatMode    = MCI_PLAY;
+    pdi->MixSetupParms.ulDeviceType    = MCI_DEVTYPE_WAVEFORM_AUDIO;
+    pdi->MixSetupParms.pmixEvent       = ( MIXEREVENT * )MixHandler;
 
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_MIXSETUP,
-                              MCI_WAIT | MCI_MIXSETUP_INIT,
-                              ( PVOID )&m_MixSetupParms,
-                              0 );
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_MIXSETUP,
+                         MCI_WAIT | MCI_MIXSETUP_INIT,
+                         ( PVOID )&pdi->MixSetupParms,
+                         0 );
 
     if( dartError( rc ))
-        goto exit_close;
+        goto exit_release;
 
     // Use the suggested buffer number and size provide by the mixer device if 0
     if( pks->ulNumBuffers == 0 )
-        pks->ulNumBuffers = m_MixSetupParms.ulNumBuffers;
+        pks->ulNumBuffers = pdi->MixSetupParms.ulNumBuffers;
 
     if( pks->ulNumBuffers < DART_MIN_BUFFERS )
         pks->ulNumBuffers = DART_MIN_BUFFERS;
 
     if( pks->ulBufferSize == 0 )
-        pks->ulBufferSize = m_MixSetupParms.ulBufferSize;
+        pks->ulBufferSize = pdi->MixSetupParms.ulBufferSize;
 
     // Allocate mixer buffers
-    m_pMixBuffers = ( MCI_MIX_BUFFER * )malloc( sizeof( MCI_MIX_BUFFER ) * pks->ulNumBuffers );
+    pdi->pMixBuffers = ( MCI_MIX_BUFFER * )malloc( sizeof( MCI_MIX_BUFFER ) * pks->ulNumBuffers );
 
     // Set up the BufferParms data structure and allocate device buffers
     // from the Amp-Mixer
-    m_BufferParms.ulStructLength = sizeof( MCI_BUFFER_PARMS );
-    m_BufferParms.ulNumBuffers   = pks->ulNumBuffers;
-    m_BufferParms.ulBufferSize   = pks->ulBufferSize;
-    m_BufferParms.pBufList       = m_pMixBuffers;
+    pdi->BufferParms.ulStructLength = sizeof( MCI_BUFFER_PARMS );
+    pdi->BufferParms.ulNumBuffers   = pks->ulNumBuffers;
+    pdi->BufferParms.ulBufferSize   = pks->ulBufferSize;
+    pdi->BufferParms.pBufList       = pdi->pMixBuffers;
 
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_BUFFER,
-                              MCI_WAIT | MCI_ALLOCATE_MEMORY,
-                              ( PVOID )&m_BufferParms,
-                              0 );
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_BUFFER,
+                         MCI_WAIT | MCI_ALLOCATE_MEMORY,
+                         ( PVOID )&pdi->BufferParms,
+                         0 );
     if( dartError( rc ))
-        goto exit_deallocate;
+        goto exit_free_mix_buffers;
 
     // The mixer possibly changed these values
-    m_DART.ulNumBuffers = m_BufferParms.ulNumBuffers;
-    m_DART.ulBufferSize = m_BufferParms.ulBufferSize;
+    pdi->ulNumBuffers = pdi->BufferParms.ulNumBuffers;
+    pdi->ulBufferSize = pdi->BufferParms.ulBufferSize;
 
-    m_DART.mixBuffer.pBuffer = malloc( m_DART.ulBufferSize );
-    if( !m_DART.mixBuffer.pBuffer )
+    pdi->mixBuffer.pBuffer = malloc( pdi->ulBufferSize );
+    if( !pdi->mixBuffer.pBuffer )
         goto exit_deallocate;
 
-    m_pfndicb = pks->pfnCallBack;
-    m_pCBData = pks->pCallBackData;
+    pdi->pfndicb = pks->pfnCallBack;
+    pdi->pCBData = pks->pCallBackData;
 
-    pks->ulNumBuffers = m_DART.ulNumBuffers;
-    pks->ulBufferSize = m_DART.ulBufferSize;
-    pks->bSilence     = m_DART.bSilence;
+    pks->ulNumBuffers = pdi->ulNumBuffers;
+    pks->ulBufferSize = pdi->ulBufferSize;
+    pks->bSilence     = pdi->bSilence;
+
+    *phkai = ( HKAI )pdi;
 
     return KAIE_NO_ERROR;
 
 exit_deallocate :
-    free( m_pMixBuffers );
-    m_pMixBuffers = NULL;
+    mciSendCommand( pdi->usDeviceID,
+                    MCI_BUFFER,
+                    MCI_WAIT | MCI_DEALLOCATE_MEMORY,
+                    ( PVOID )&pdi->BufferParms, 0 );
+
+exit_free_mix_buffers :
+    free( pdi->pMixBuffers );
 
 exit_release :
-    if( !m_fShareable )
+    GenericParms.hwndCallback = 0;
+
+    if( !pdi->fShareable )
     {
         // Release exclusive rights to device instance (NOT entire device)
-        m_pfnmciSendCommand( m_usDeviceID,
-                             MCI_RELEASEDEVICE,
-                             MCI_WAIT | MCI_RETURN_RESOURCE,
-                             ( PVOID )&GenericParms,
-                             0 );
+        mciSendCommand( pdi->usDeviceID,
+                        MCI_RELEASEDEVICE,
+                        MCI_WAIT | MCI_RETURN_RESOURCE,
+                        ( PVOID )&GenericParms,
+                        0 );
     }
 
 exit_close :
-    m_pfnmciSendCommand( m_usDeviceID,
-                         MCI_CLOSE,
-                         MCI_WAIT,
-                         ( PVOID )&GenericParms,
-                         0 );
+    mciSendCommand( pdi->usDeviceID,
+                    MCI_CLOSE,
+                    MCI_WAIT,
+                    ( PVOID )&GenericParms,
+                    0 );
+
+exit_free :
+    free( pdi );
 
     return LOUSHORT( rc );
 }
 
-
-static APIRET APIENTRY dartClose( VOID )
+static APIRET APIENTRY dartClose( HKAI hkai )
 {
+    PDARTINFO           pdi = ( PDARTINFO )hkai;
     MCI_GENERIC_PARMS   GenericParms;
     APIRET              rc;
 
-    dartStop();
-    dartFreeBuffers();
+    dartStop( hkai );
+    dartFreeBuffers( hkai );
 
     GenericParms.hwndCallback = 0;
 
-    if( !m_fShareable )
+    if( !pdi->fShareable )
     {
         // Release exclusive rights to device instance (NOT entire device)
-        rc = m_pfnmciSendCommand( m_usDeviceID,
-                                  MCI_RELEASEDEVICE,
-                                  MCI_WAIT | MCI_RETURN_RESOURCE,
-                                  ( PVOID )&GenericParms,
-                                  0 );
+        rc = mciSendCommand( pdi->usDeviceID,
+                             MCI_RELEASEDEVICE,
+                             MCI_WAIT | MCI_RETURN_RESOURCE,
+                             ( PVOID )&GenericParms,
+                             0 );
         if( dartError( rc ))
             return LOUSHORT( rc );
     }
 
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_CLOSE,
-                              MCI_WAIT,
-                              ( PVOID )&GenericParms,
-                              0 );
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_CLOSE,
+                         MCI_WAIT,
+                         ( PVOID )&GenericParms,
+                         0 );
     if( dartError( rc ))
         return LOUSHORT( rc );
 
-    free( m_DART.mixBuffer.pBuffer );
-    m_DART.mixBuffer.pBuffer = NULL;
+    free( pdi->mixBuffer.pBuffer );
+    free( pdi );
+    pdi = NULL;
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY dartPlay( VOID )
+// check hkai is inactive
+static BOOL isReady( HKAI hkai )
 {
-    int   i;
-    ULONG rc;
+    PDARTINFO        pdi = ( PDARTINFO )hkai;
+    MCI_STATUS_PARMS StatusParms;
+    ULONG            rc;
 
-    if( m_DART.fPlaying )
+    memset( &StatusParms, 0, sizeof( MCI_STATUS_PARMS ));
+    StatusParms.ulItem = MCI_STATUS_READY;
+
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_STATUS,
+                         MCI_WAIT | MCI_STATUS_ITEM,
+                         ( PVOID )&StatusParms,
+                         0 );
+    if( dartError( rc ))
+        return MCI_FALSE;
+
+    return StatusParms.ulReturn;
+}
+
+static APIRET APIENTRY dartPlay( HKAI hkai )
+{
+    PDARTINFO pdi = ( PDARTINFO )hkai;
+    int       i;
+    ULONG     rc;
+
+    if( pdi->fPlaying )
         return KAIE_NO_ERROR;
 
-    m_fWaitStreamEnd  = FALSE;
-    m_DART.fPlaying   = TRUE;
-    m_DART.fPaused    = FALSE;
-    m_DART.fCompleted = FALSE;
+    if( !isReady( hkai ))
+        return KAIE_NOT_READY;
 
-    DosCreateEventSem( NULL, &m_hevFill, 0, TRUE );
-    DosCreateEventSem( NULL, &m_hevFillDone, 0, FALSE );
-    m_tidFillThread = _beginthread( dartFillThread, NULL, 256 * 1024, NULL );
+    pdi->fWaitStreamEnd  = FALSE;
+    pdi->fPlaying        = TRUE;
+    pdi->fPaused         = FALSE;
+    pdi->fCompleted      = FALSE;
 
-    for( i = 0; i < m_DART.ulNumBuffers; i++ )
+    DosCreateEventSem( NULL, &pdi->hevFill, 0, TRUE );
+    DosCreateEventSem( NULL, &pdi->hevFillDone, 0, FALSE );
+    pdi->tidFillThread = _beginthread( dartFillThread, NULL, 256 * 1024, pdi );
+
+    for( i = 0; i < pdi->ulNumBuffers; i++ )
     {
-        m_pMixBuffers[ i ].ulBufferLength = m_DART.ulBufferSize;
-        m_pMixBuffers[ i ].ulFlags = 0;
+        pdi->pMixBuffers[ i ].ulBufferLength = pdi->ulBufferSize;
+        pdi->pMixBuffers[ i ].ulFlags = 0;
+        pdi->pMixBuffers[ i ].ulUserParm = ( ULONG )pdi;
     }
 
     for( i = 0; i < DART_MIN_BUFFERS; i++ )
     {
-        DART_FILL_BUFFERS( &m_pMixBuffers[ i ]);
+        DART_FILL_BUFFERS( pdi, &pdi->pMixBuffers[ i ]);
 
-        if( m_fWaitStreamEnd )
+        if( pdi->fWaitStreamEnd )
             break;
     }
 
     if( i < DART_MIN_BUFFERS )
         i++;
 
-    rc = m_MixSetupParms.pmixWrite( m_MixSetupParms.ulMixHandle,
-                                    m_pMixBuffers, i );
+    rc = pdi->MixSetupParms.pmixWrite( pdi->MixSetupParms.ulMixHandle,
+                                       pdi->pMixBuffers, i );
     if( dartError( rc ))
     {
-        dartStop();
+        dartStop( hkai );
 
         return LOUSHORT( rc );
     }
@@ -611,100 +657,106 @@ static APIRET APIENTRY dartPlay( VOID )
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY dartPause( VOID )
+static APIRET APIENTRY dartPause( HKAI hkai )
 {
+    PDARTINFO         pdi = ( PDARTINFO )hkai;
     MCI_GENERIC_PARMS GenericParms;
     ULONG             rc;
 
-    if( m_DART.fPaused )
+    if( pdi->fPaused )
         return KAIE_NO_ERROR;
 
-    m_ulCurrVolume = dartGetVolume( MCI_STATUS_AUDIO_ALL );
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_PAUSE,
-                              MCI_WAIT,
-                              ( PVOID )&GenericParms,
-                              0 );
+    pdi->usLeftVol  = dartGetVolume( hkai, MCI_STATUS_AUDIO_LEFT );
+    pdi->usRightVol = dartGetVolume( hkai, MCI_STATUS_AUDIO_RIGHT );
+
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_PAUSE,
+                         MCI_WAIT,
+                         ( PVOID )&GenericParms,
+                         0 );
     if( dartError( rc ))
         return LOUSHORT( rc );
 
-    m_DART.fPaused = TRUE;
+    pdi->fPaused = TRUE;
 
     return KAIE_NO_ERROR;
 }
 
 
-static APIRET APIENTRY dartResume( VOID )
+static APIRET APIENTRY dartResume( HKAI hkai )
 {
+    PDARTINFO         pdi = ( PDARTINFO )hkai;
     MCI_GENERIC_PARMS GenericParms;
     ULONG             rc;
 
-    if( !m_DART.fPaused )
+    if( !pdi->fPaused )
         return KAIE_NO_ERROR;
 
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_RESUME,
-                              MCI_WAIT,
-                              ( PVOID )&GenericParms,
-                              0 );
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_RESUME,
+                         MCI_WAIT,
+                         ( PVOID )&GenericParms,
+                         0 );
     if( dartError( rc ))
         return LOUSHORT( rc );
+
+    pdi->fPaused = FALSE;
 
     // setting volume of channels separately can be failed.
-    if( LOUSHORT( m_ulCurrVolume ) == HIUSHORT( m_ulCurrVolume ))
-        dartSetVolume( MCI_SET_AUDIO_ALL, LOUSHORT( m_ulCurrVolume ));
+    if( pdi->usLeftVol == pdi->usRightVol )
+        dartSetVolume( hkai, MCI_SET_AUDIO_ALL, pdi->usLeftVol );
     else
     {
-        dartSetVolume( MCI_SET_AUDIO_LEFT, LOUSHORT( m_ulCurrVolume ));
-        dartSetVolume( MCI_SET_AUDIO_RIGHT, HIUSHORT( m_ulCurrVolume ));
+        dartSetVolume( hkai, MCI_SET_AUDIO_LEFT, pdi->usLeftVol );
+        dartSetVolume( hkai, MCI_SET_AUDIO_RIGHT, pdi->usRightVol );
     }
-
-    m_DART.fPaused = FALSE;
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY dartGetPos( VOID )
+static APIRET APIENTRY dartGetPos( HKAI hkai )
 {
+    PDARTINFO        pdi = ( PDARTINFO )hkai;
     MCI_STATUS_PARMS StatusParms;
     ULONG            rc;
 
     memset( &StatusParms, 0, sizeof( MCI_STATUS_PARMS ));
     StatusParms.ulItem = MCI_STATUS_POSITION;
 
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_STATUS,
-                              MCI_WAIT | MCI_STATUS_ITEM,
-                              ( PVOID )&StatusParms,
-                              0 );
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_STATUS,
+                         MCI_WAIT | MCI_STATUS_ITEM,
+                         ( PVOID )&StatusParms,
+                         0 );
     if( dartError( rc ))
         return 0;
 
     return StatusParms.ulReturn;
 }
 
-
-static APIRET APIENTRY dartSetPos( ULONG ulNewPos )
+static APIRET APIENTRY dartSetPos( HKAI hkai, ULONG ulNewPos )
 {
-    APIRET          rc;
+    PDARTINFO       pdi = ( PDARTINFO )hkai;
     MCI_SEEK_PARMS  SeekParms;
+    APIRET          rc;
 
     SeekParms.hwndCallback = 0;
     SeekParms.ulTo = ulNewPos;
 
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_SEEK,
-                              MCI_WAIT | MCI_TO,
-                              ( PVOID )&SeekParms,
-                              0 );
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_SEEK,
+                         MCI_WAIT | MCI_TO,
+                         ( PVOID )&SeekParms,
+                         0 );
     if( dartError( rc ))
         return LOUSHORT( rc );
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY dartSetSoundState( ULONG ulCh, BOOL fState)
+static APIRET APIENTRY dartSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
 {
+    PDARTINFO     pdi = ( PDARTINFO )hkai;
     MCI_SET_PARMS SetParms;
     USHORT        usSt;
     ULONG         rc;
@@ -716,64 +768,76 @@ static APIRET APIENTRY dartSetSoundState( ULONG ulCh, BOOL fState)
 
     SetParms.ulAudio = ulCh;
 
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_SET,
-                              MCI_WAIT | MCI_SET_AUDIO | usSt,
-                              ( PVOID)&SetParms, 0 );
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_SET,
+                         MCI_WAIT | MCI_SET_AUDIO | usSt,
+                         ( PVOID)&SetParms, 0 );
     if( dartError( rc ))
         return LOUSHORT( rc );
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY dartSetVolume( ULONG ulCh, USHORT usVol)
+static APIRET APIENTRY dartSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
 {
+    PDARTINFO     pdi = ( PDARTINFO )hkai;
     MCI_SET_PARMS SetParms;
     ULONG         rc;
 
     SetParms.ulLevel = usVol;
     SetParms.ulAudio = ulCh;
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_SET,
-                              MCI_WAIT | MCI_SET_AUDIO |
-                              MCI_SET_VOLUME,
-                              ( PVOID )&SetParms, 0);
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_SET,
+                         MCI_WAIT | MCI_SET_AUDIO |
+                         MCI_SET_VOLUME,
+                         ( PVOID )&SetParms, 0);
     if( dartError( rc ))
         return LOUSHORT( rc );
 
     return KAIE_NO_ERROR;
 }
 
-static APIRET APIENTRY dartGetVolume( ULONG ulCh )
+static APIRET APIENTRY dartGetVolume( HKAI hkai, ULONG ulCh )
 {
+    PDARTINFO        pdi = ( PDARTINFO )hkai;
     MCI_STATUS_PARMS StatusParms;
+    USHORT           usLeft, usRight;
     ULONG            rc;
 
-    memset(&StatusParms, 0, sizeof( MCI_STATUS_PARMS ));
+    memset( &StatusParms, 0, sizeof( MCI_STATUS_PARMS ));
     StatusParms.ulItem = MCI_STATUS_VOLUME;
 
-    rc = m_pfnmciSendCommand( m_usDeviceID,
-                              MCI_STATUS,
-                              MCI_WAIT | MCI_STATUS_ITEM,
-                              ( PVOID )&StatusParms,
-                              0 );
+    rc = mciSendCommand( pdi->usDeviceID,
+                         MCI_STATUS,
+                         MCI_WAIT | MCI_STATUS_ITEM,
+                         ( PVOID )&StatusParms,
+                         0 );
     if( dartError( rc ))
         return 0;
 
-    return StatusParms.ulReturn;
+    usLeft  = LOUSHORT( StatusParms.ulReturn );
+    usRight = HIUSHORT( StatusParms.ulReturn );
+
+    if( ulCh == MCI_STATUS_AUDIO_LEFT )
+        return usLeft;
+    else if( ulCh == MCI_STATUS_AUDIO_RIGHT )
+        return usRight;
+
+    return ( usLeft + usRight ) / 2;
 }
 
-static APIRET APIENTRY dartStatus( VOID )
+static APIRET APIENTRY dartStatus( HKAI hkai )
 {
-    ULONG ulStatus = 0;
+    PDARTINFO pdi = ( PDARTINFO )hkai;
+    ULONG     ulStatus = 0;
 
-    if( m_DART.fPlaying )
+    if( pdi->fPlaying )
         ulStatus |= KAIS_PLAYING;
 
-    if( m_DART.fPaused )
+    if( pdi->fPaused )
         ulStatus |= KAIS_PAUSED;
 
-    if( m_DART.fCompleted )
+    if( pdi->fCompleted )
         ulStatus |= KAIS_COMPLETED;
 
     return ulStatus;
@@ -805,11 +869,11 @@ APIRET APIENTRY kaiOSLibGetAudioPDDName( PSZ pszPDDName )
 
     strcpy( QueryNameParm.szLogicalName, szAmpMix );
 
-    ulRC = m_pfnmciSendCommand( 0,
-                                MCI_SYSINFO,
-                                MCI_SYSINFO_ITEM | MCI_WAIT,
-                                ( PVOID )&SysInfo,
-                                0 );
+    ulRC = mciSendCommand( 0,
+                           MCI_SYSINFO,
+                           MCI_SYSINFO_ITEM | MCI_WAIT,
+                           ( PVOID )&SysInfo,
+                           0 );
     if( dartError( ulRC ))
         goto exit;
 
@@ -828,11 +892,11 @@ APIRET APIENTRY kaiOSLibGetAudioPDDName( PSZ pszPDDName )
 
     strcpy( SysInfoParm.szInstallName, QueryNameParm.szInstallName );
 
-    ulRC = m_pfnmciSendCommand( 0,
-                                MCI_SYSINFO,
-                                MCI_SYSINFO_ITEM | MCI_WAIT,
-                                ( PVOID )&SysInfo,
-                                0 );
+    ulRC = mciSendCommand( 0,
+                           MCI_SYSINFO,
+                           MCI_SYSINFO_ITEM | MCI_WAIT,
+                           ( PVOID )&SysInfo,
+                           0 );
     if( dartError( ulRC ))
         goto exit;
 
