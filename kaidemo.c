@@ -185,16 +185,16 @@ int main( int argc, char **argv )
         if (key == 27)    /* ESC */
             break;
 
-        if (key == 113)   /* q */
+        if (key == 'q')
             kaiStop( hkai );
 
-        if (key == 119)   /* w */
+        if (key == 'w')
             kaiPlay( hkai );
 
-        if (key == 101)   /* e */
+        if (key == 'e')
             kaiPause( hkai );
 
-        if (key == 114)   /* r */
+        if (key == 'r')
             kaiResume( hkai );
 
         DosSleep( 1 );
