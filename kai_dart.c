@@ -168,7 +168,7 @@ static BOOL loadMDM( VOID )
     if( m_hmodMDM )
         return TRUE;
 
-    if( DosLoadModule( szFailedName, sizeof( szFailedName ), "MDM.DLL", &m_hmodMDM ))
+    if( DosLoadModule( szFailedName, sizeof( szFailedName ), "MDM", &m_hmodMDM ))
         return FALSE;
 
     if( DosQueryProcAddr( m_hmodMDM, 1, NULL, ( PFN * )&m_pfnmciSendCommand ))
