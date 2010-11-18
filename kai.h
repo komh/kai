@@ -22,6 +22,12 @@
 
 #include <os2.h>
 
+/*
+   Some headers such as config.h of many projects define VERSION macro causing
+   a name clash with OS/2 multimedia extension headers
+*/
+#undef VERSION
+
 #define INCL_OS2MM
 #include <os2me.h>
 
