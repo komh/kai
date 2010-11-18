@@ -56,13 +56,17 @@ static volatile BOOL m_fPlaying   = FALSE;
 static volatile BOOL m_fPaused    = FALSE;
 static          BOOL m_fCompleted = FALSE;
 
-static TID m_tidFillThread = 0;
+static BYTE m_bSilence;
 
-static PFNKAICB  m_pfnUniaudCB = NULL;
+static HEV m_hevFill       = NULLHANDLE;
+static HEV m_hevFillDone   = NULLHANDLE;
+static TID m_tidPlayThread = 0;
+
+static PFNKAICB  m_pfnUniaudCB   = NULL;
 static PVOID     m_pUniaudCBData = NULL;
 
 static PCH          m_pchBuffer = NULL;
-static uniaud_pcm  *m_pcm = NULL;
+static uniaud_pcm  *m_pcm       = NULL;
 
 #define uniaud_mixer_get_power_state        m_pfnUniaudMixerGetPowerState
 #define uniaud_mixer_set_power_state        m_pfnUniaudMixerSetPowerState
@@ -378,12 +382,14 @@ static APIRET APIENTRY uniaudStop(void)
     if( !m_fPlaying )
         return KAIE_NO_ERROR;
 
+    uniaud_pcm_drop( m_pcm );
+
     m_fPlaying = FALSE;
     m_fPaused  = FALSE;
 
-    while( DosWaitThread( &m_tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
+    while( DosWaitThread( &m_tidPlayThread, DCWW_WAIT ) == ERROR_INTERRUPT );
 
-    return uniaud_pcm_drop( m_pcm );
+    return KAIE_NO_ERROR;
 }
 
 static APIRET APIENTRY uniaudClearBuffer( VOID )
@@ -401,39 +407,80 @@ static APIRET APIENTRY uniaudFreeBuffers( VOID )
     return KAIE_NO_ERROR;
 }
 
+static int   m_nFillSize;
+static ULONG m_ulCount;
+
 static void uniaudFillThread( void *arg )
+{
+    ULONG ulPost;
+
+    //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
+
+    for(;;)
+    {
+        while( DosWaitEventSem( m_hevFill, SEM_INDEFINITE_WAIT ) == ERROR_INTERRUPT );
+        DosResetEventSem( m_hevFill, &ulPost );
+
+        if( !m_fPlaying )
+            break;
+
+        memset( m_pchBuffer, m_bSilence, m_nFillSize );
+        m_ulCount = m_pfnUniaudCB( m_pUniaudCBData, m_pchBuffer, m_nFillSize );
+
+        DosPostEventSem( m_hevFillDone );
+    }
+}
+
+static void uniaudPlayThread( void *arg )
 {
     int   count, timeout = 20;
     int   err, ret, state;
     int   written;
-    int   fill_size;
+    TID   tidFillThread;
+    ULONG ulPost;
+    PCH   pchBuffer;
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
+
+    if( m_pcm->multi_channels > 0 )
+        m_nFillSize = m_pcm->bufsize;
+    else
+    {
+        if( m_pcm->resample && (( ReSampleContext1 * )( m_pcm->resample ))->ratio >= 2.0f )
+            m_nFillSize = m_pcm->period_size;
+        else
+            m_nFillSize = m_pcm->period_size * 2;
+    }
+
+    pchBuffer = malloc( m_nFillSize );
+    if( !pchBuffer )
+    {
+        m_fPlaying = FALSE;
+
+        return;
+    }
+
+    DosCreateEventSem( NULL, &m_hevFill, 0, TRUE );
+    DosCreateEventSem( NULL, &m_hevFillDone, 0, FALSE );
+    tidFillThread = _beginthread( uniaudFillThread, NULL, 256 * 1024, NULL );
 
     timeout *= m_pcm->channels;
 
     while( m_fPlaying )
     {
-        if( m_pcm->multi_channels > 0 )
-            fill_size = m_pcm->bufsize;
+        if( DosWaitEventSem( m_hevFillDone, SEM_IMMEDIATE_RETURN ) == NO_ERROR )
+        {
+            DosResetEventSem( m_hevFillDone, &ulPost );
+
+            memcpy( pchBuffer, m_pchBuffer, m_nFillSize );
+            count = m_ulCount;
+
+            DosPostEventSem( m_hevFill );
+        }
         else
         {
-            if( m_pcm->resample && (( ReSampleContext1 * )( m_pcm->resample ))->ratio >= 2.0f )
-                fill_size = m_pcm->period_size;
-            else
-                fill_size = m_pcm->period_size * 2;
-        }
-
-        count = m_pfnUniaudCB( m_pUniaudCBData, m_pchBuffer, fill_size );
-        if( count == 0 )
-        {
-            // stop playing
-            m_fPlaying = FALSE;
-            m_fPaused  = FALSE;
-            uniaud_pcm_drop( m_pcm );
-
-            m_fCompleted = TRUE;
-            break;
+            memset( pchBuffer, m_bSilence, m_nFillSize );
+            count = m_nFillSize;
         }
 
         written = 0;
@@ -445,7 +492,7 @@ static void uniaudFillThread( void *arg )
                 continue;
             }
 
-            err = uniaud_pcm_write( m_pcm, m_pchBuffer + written, count - written );
+            err = uniaud_pcm_write( m_pcm, pchBuffer + written, count - written );
             ret = uniaud_pcm_wait( m_pcm, timeout );
             if( ret == -77 )
                 uniaud_pcm_prepare( m_pcm );
@@ -454,17 +501,10 @@ static void uniaudFillThread( void *arg )
             {
                 state = uniaud_pcm_state( m_pcm );
                 printf("EAGAIN : written = %i of %i, state = %i\n", written, count, state );
-                if( written > 0 )
-                    break;
+
+                uniaud_pcm_drop( m_pcm );
 
                 DosSleep( 1 );
-
-                uniaud_pcm_prepare( m_pcm );
-                if(( state != SND_PCM_STATE_PREPARED ) &&
-                   ( state != SND_PCM_STATE_RUNNING ) &&
-                   ( state != SND_PCM_STATE_DRAINING ))
-                    uniaud_pcm_prepare(m_pcm);
-
                 continue;
             }
 
@@ -476,24 +516,45 @@ static void uniaudFillThread( void *arg )
                 if( err < -10000 )
                 {
                     DosSleep( 1 );
-
                     printf("part written = %i from %i, err = %i\n", written, count, err );
                     break; // internal uniaud error
                 }
 
-                DosSleep( 1 );
-
+                DosSleep( 0 );
                 state = uniaud_pcm_state( m_pcm );
                 if((( state != SND_PCM_STATE_PREPARED ) &&
                     ( state != SND_PCM_STATE_RUNNING ) &&
                     ( state != SND_PCM_STATE_DRAINING )) || err == -32 )
                 {
-                    if(( ret = uniaud_pcm_prepare( m_pcm )) < 0 )
+                    ret = uniaud_pcm_prepare( m_pcm );
+                    if( ret < 0 )
+                    {
+                        uniaud_pcm_drop( m_pcm );
                         break;
+                    }
                 }
             }
         }
+
+        if( count < m_nFillSize )
+        {
+            // stop playing
+            m_fPlaying = FALSE;
+            m_fPaused  = FALSE;
+            uniaud_pcm_drop( m_pcm );
+
+            m_fCompleted = TRUE;
+            break;
+        }
     }
+
+    DosPostEventSem( m_hevFill );
+    while( DosWaitThread( &tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
+    DosCloseEventSem( m_hevFill );
+
+    DosCloseEventSem( m_hevFillDone );
+
+    free( pchBuffer );
 }
 
 static APIRET APIENTRY uniaudChNum( VOID )
@@ -551,14 +612,15 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks )
         return KAIE_NOT_ENOUGH_MEMORY;
     }
 
-    memset( m_pchBuffer, 0, m_pcm->bufsize );
-
     m_pfnUniaudCB   = pks->pfnCallBack;
     m_pUniaudCBData = pks->pCallBackData;
+    m_bSilence      = ( pks->ulBitsPerSample == BPS_8 ) ? 0x80 : 0x00;
+
+    memset( m_pchBuffer, m_bSilence, m_pcm->bufsize );
 
     pks->ulNumBuffers = m_pcm->periods;
     pks->ulBufferSize = m_pcm->period_size;
-    pks->bSilence     = ( pks->ulBitsPerSample == BPS_8 ) ? 0x80 : 0x00;
+    pks->bSilence     = m_bSilence;
 
     uniaud_pcm_prepare( m_pcm );
 
@@ -589,7 +651,7 @@ static APIRET APIENTRY uniaudPlay( VOID )
     m_fPaused    = FALSE;
     m_fCompleted = FALSE;
 
-    m_tidFillThread = _beginthread( uniaudFillThread, NULL, 256 * 1024, NULL );
+    m_tidPlayThread = _beginthread( uniaudPlayThread, NULL, 256 * 1024, NULL );
 
     return KAIE_NO_ERROR;
 }
@@ -599,8 +661,8 @@ static APIRET APIENTRY uniaudPause( VOID )
     if( m_fPaused )
         return KAIE_NO_ERROR;
 
-    m_fPaused = TRUE;
     uniaud_pcm_drop( m_pcm );
+    m_fPaused = TRUE;
 
     return KAIE_NO_ERROR;
 }
