@@ -68,18 +68,18 @@ typedef struct tagKAICAPS
 
 typedef struct tagKAISPEC
 {
-    USHORT      usDeviceIndex;
-    ULONG       ulType;             /* support KAIT_PLAY only */
-    ULONG       ulBitsPerSample;
-    ULONG       ulSamplingRate;
-    ULONG       ulDataFormat;
-    ULONG       ulChannels;
-    ULONG       ulNumBuffers;
-    ULONG       ulBufferSize;
-    BOOL        fShareable;
-    PFNKAICB    pfnCallBack;
-    PVOID       pCallBackData;
-    BYTE        bSilence;           /* output only */
+    USHORT      usDeviceIndex;      /* IN                          */
+    ULONG       ulType;             /* IN : support KAIT_PLAY only */
+    ULONG       ulBitsPerSample;    /* IN                          */
+    ULONG       ulSamplingRate;     /* IN                          */
+    ULONG       ulDataFormat;       /* IN                          */
+    ULONG       ulChannels;         /* IN                          */
+    ULONG       ulNumBuffers;       /* IN/OUT                      */
+    ULONG       ulBufferSize;       /* IN/OUT                      */
+    BOOL        fShareable;         /* IN                          */
+    PFNKAICB    pfnCallBack;        /* IN                          */
+    PVOID       pCallBackData;      /* IN                          */
+    BYTE        bSilence;           /* OUT                         */
 } KAISPEC, *PKAISPEC;
 #pragma pack()
 
