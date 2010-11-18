@@ -17,62 +17,6 @@
     You should have received a copy of the GNU Library General Public
     License along with this library; if not, write to the Free
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-    Changes :
-        KO Myung-Hun <komh@chollian.net> 2007/02/03
-            - if ulNumBuffer in dartInit() is 0, it is set to DART_MIN_BUFFERS
-              not the suggested thing by the mixer device.
-
-        KO Myung-Hun <komh@chollian.net> 2007/02/11
-            - Use MCI_SET_AUDIO_* macros instead of DART_CH_* macros.
-
-        KO Myung-Hun <komh@chollian.net> 2007/02/16
-            - Prevent dartPlay() and dartStop() from executing many times.
-            - Added buffer filling thread to reserve enough stack because
-              DART callback stack is too small. (by Dmitry Froloff)
-            - Use fPlaying instead of fStopped.
-
-        KO Myung-Hun <komh@chollian.net> 2007/02/25
-            - Added the following variables as static storage instead of
-              as global storage in DARTSTRUCT.
-
-                BOOL               m_fWaitStreamEnd
-                BOOL               m_fShareable
-                ULONG              m_ulCurrVolume
-                USHORT             m_usDeviceID
-                PMCI_MIX_BUFFER    m_pMixBuffers
-                MCI_MIXSETUP_PARMS m_MixSetupParms
-                MCI_BUFFER_PARMS   m_BufferParms
-                PFNDICB            m_pfndicb
-
-        KO Myung-Hun <komh@chollian.net> 2007/04/09
-            - Changed output stream of dartError() from stdout to stderr.
-              ( by Dmitry Froloff )
-
-        KO Myung-Hun <komh@chollian.net> 2007/04/24
-            - Use PRTYD_MAXIMUM instead of +31 for DosSetPriority().
-
-        KO Myung-Hun <komh@chollian.net> 2007/06/12
-            - Added MCI_WAIT flag to some mciSendCommand() calls.
-            - Fixed a invalid command to release the exclusive use of device
-              instance.
-
-        KO Myung-Hun <komh@chollian.net> 2007/12/25
-            - Do not change the priority of dartFillThread() to TIMECRITICAL.
-              SNAP seems not to like this.
-
-        KO Myung-Hun <komh@chollian.net> 2008/03/30
-            - Added callback data as a parameter to dartInit().
-
-        KO Myung-Hun <komh@chollian.net> 2008/08/11
-            - Load MDM.DLL dynamically, so no need to link with mmpm2.
-
-        KO Myung-Hun <komh@chollian.net> 2008/09/27
-            - Include process.h for _beginthread() declaration in case of
-              Open Watcom.
-
-        KO Myung-Hun <komh@chollian.net> 2010/01/09
-            - Revised for KAI
 */
 
 #define INCL_DOS
