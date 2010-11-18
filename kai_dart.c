@@ -236,6 +236,7 @@ static APIRET APIENTRY dartError( APIRET rc )
     return 0;
 }
 
+#define USE_UNIAUD_WORKAROUND
 
 static APIRET APIENTRY dartStop(void)
 {
@@ -245,8 +246,21 @@ static APIRET APIENTRY dartStop(void)
     if( !m_DART.fPlaying )
         return KAIE_NO_ERROR;
 
+#ifdef USE_UNIAUD_WORKAROUND
+    // workaround for uniaud
+    // clean up thread before MCI_STOP
+    // otherwise looping sound or dead lock can occur when trying to stop
+    // but assume that MCI_STOP always succeeds
     m_DART.fPlaying = FALSE;
     m_DART.fPaused  = FALSE;
+
+    DosPostEventSem( m_hevFill );
+    while( DosWaitThread( &m_tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
+    DosCloseEventSem( m_hevFill );
+
+    DosPostEventSem( m_hevFillDone);
+    DosCloseEventSem( m_hevFillDone );
+#endif
 
     memset( &GenericParms, 0, sizeof( GenericParms ));
 
@@ -260,12 +274,17 @@ static APIRET APIENTRY dartStop(void)
     if( dartError( rc ))
         return rc;
 
+#ifndef USE_UNIAUD_WORKAROUND
+    m_DART.fPlaying = FALSE;
+    m_DART.fPaused  = FALSE;
+
     DosPostEventSem( m_hevFill );
     while( DosWaitThread( &m_tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
     DosCloseEventSem( m_hevFill );
 
     DosPostEventSem( m_hevFillDone);
     DosCloseEventSem( m_hevFillDone );
+#endif
 
     m_pFillArg = NULL;
 
