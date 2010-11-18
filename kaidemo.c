@@ -130,7 +130,12 @@ int main( int argc, char **argv )
                   0,
                   0);
 
-    kaiInit( argc > 2 ? atoi( argv[ 2 ]) : KAIM_AUTO );
+    if( kaiInit( argc > 2 ? atoi( argv[ 2 ]) : KAIM_AUTO ))
+    {
+        fprintf( stderr, "Unable to init kai\n");
+
+        return 0;
+    }
 
     kaiCaps( &kaic );
 
