@@ -155,7 +155,11 @@ int main( int argc, char **argv )
     ksWanted.pfnCallBack        = kaiCallback;
     ksWanted.pCallBackData      = NULL;
 
-    rc = kaiOpen( &ksWanted, &ksObtained, &hkai );
+    if( kaiOpen( &ksWanted, &ksObtained, &hkai ))
+    {
+        printf("Failed to open audio device!!!\n");
+        goto exit_mmio_close;
+    }
 
     printf("Number of buffers = %lu\n", ksObtained.ulNumBuffers );
     printf("Buffer size = %lu\n", ksObtained.ulBufferSize );
