@@ -36,7 +36,7 @@ static CHAR  m_szPDDName[ 256 ];
 
 APIRET APIENTRY kaiInit( ULONG ulMode )
 {
-    APIRET rc;
+    APIRET rc = KAIE_INVALID_PARAMETER;
 
     if( m_fInited )
         return KAIE_ALREADY_INITIALIZED;
@@ -65,14 +65,17 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
             ulMode = KAIM_DART;
     }
 
-    m_ulMode = ulMode;
-    kaiOSLibGetAudioPDDName( m_szPDDName );
+    if( !rc )
+    {
+        m_ulMode = ulMode;
+        kaiOSLibGetAudioPDDName( m_szPDDName );
 
-    m_fOpened = FALSE;
+        m_fOpened = FALSE;
 
-    m_fInited = TRUE;
+        m_fInited = TRUE;
+    }
 
-    return KAIE_NO_ERROR;
+    return rc;
 }
 
 APIRET APIENTRY kaiDone( VOID )
