@@ -106,18 +106,6 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
     if( m_fInited )
         return KAIE_ALREADY_INITIALIZED;
 
-    if( ulMode == KAIM_DART || ulMode == KAIM_AUTO )
-    {
-        rc = kaiDartInit( &m_kai, &m_kaic.ulMaxChannels );
-        if( rc )
-        {
-            if( ulMode != KAIM_AUTO )
-                return rc;
-        }
-        else
-            ulMode = KAIM_DART;
-    }
-
     if( ulMode == KAIM_UNIAUD || ulMode == KAIM_AUTO )
     {
         rc = kaiUniaudInit( &m_kai, &m_kaic.ulMaxChannels );
@@ -128,6 +116,18 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
         }
         else
             ulMode = KAIM_UNIAUD;
+    }
+
+    if( ulMode == KAIM_DART || ulMode == KAIM_AUTO )
+    {
+        rc = kaiDartInit( &m_kai, &m_kaic.ulMaxChannels );
+        if( rc )
+        {
+            if( ulMode != KAIM_AUTO )
+                return rc;
+        }
+        else
+            ulMode = KAIM_DART;
     }
 
     if( !rc )
