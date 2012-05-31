@@ -194,7 +194,7 @@ static BOOL loadUniaud( VOID )
         return TRUE;
 
     if( DosLoadModule( szTempStr, sizeof( szTempStr ), "uniaud", &m_hmodUniaud ))
-        return FALSE;
+        goto exit_error;
 
     if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_power_state", ( PFN * )&uniaud_mixer_get_power_state ))
         goto exit_error;

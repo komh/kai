@@ -112,7 +112,7 @@ static BOOL loadMDM( VOID )
         return TRUE;
 
     if( DosLoadModule( szFailedName, sizeof( szFailedName ), "MDM", &m_hmodMDM ))
-        return FALSE;
+        goto exit_error;
 
     if( DosQueryProcAddr( m_hmodMDM, 1, NULL, ( PFN * )&mciSendCommand ))
         goto exit_error;
