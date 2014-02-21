@@ -15,7 +15,7 @@ endif
 
 CC = gcc
 CFLAGS = -Wall -O3 -DINLINE=inline
-LDFLAGS = -Zomf
+LDFLAGS = -Zomf -Zhigh-mem
 
 AR = ar
 
