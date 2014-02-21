@@ -9,6 +9,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef __WATCOMC__
+#include <process.h>
+#endif
+
 #include "kai.h"
 
 #define BUF_SIZE    1024
