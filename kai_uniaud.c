@@ -523,7 +523,6 @@ static void uniaudPlayThread( void *arg )
 
                 uniaud_pcm_drop( pui->pcm );
 
-                DosSleep( 1 );
                 continue;
             }
 
@@ -534,14 +533,12 @@ static void uniaudPlayThread( void *arg )
             {
                 if( err < -10000 )
                 {
-                    DosSleep( 1 );
                     if (m_fDebugMode)
                         fprintf( stderr, "part written = %i from %i, err = %i\n", written, count, err );
 
                     break; // internal uniaud error
                 }
 
-                DosSleep( 0 );
                 state = uniaud_pcm_state( pui->pcm );
                 if((( state != SND_PCM_STATE_PREPARED ) &&
                     ( state != SND_PCM_STATE_RUNNING ) &&
