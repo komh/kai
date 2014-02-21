@@ -170,6 +170,8 @@ static DECLARE_PFN( int, _System, uniaud_mixer_put_spdif_status, ( int, char *, 
 
 static HMODULE m_hmodUniaud = NULLHANDLE;
 
+static BOOL m_fDebugMode = FALSE;
+
 static APIRET APIENTRY uniaudDone( VOID );
 static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai );
 static APIRET APIENTRY uniaudClose( HKAI hkai );
@@ -374,6 +376,8 @@ APIRET APIENTRY kaiUniaudInit( PKAIAPIS pkai, PULONG pulMaxChannels )
 
     *pulMaxChannels  = uniaudChNum();
 
+    m_fDebugMode = getenv("KAIDEBUG") != NULL;
+
     return KAIE_NO_ERROR;
 }
 
@@ -512,7 +516,8 @@ static void uniaudPlayThread( void *arg )
             if( err == -UNIAUD_EAGAIN )
             {
                 state = uniaud_pcm_state( pui->pcm );
-                fprintf( stderr, "EAGAIN : written = %i of %i, state = %i\n", written, count, state );
+                if (m_fDebugMode)
+                    fprintf( stderr, "EAGAIN : written = %i of %i, state = %i\n", written, count, state );
 
                 uniaud_pcm_drop( pui->pcm );
 
@@ -528,7 +533,9 @@ static void uniaudPlayThread( void *arg )
                 if( err < -10000 )
                 {
                     DosSleep( 1 );
-                    fprintf( stderr, "part written = %i from %i, err = %i\n", written, count, err );
+                    if (m_fDebugMode)
+                        fprintf( stderr, "part written = %i from %i, err = %i\n", written, count, err );
+
                     break; // internal uniaud error
                 }
 
@@ -608,7 +615,8 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
 
     if( !pui->pcm || err )
     {
-        fprintf( stderr, "pcm open error %d\n", err );
+        if (m_fDebugMode)
+            fprintf( stderr, "pcm open error %d\n", err );
 
         goto exit_free;
     }

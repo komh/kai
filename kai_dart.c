@@ -81,6 +81,8 @@ static HMODULE m_hmodMDM = NULLHANDLE;
 static DECLARE_PFN( ULONG, APIENTRY, mciSendCommand, ( USHORT, USHORT, ULONG, PVOID, USHORT ));
 static DECLARE_PFN( ULONG, APIENTRY, mciGetErrorString, ( ULONG, PSZ, USHORT ));
 
+static BOOL m_fDebugMode = FALSE;
+
 static APIRET APIENTRY dartDone( VOID );
 static APIRET APIENTRY dartOpen( PKAISPEC pks, PHKAI phkai );
 static APIRET APIENTRY dartClose( HKAI hkai );
@@ -149,6 +151,8 @@ APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PULONG pulMaxChannels )
 
     *pulMaxChannels  = dartChNum();
 
+    m_fDebugMode = getenv("KAIDEBUG") != NULL;
+
     return KAIE_NO_ERROR;
 }
 
@@ -165,13 +169,16 @@ static APIRET APIENTRY dartError( APIRET rc )
 {
     if( LOUSHORT( rc ))
     {
-        CHAR szErrorCode[ 256 ];
+        if( m_fDebugMode)
+        {
+            CHAR szErrorCode[ 256 ];
 
-        mciGetErrorString( rc,
-                           ( PSZ )szErrorCode,
-                           sizeof( szErrorCode ));
+            mciGetErrorString( rc,
+                               ( PSZ )szErrorCode,
+                               sizeof( szErrorCode ));
 
-        fprintf( stderr, "\nDART error(%lx):%s\n", rc, szErrorCode );
+            fprintf( stderr, "\nDART error(%lx):%s\n", rc, szErrorCode );
+        }
 
         return LOUSHORT( rc );
     }
