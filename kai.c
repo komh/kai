@@ -28,6 +28,8 @@
 #include "kai_uniaud.h"
 
 #ifdef __KLIBC__
+#include <emx/umalloc.h>
+
 #define malloc _lmalloc
 #endif
 

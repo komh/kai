@@ -39,6 +39,8 @@
 #include "kai_uniaud.h"
 
 #ifdef __KLIBC__
+#include <emx/umalloc.h>
+
 #define calloc _lcalloc
 #define malloc _lmalloc
 #endif
