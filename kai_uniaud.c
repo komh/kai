@@ -38,6 +38,11 @@
 #include "kai_internal.h"
 #include "kai_uniaud.h"
 
+#ifdef __KLIBC__
+#define calloc _lcalloc
+#define malloc _lmalloc
+#endif
+
 // EAGAIN is different in according to a compiler
 // So define macro for UNIAUD
 #define UNIAUD_EAGAIN   11

@@ -27,6 +27,10 @@
 #include "kai_dart.h"
 #include "kai_uniaud.h"
 
+#ifdef __KLIBC__
+#define malloc _lmalloc
+#endif
+
 static BOOL     m_fInited = FALSE;
 static KAIAPIS  m_kai = { NULL, };
 static KAICAPS  m_kaic = { 0, };
