@@ -20,6 +20,8 @@
 #ifndef __KAI_INTERNAL_H__
 #define __KAI_INTERNAL_H__
 
+#include <float.h>
+
 #ifdef __cplusplus
 exter "C" {
 #endif
@@ -45,6 +47,24 @@ typedef struct tagKAIAPIS
     DECLARE_PFN( APIRET, APIENTRY, pfnClearBuffer, ( HKAI ));
     DECLARE_PFN( APIRET, APIENTRY, pfnStatus, ( HKAI ));
 } KAIAPIS, *PKAIAPIS;
+
+static INLINE
+APIRET DosLoadModuleCW( PSZ pszName, ULONG cbName, PSZ pszModName,
+                        PHMODULE phmod )
+{
+    unsigned saved_cw;
+    APIRET   rc;
+
+    saved_cw = _control87( 0, 0 );
+
+    rc = DosLoadModule( pszName, cbName, pszModName, phmod );
+
+    _control87( saved_cw, MCW_EM | MCW_IC | MCW_RC | MCW_PC );
+
+    return rc;
+}
+
+#define DosLoadModule( a, b, c, d ) DosLoadModuleCW( a, b, c, d )
 
 #ifdef __cplusplus
 }
