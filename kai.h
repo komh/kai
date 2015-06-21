@@ -108,7 +108,7 @@ APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh );
 APIRET APIENTRY kaiClearBuffer( HKAI hkai );
 APIRET APIENTRY kaiStatus( HKAI hkai );
 
-#ifdef __cpluslus
+#ifdef __cplusplus
 }
 #endif
 
