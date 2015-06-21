@@ -1,5 +1,5 @@
 /*
-    Uniaud Interface for OS/2
+    Uniaud Interface for K Audio Interface
     Copyright (C) 2010-2015 by KO Myung-Hun <komh@chollian.net>
 
     This library is free software; you can redistribute it and/or
