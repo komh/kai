@@ -1,6 +1,6 @@
 /*
     Direct Audio Interface for K Audio Interface
-    Copyright (C) 2007-2010 by KO Myung-Hun <komh@chollian.net>
+    Copyright (C) 2007-2015 by KO Myung-Hun <komh@chollian.net>
     Copyright (C) by Alex Strelnikov
     Copyright (C) 1998 by Andrew Zabolotny <bit@eltech.ru>
 

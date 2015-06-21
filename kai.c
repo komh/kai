@@ -1,6 +1,6 @@
 /*
     K Audio Interface library for OS/2
-    Copyright (C) 2010 by KO Myung-Hun <komh@chollian.net>
+    Copyright (C) 2010-2015 by KO Myung-Hun <komh@chollian.net>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
