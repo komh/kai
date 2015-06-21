@@ -108,10 +108,21 @@ static PINSTANCELIST instanceVerify( HKAI hkai )
 
 APIRET APIENTRY kaiInit( ULONG ulMode )
 {
+    const char *pszAutoMode;
     APIRET rc = KAIE_INVALID_PARAMETER;
 
     if( m_fInited )
         return KAIE_ALREADY_INITIALIZED;
+
+    // Use the specified mode by KAI_AUTOMODE if auto mode
+    pszAutoMode = getenv("KAI_AUTOMODE");
+    if( ulMode == KAIM_AUTO && pszAutoMode )
+    {
+        if( !stricmp(pszAutoMode, "UNIAUD"))
+            ulMode = KAIM_UNIAUD;
+        else if( !stricmp(pszAutoMode, "DART"))
+            ulMode = KAIM_DART;
+    }
 
     if( ulMode == KAIM_UNIAUD || ulMode == KAIM_AUTO )
     {
