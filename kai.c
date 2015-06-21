@@ -17,6 +17,7 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#define INCL_DOS
 #include <os2.h>
 
 #include <string.h>
