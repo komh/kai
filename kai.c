@@ -34,7 +34,7 @@
 #define malloc _lmalloc
 #endif
 
-static BOOL     m_fInited = FALSE;
+static ULONG    m_ulInitCount = 0;
 static KAIAPIS  m_kai = { NULL, };
 static KAICAPS  m_kaic = { 0, };
 
@@ -111,8 +111,15 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
     const char *pszAutoMode;
     APIRET rc = KAIE_INVALID_PARAMETER;
 
-    if( m_fInited )
-        return KAIE_ALREADY_INITIALIZED;
+    DosEnterCritSec();
+
+    if( m_ulInitCount )
+    {
+        m_ulInitCount++;
+        DosExitCritSec();
+
+        return KAIE_NO_ERROR;
+    }
 
     // Use the specified mode by KAI_AUTOMODE if auto mode
     pszAutoMode = getenv("KAI_AUTOMODE");
@@ -127,24 +134,14 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
     if( ulMode == KAIM_UNIAUD || ulMode == KAIM_AUTO )
     {
         rc = kaiUniaudInit( &m_kai, &m_kaic.ulMaxChannels );
-        if( rc )
-        {
-            if( ulMode != KAIM_AUTO )
-                return rc;
-        }
-        else
+        if( !rc )
             ulMode = KAIM_UNIAUD;
     }
 
     if( ulMode == KAIM_DART || ulMode == KAIM_AUTO )
     {
         rc = kaiDartInit( &m_kai, &m_kaic.ulMaxChannels );
-        if( rc )
-        {
-            if( ulMode != KAIM_AUTO )
-                return rc;
-        }
-        else
+        if( !rc )
             ulMode = KAIM_DART;
     }
 
@@ -153,8 +150,10 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
         m_kaic.ulMode = ulMode;
         kaiOSLibGetAudioPDDName( m_kaic.szPDDName );
 
-        m_fInited = TRUE;
+        m_ulInitCount++;
     }
+
+    DosExitCritSec();
 
     return rc;
 }
@@ -163,23 +162,31 @@ APIRET APIENTRY kaiDone( VOID )
 {
     APIRET rc;
 
-    if( !m_fInited )
-        return KAIE_NOT_INITIALIZED;
+    DosEnterCritSec();
 
-    rc = m_kai.pfnDone();
-    if( rc )
-        return rc;
+    if( !m_ulInitCount )
+        rc = KAIE_NOT_INITIALIZED;
+    else if( m_ulInitCount == 1)
+        rc = m_kai.pfnDone();
+    else
+        rc = KAIE_NO_ERROR;
 
-    instanceDelAll();
+    if( !rc )
+    {
+        m_ulInitCount--;
 
-    m_fInited = FALSE;
+        if( m_ulInitCount == 0 )
+            instanceDelAll();
+    }
 
-    return KAIE_NO_ERROR;
+    DosExitCritSec();
+
+    return rc;
 }
 
 APIRET APIENTRY kaiCaps( PKAICAPS pkc )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !pkc )
@@ -194,7 +201,7 @@ APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained, PHKAI p
 {
     APIRET rc;
 
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !pksWanted || !pksObtained || !phkai )
@@ -218,7 +225,7 @@ APIRET APIENTRY kaiClose( HKAI hkai )
 {
     APIRET rc;
 
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
@@ -235,7 +242,7 @@ APIRET APIENTRY kaiClose( HKAI hkai )
 
 APIRET APIENTRY kaiPlay( HKAI hkai )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
@@ -246,7 +253,7 @@ APIRET APIENTRY kaiPlay( HKAI hkai )
 
 APIRET APIENTRY kaiStop( HKAI hkai )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
@@ -257,7 +264,7 @@ APIRET APIENTRY kaiStop( HKAI hkai )
 
 APIRET APIENTRY kaiPause( HKAI hkai )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
@@ -268,7 +275,7 @@ APIRET APIENTRY kaiPause( HKAI hkai )
 
 APIRET APIENTRY kaiResume( HKAI hkai )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
@@ -279,7 +286,7 @@ APIRET APIENTRY kaiResume( HKAI hkai )
 
 APIRET APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
@@ -290,7 +297,7 @@ APIRET APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
 
 APIRET APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
@@ -301,7 +308,7 @@ APIRET APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
 
 APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
@@ -312,7 +319,7 @@ APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
 
 APIRET APIENTRY kaiClearBuffer( HKAI hkai )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
@@ -323,7 +330,7 @@ APIRET APIENTRY kaiClearBuffer( HKAI hkai )
 
 APIRET APIENTRY kaiStatus( HKAI hkai )
 {
-    if( !m_fInited )
+    if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     if( !instanceVerify( hkai ))
