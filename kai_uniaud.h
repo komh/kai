@@ -28,7 +28,7 @@ extern "C" {
 
 APIRET APIENTRY kaiUniaudInit( PKAIAPIS pkai, PULONG pulMaxChannels );
 
-#ifdef __cpluslus
+#ifdef __cplusplus
 }
 #endif
 
