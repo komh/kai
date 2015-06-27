@@ -1,7 +1,7 @@
 # Makefile for kLIBC/GNU Make
 .PHONY : all
 
-.SUFFIXES : .exe .a .lib .o .c .h
+.SUFFIXES : .exe .dll .def .a .lib .o .c .h
 
 ifeq ($(PREFIX),)
 PREFIX=/usr
@@ -21,16 +21,31 @@ AR = ar
 
 RM = rm -f
 
+include kaidll.mk
+
 .c.o :
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 .a.lib :
 	emxomf -o $@ $<
 
-all : kai.a kai.lib kaidemo.exe kaidemo2.exe
+all : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) \
+      kaidemo.exe kaidemo2.exe
 
 kai.a : kai.o kai_dart.o kai_uniaud.o
 	$(AR) rc $@ $^
+
+kai_dll.a : $(KAIDLL)
+	emximp -o $@ $(KAIDLL)
+
+$(KAIDLL): kai.o kai_dart.o kai_uniaud.o $(KAIDLLDEF)
+	$(CC) -Zdll $(LDFLAGS) -o $@ $^
+
+$(KAIDLLDEF):
+	echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
+	echo DATA MULTIPLE NONSHARED >> $@
+	echo EXPORTS >> $@
+	cat $(KAIDLLSYM) >> $@
 
 kai.o: kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
 
@@ -54,6 +69,8 @@ clean :
 	$(RM) *.a
 	$(RM) *.obj
 	$(RM) *.lib
+	$(RM) *.def
+	$(RM) *.dll
 	$(RM) *.exe
 
 dist : src
@@ -78,9 +95,13 @@ install : kai.a kai.lib kai.h
 	$(INSTALL) -d $(INCDIR)
 	$(INSTALL) kai.a $(LIBDIR)
 	$(INSTALL) kai.lib $(LIBDIR)
+	$(INSTALL) kai_dll.a $(LIBDIR)
+	$(INSTALL) kai_dll.lib $(LIBDIR)
+	$(INSTALL) $(KAIDLL) $(LIBDIR)
 	$(INSTALL) kai.h $(INCDIR)
 
 uninstall :
 	$(RM) $(LIBDIR)/kai.a $(LIBDIR)/kai.lib
+	$(RM) $(LIBDIR)/kai_dll.a $(LIBDIR)/kai_dll.lib
+	$(RM) $(LIBDIR)/$(KAIDLL)
 	$(RM) $(INCDIR)/kai.h
-

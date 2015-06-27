@@ -1,0 +1,14 @@
+kaiInit
+kaiDone
+kaiCaps
+kaiOpen
+kaiClose
+kaiPlay
+kaiStop
+kaiPause
+kaiResume
+kaiSetSoundState
+kaiSetVolume
+kaiGetVolume
+kaiClearBuffer
+kaiStatus

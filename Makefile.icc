@@ -1,27 +1,56 @@
 # Makefile for ICC/NMAKE
 .PHONY : all
 
-.SUFFIXES : .exe .lib .obj .c .h
+.SUFFIXES : .exe .dll .def .lib .dll_obj .obj .c .h
 
 CC = icc
 CFLAGS = /W3 /Ss /Gm /q /DNO_LONGLONG /DINLINE=
 
 RM = del
 
+!include kaidll.mk
+
+STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj
+DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
+
 .c.obj :
     $(CC) $(CFLAGS) /c /Fo$@ $<
 
-all : kai.lib kaidemo.exe kaidemo2.exe
+.c.dll_obj :
+    $(CC) $(CFLAGS) /Ge- /c /Fo$@ $<
 
-kai.lib : kai.obj kai_dart.obj kai_uniaud.obj
+all : kai.lib kai_dll.lib $(KAIDLL) kaidemo.exe kaidemo2.exe
+
+kai.lib : $(STATIC_OBJECTS)
     -$(RM) $@
-    ilib /nobackup /nologo $@ $**,,
+    ilib /nobackup /nologo $@ $(STATIC_OBJECTS),,
+
+kai_dll.lib : $(KAIDLL)
+    -$(RM) $@
+    implib $@ $(KAIDLL)
+
+$(KAIDLL): $(DLL_OBJECTS) $(KAIDLLDEF)
+    ilink /NOI $(DLL_OBJECTS) $(KAIDLLDEF) /OUT:$@
+
+$(KAIDLLDEF):
+    echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
+    echo DATA MULTIPLE NONSHARED >> $@
+    echo EXPORTS >> $@
+    type $(KAIDLLSYM) >> $@
 
 kai.obj : kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
 
+kai.dll_obj : kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
+
 kai_dart.obj : kai_dart.c kai.h kai_internal.h kai_dart.h
 
-kai_uniaud.obj : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h kai_uniaud.h
+kai_dart.dll_obj : kai_dart.c kai.h kai_internal.h kai_dart.h
+
+kai_uniaud.obj : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h \
+                 kai_uniaud.h
+
+kai_uniaud.dll_obj : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h \
+                     kai_uniaud.h
 
 kaidemo.exe : kaidemo.obj kai.lib
     $(CC) /Fe$@ $** mmpm2.lib
@@ -36,5 +65,8 @@ kaidemo2.obj : kaidemo2.c kai.h
 clean :
     -$(RM) *.bak
     -$(RM) *.obj
+    -$(RM) *.dll_obj
     -$(RM) *.lib
+    -$(RM) *.def
+    -$(RM) *.dll
     -$(RM) *.exe
