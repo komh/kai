@@ -55,5 +55,5 @@ clean : .SYMBOLIC
     -$(RM) *.dll_obj
     -$(RM) *.lib
     -$(RM) *.def
-    -$(RM) *.dll
+    -$(RM) $(KAIDLL)
     -$(RM) *.exe

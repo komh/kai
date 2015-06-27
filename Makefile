@@ -70,7 +70,7 @@ clean :
 	$(RM) *.obj
 	$(RM) *.lib
 	$(RM) *.def
-	$(RM) *.dll
+	$(RM) $(KAIDLL)
 	$(RM) *.exe
 
 dist : src
