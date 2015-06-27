@@ -87,7 +87,8 @@ dist : src
 distclean : clean
 	$(RM) *.zip
 
-src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c kai_uniaud.h \
+src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
+      kai_uniaud.h kaidll.mk $(KAIDLLSYM) \
       kaidemo.c kaidemo2.c demo1.wav demo2.wav demo3.wav \
       Makefile Makefile.icc Makefile.wat \
       uniaud.h unidef.h unierrno.h uniaud.dll
