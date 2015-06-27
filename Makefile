@@ -91,17 +91,17 @@ src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c kai_uniaud.h
 	zip src.zip $^
 
 install : kai.a kai.lib kai.h
-	$(INSTALL) -d $(LIBDIR)
-	$(INSTALL) -d $(INCDIR)
-	$(INSTALL) kai.a $(LIBDIR)
-	$(INSTALL) kai.lib $(LIBDIR)
-	$(INSTALL) kai_dll.a $(LIBDIR)
-	$(INSTALL) kai_dll.lib $(LIBDIR)
-	$(INSTALL) $(KAIDLL) $(LIBDIR)
-	$(INSTALL) kai.h $(INCDIR)
+	$(INSTALL) -d $(DESTDIR)$(LIBDIR)
+	$(INSTALL) -d $(DESTDIR)$(INCDIR)
+	$(INSTALL) kai.a $(DESTDIR)$(LIBDIR)
+	$(INSTALL) kai.lib $(DESTDIR)$(LIBDIR)
+	$(INSTALL) kai_dll.a $(DESTDIR)$(LIBDIR)
+	$(INSTALL) kai_dll.lib $(DESTDIR)$(LIBDIR)
+	$(INSTALL) $(KAIDLL) $(DESTDIR)$(LIBDIR)
+	$(INSTALL) kai.h $(DESTDIR)$(INCDIR)
 
 uninstall :
-	$(RM) $(LIBDIR)/kai.a $(LIBDIR)/kai.lib
-	$(RM) $(LIBDIR)/kai_dll.a $(LIBDIR)/kai_dll.lib
-	$(RM) $(LIBDIR)/$(KAIDLL)
-	$(RM) $(INCDIR)/kai.h
+	$(RM) $(DESTDIR)$(LIBDIR)/kai.a $(DESTDIR)$(LIBDIR)/kai.lib
+	$(RM) $(DESTDIR)$(LIBDIR)/kai_dll.a $(DESTDIR)$(LIBDIR)/kai_dll.lib
+	$(RM) $(DESTDIR)$(LIBDIR)/$(KAIDLL)
+	$(RM) $(DESTDIR)$(INCDIR)/kai.h
