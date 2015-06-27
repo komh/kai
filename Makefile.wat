@@ -36,7 +36,7 @@ kai_dll.lib: $(KAIDLL)
 $(KAIDLL): $(DLL_OBJECTS) $(KAIDLLDEF)
     $(LINK) $(LFLAGS) @$(KAIDLLDEF) file { $(DLL_OBJECTS) }
 
-$(KAIDLLDEF):
+$(KAIDLLDEF): $(KAIDLLSYM)
     %create $@
     %append $@ system os2v2 dll initinstance terminstance
     %append $@ name $(KAIDLLNAME)

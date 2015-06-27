@@ -41,11 +41,15 @@ kai_dll.a : $(KAIDLL)
 $(KAIDLL): kai.o kai_dart.o kai_uniaud.o $(KAIDLLDEF)
 	$(CC) -Zdll $(LDFLAGS) -o $@ $^
 
-$(KAIDLLDEF):
+$(KAIDLLDEF): $(KAIDLLSYM)
 	echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
 	echo DATA MULTIPLE NONSHARED >> $@
 	echo EXPORTS >> $@
 	cat $(KAIDLLSYM) >> $@
+
+# To prevent circular dependency between kaidll.def and kaidll.sym
+$(KAIDLLSYM):
+	# tab
 
 kai.o: kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
 
