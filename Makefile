@@ -90,7 +90,7 @@ src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c kai_uniaud.h
 	$(RM) src.zip
 	zip src.zip $^
 
-install : kai.a kai.lib kai.h
+install : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) kai.h
 	$(INSTALL) -d $(DESTDIR)$(LIBDIR)
 	$(INSTALL) -d $(DESTDIR)$(INCDIR)
 	$(INSTALL) kai.a $(DESTDIR)$(LIBDIR)
