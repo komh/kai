@@ -457,7 +457,7 @@ static APIRET APIENTRY dartOpen( PKAISPEC pks, PHKAI phkai )
 
     pdi->MixSetupParms.ulBitsPerSample = pks->ulBitsPerSample;
     pdi->MixSetupParms.ulSamplesPerSec = pks->ulSamplingRate;
-    pdi->MixSetupParms.ulFormatTag     = pks->ulDataFormat;
+    pdi->MixSetupParms.ulFormatTag     = MCI_WAVE_FORMAT_PCM;
     pdi->MixSetupParms.ulChannels      = pks->ulChannels;
     pdi->MixSetupParms.ulFormatMode    = MCI_PLAY;
     pdi->MixSetupParms.ulDeviceType    = MCI_DEVTYPE_WAVEFORM_AUDIO;

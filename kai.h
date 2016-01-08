@@ -80,7 +80,7 @@ typedef struct tagKAISPEC
     ULONG       ulType;             /* IN : support KAIT_PLAY only */
     ULONG       ulBitsPerSample;    /* IN                          */
     ULONG       ulSamplingRate;     /* IN                          */
-    ULONG       ulDataFormat;       /* IN                          */
+    ULONG       ulDataFormat;       /* IN : ignored                */
     ULONG       ulChannels;         /* IN                          */
     ULONG       ulNumBuffers;       /* IN/OUT                      */
     ULONG       ulBufferSize;       /* IN/OUT                      */

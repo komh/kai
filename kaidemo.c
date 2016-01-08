@@ -135,7 +135,7 @@ int main( int argc, char *argv[])
     ksWanted.ulType             = KAIT_PLAY;
     ksWanted.ulBitsPerSample    = mmAudioHeader.mmXWAVHeader.WAVEHeader.usBitsPerSample;
     ksWanted.ulSamplingRate     = mmAudioHeader.mmXWAVHeader.WAVEHeader.ulSamplesPerSec;
-    ksWanted.ulDataFormat       = mmAudioHeader.mmXWAVHeader.WAVEHeader.usFormatTag;
+    ksWanted.ulDataFormat       = 0;
     ksWanted.ulChannels         = mmAudioHeader.mmXWAVHeader.WAVEHeader.usChannels;
     ksWanted.ulNumBuffers       = 2;
     ksWanted.ulBufferSize       = 0;
