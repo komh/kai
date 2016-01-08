@@ -583,12 +583,15 @@ static APIRET APIENTRY uniaudChNum( VOID )
 static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
 {
     PUNIAUDINFO pui;
+    USHORT      usDeviceIndex;
     int         format;
     int         err;
 
     pui = calloc( 1, sizeof( UNIAUDINFO ));
     if( !pui )
         return KAIE_NOT_ENOUGH_MEMORY;
+
+    usDeviceIndex = pks->usDeviceIndex > 0 ? ( pks->usDeviceIndex - 1 ) : 0;
 
     switch( pks->ulBitsPerSample )
     {
@@ -609,8 +612,8 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
             break;
     }
 
-    err = uniaud_pcm_open( pks->usDeviceIndex, PCM_TYPE_WRITE, 0, pks->fShareable,
-                           pks->ulSamplingRate, pks->ulChannels, format, &pui->pcm);
+    err = uniaud_pcm_open( usDeviceIndex, PCM_TYPE_WRITE, 0, pks->fShareable,
+                           pks->ulSamplingRate, pks->ulChannels, format, &pui->pcm );
 
     if( !pui->pcm || err )
     {

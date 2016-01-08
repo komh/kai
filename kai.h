@@ -76,7 +76,7 @@ typedef struct tagKAICAPS
 
 typedef struct tagKAISPEC
 {
-    USHORT      usDeviceIndex;      /* IN                          */
+    USHORT      usDeviceIndex;      /* IN : 0 = default, 1 = 1st,  */
     ULONG       ulType;             /* IN : support KAIT_PLAY only */
     ULONG       ulBitsPerSample;    /* IN                          */
     ULONG       ulSamplingRate;     /* IN                          */
