@@ -714,51 +714,145 @@ static APIRET APIENTRY uniaudResume( HKAI hkai )
     return KAIE_NO_ERROR;
 }
 
+/* List of controls from uniaud32 trunk */
+static const char *m_volumeControls[] = {
+// Front
+    "",
+    "AC97",
+    "Analog Front",
+    "Front",
+    "HD Analog Front",
+    "HP Playback",
+    "PCM",
+    "PCM Front",
+    "PCM Stream",
+    "SB PCM",
+    "Speaker",
+    "Wave",
+    "Wavetable",
+    "Headphone",
+// Rear
+    "Analog Rear",
+    "HD Analog Rear",
+    "Rear",
+// Surround/Side
+    "Analog Side",
+    "HD Analog Side",
+    "PCM Surround",
+    "Surround",
+    "PCM Side",
+    "Side",
+    "Wave Surround",
+// Center/LFE
+    "Analog Center/LFE",
+    "Center",
+    "CLFE",
+    "HD Analog Center/LFE",
+    "LFE",
+    "PCM Center",
+    "PCM LFE",
+    "Wave Center",
+    "Wave LFE",
+    "Headphone Center",
+    "Headphone LFE",
+// I don't know if these are related to PCM playback.
+#if 0
+    "ADC",
+    "Analog Mix",
+    "Beep",
+    "DSP",
+    "HDMI",
+    "I2S",
+    "Mono",
+    "Mono Output",
+    "Mobile Front",
+    "Node 11",
+    "PC Beep",
+    "PC Speaker",
+    "PCM Chorus",
+    "PCM Reverb",
+    "SB",
+    "Sigmatel 4-Speaker Stereo",
+    "Surround Phase Inversion",
+    "VIA DXS",
+    "Video",
+#endif
+    NULL,
+};
+
+#define MAKE_CONTROL_NAME( name, base, suffix) \
+    sprintf(( name ), "%s%s%s", ( base ), *( base ) ? " " : "", ( suffix ))
+
+static void set_control_state( int card_id, char *name,
+                               ULONG ulCh, BOOL fState )
+{
+    int ctl_id, values_cnt;
+
+    ctl_id = uniaud_get_id_by_name( card_id, name, 0 );
+    if( ctl_id > 0 )
+    {
+        uniaud_mixer_get_count_of_values( card_id, ctl_id, &values_cnt );
+
+        if ( values_cnt == 1 ||
+            ulCh == MCI_SET_AUDIO_LEFT || ulCh == MCI_SET_AUDIO_ALL )
+            uniaud_mixer_put_value( card_id, ctl_id, fState, 0 );
+
+        if ( values_cnt > 1 &&
+             ( ulCh == MCI_SET_AUDIO_RIGHT || ulCh == MCI_SET_AUDIO_ALL ))
+            uniaud_mixer_put_value( card_id, ctl_id, fState, 1 );
+    }
+}
+
 static APIRET APIENTRY uniaudSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
 {
     PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
 
-    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "PCM Playback Switch", fState, 1, 0 );
-    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "PCM Playback Switch", fState, 0, 0 );
-    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Front Playback Switch", fState, 1, 0 );
-    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Front Playback Switch", fState, 0, 0 );
-    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Surround Playback Switch", fState, 1, 0 );
-    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Surround Playback Switch", fState, 0, 0 );
-    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "LFE Playback Switch", fState, 0, 0 );
-    uniaud_mixer_put_value_by_name( pui->pcm->card_id, "Center Playback Switch", fState, 0, 0 );
+    const char **control;
+    char         name[ 80 ];
+
+    for( control = m_volumeControls; *control; control++ )
+    {
+        MAKE_CONTROL_NAME( name, *control, "Playback Switch");
+        set_control_state( pui->pcm->card_id, name, ulCh, fState );
+    }
 
     return KAIE_NO_ERROR;
 }
 
-static void set_perc_vol( HKAI hkai, char *name, int vol, int stereo )
+static void set_perc_vol( int card_id, char *name, ULONG ulCh, USHORT usVol)
 {
-    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
-    int         ctl_id, min, max, new_vol;
+    int ctl_id, min, max, new_vol, values_cnt;
 
-    ctl_id = uniaud_get_id_by_name( pui->pcm->card_id, name, 0 );
+    ctl_id = uniaud_get_id_by_name( card_id, name, 0 );
     if( ctl_id > 0 )
     {
-        uniaud_mixer_get_min_max( pui->pcm->card_id, ctl_id, &min, &max );
-        new_vol = (( float )( max - min ) / 100.0f ) * vol;
+        uniaud_mixer_get_min_max( card_id, ctl_id, &min, &max );
+        new_vol = (( float )( max - min ) / 100.0f ) * usVol;
 
-        uniaud_mixer_put_value( pui->pcm->card_id, ctl_id, new_vol, 0 );
-        if( stereo )
-            uniaud_mixer_put_value( pui->pcm->card_id, ctl_id, new_vol, 1 );
+        uniaud_mixer_get_count_of_values( card_id, ctl_id, &values_cnt );
+
+        if( values_cnt == 1 ||
+            ulCh == MCI_SET_AUDIO_LEFT || ulCh == MCI_SET_AUDIO_ALL )
+            uniaud_mixer_put_value( card_id, ctl_id, new_vol, 0 );
+
+        if( values_cnt > 1 &&
+            ( ulCh == MCI_SET_AUDIO_RIGHT || ulCh == MCI_SET_AUDIO_ALL ))
+            uniaud_mixer_put_value( card_id, ctl_id, new_vol, 1 );
     }
 }
 
 static APIRET APIENTRY uniaudSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
 {
-    set_perc_vol( hkai, "PCM Playback Volume", usVol, 1 );
-    set_perc_vol( hkai, "Front Playback Volume", usVol, 1 );
-    set_perc_vol( hkai, "Wave Playback Volume", usVol, 1 );
-    set_perc_vol( hkai, "Wave Surround Playback Volume", usVol, 1 );
-    set_perc_vol( hkai, "Wave Center Playback Volume", usVol, 0 );
-    set_perc_vol( hkai, "Wave LFE Playback Volume", usVol, 0 );
-    set_perc_vol( hkai, "Playback Volume", usVol, 1 );
-    set_perc_vol( hkai, "Surround Playback Volume", usVol, 1 );
-    set_perc_vol( hkai, "Center Playback Volume", usVol, 0 );
-    set_perc_vol( hkai, "LFE Playback Volume", usVol, 0 );
+    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+
+    const char **control;
+    char         name[ 80 ];
+
+    for( control = m_volumeControls; *control; control++ )
+    {
+        MAKE_CONTROL_NAME( name, *control, "Playback Volume");
+        set_perc_vol( pui->pcm->card_id, name, ulCh, usVol );
+    }
 
     return KAIE_NO_ERROR;
 }
@@ -766,14 +860,39 @@ static APIRET APIENTRY uniaudSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
 static APIRET APIENTRY uniaudGetVolume( HKAI hkai, ULONG ulCh )
 {
     PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
-    int         ctl_id, min, max, new_vol;
+    int         ctl_id, min, max, vol, left_vol, right_vol, values_cnt;
 
-    ctl_id = uniaud_get_id_by_name( pui->pcm->card_id, "PCM Playback Volume", 0 );
+    const char **control;
+    char         name[ 80 ];
+
+    ctl_id = -1;    /* Suppress uninitialized warning */
+    for( control = m_volumeControls; *control; control++ )
+    {
+        MAKE_CONTROL_NAME( name, *control, "Playback Volume");
+        ctl_id = uniaud_get_id_by_name( pui->pcm->card_id, name, 0 );
+        if( ctl_id > 0 )
+            break;
+    }
+
+    /* Ooops. Could not found a volume control */
+    if(!*control )
+        return 0;
 
     uniaud_mixer_get_min_max( pui->pcm->card_id, ctl_id, &min, &max );
-    new_vol = uniaud_mixer_get_value( pui->pcm->card_id, ctl_id, 0 );
+    left_vol = uniaud_mixer_get_value( pui->pcm->card_id, ctl_id, 0 );
+    uniaud_mixer_get_count_of_values( pui->pcm->card_id, ctl_id, &values_cnt );
+    right_vol = values_cnt > 1 ?
+                uniaud_mixer_get_value( pui->pcm->card_id, ctl_id, 1 ) :
+                left_vol;
 
-    return new_vol * ( 100.0f / ( max - min ));
+    if( ulCh == MCI_STATUS_AUDIO_LEFT )
+        vol = left_vol;
+    else if( ulCh == MCI_STATUS_AUDIO_RIGHT )
+        vol = right_vol;
+    else /* if( ulCh == MCI_STATUS_AUDIO_ALL ) */
+        vol = ( left_vol + right_vol ) / 2;
+
+    return vol * ( 100.0f / ( max - min ));
 }
 
 static APIRET APIENTRY uniaudStatus( HKAI hkai )

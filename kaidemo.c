@@ -88,6 +88,7 @@ int main( int argc, char *argv[])
     HKAI            hkai;
     int             key;
     ULONG           ulMode;
+    USHORT          usVol = 50;
     const char     *modeName[] = {"DART", "UNIAUD"};
 
     if( argc < 2 )
@@ -153,9 +154,9 @@ int main( int argc, char *argv[])
     printf("Buffer size = %lu\n", ksObtained.ulBufferSize );
     printf("Silence = %02x\n", ksObtained.bSilence );
 
-    printf("ESC = quit, q = stop, w = play, e = pause, r = resume\n");
+    printf("ESC = quit, q = stop, w = play, e = pause, r = resume, +/- = volume up/down\n");
 
-    kaiSetVolume( hkai, MCI_SET_AUDIO_ALL, 50 );
+    kaiSetVolume( hkai, MCI_SET_AUDIO_ALL, usVol );
     kaiSetSoundState( hkai, MCI_SET_AUDIO_ALL, TRUE );
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
@@ -165,7 +166,9 @@ int main( int argc, char *argv[])
     while( 1 )
     {
         m_ulStatus = kaiStatus( hkai );
-        printf("Status : [%9s]\r", getStatusName( m_ulStatus ));
+        printf("Status : [%9s], vol = [%3ld%%]\r",
+               getStatusName( m_ulStatus ),
+               kaiGetVolume( hkai, MCI_STATUS_AUDIO_ALL ));
         fflush( stdout );
 
         key = read_key();
@@ -184,6 +187,25 @@ int main( int argc, char *argv[])
 
         if( key == 'r')
             kaiResume( hkai );
+
+        if( key == '+')
+        {
+            usVol += 10;
+            if( usVol > 100 )
+                usVol = 100;
+
+            kaiSetVolume( hkai, MCI_SET_AUDIO_ALL, usVol );
+        }
+
+        if( key == '-')
+        {
+            if( usVol >= 10 )
+                usVol -= 10;
+            else
+                usVol = 0;
+
+            kaiSetVolume( hkai, MCI_SET_AUDIO_ALL, usVol );
+        }
 
         DosSleep( 1 );
     }
