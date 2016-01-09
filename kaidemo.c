@@ -150,6 +150,7 @@ int main( int argc, char *argv[])
         goto exit_mmio_close;
     }
 
+    printf("Number of channels = %lu\n", ksObtained.ulChannels );
     printf("Number of buffers = %lu\n", ksObtained.ulNumBuffers );
     printf("Buffer size = %lu\n", ksObtained.ulBufferSize );
     printf("Silence = %02x\n", ksObtained.bSilence );
