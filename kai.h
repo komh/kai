@@ -107,6 +107,7 @@ APIRET APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol );
 APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh );
 APIRET APIENTRY kaiClearBuffer( HKAI hkai );
 APIRET APIENTRY kaiStatus( HKAI hkai );
+APIRET APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable );
 
 #ifdef __cplusplus
 }

@@ -31,6 +31,7 @@
 #ifdef __KLIBC__
 #include <emx/umalloc.h>
 
+#define calloc _lcalloc
 #define malloc _lmalloc
 #endif
 
@@ -41,20 +42,97 @@ static KAICAPS  m_kaic = { 0, };
 typedef struct tagINSTANCELIST INSTANCELIST, *PINSTANCELIST;
 struct tagINSTANCELIST
 {
-    HKAI          hkai;
-    PINSTANCELIST pilNext;
+    HKAI     hkai;
+    LONG     lLeftVol;
+    LONG     lRightVol;
+    BOOL     fLeftState;
+    BOOL     fRightState;
+    BOOL     fSoftVol;
+    KAISPEC  ks;
+    PFNKAICB pfnUserCb;
+    PVOID    pUserData;
+
+    PINSTANCELIST    pilNext;
 };
 
-PINSTANCELIST   m_pilStart = NULL;
+PINSTANCELIST m_pilStart = NULL;
 
-static VOID instanceAdd( HKAI hkai )
+#define APPLY_SOFT_VOLUME( ptype, buf, size, pi )                       \
+do {                                                                    \
+    ptype pEnd = ( ptype )( buf ) + ( size ) / sizeof( *pEnd );         \
+    ptype p;                                                            \
+                                                                        \
+    for( p = ( buf ); p < pEnd; p++ )                                   \
+    {                                                                   \
+        *p = ( *p - ( pi )->ks.bSilence ) *                             \
+             ( pi )->lLeftVol / 100 * !!( pi )->fLeftState +            \
+             ( pi )->ks.bSilence;                                       \
+                                                                        \
+        if(( pi )->ks.ulChannels > 1 && ( p + 1 ) < pEnd )              \
+        {                                                               \
+            p++;                                                        \
+            *p = ( *p - ( pil )->ks.bSilence ) *                        \
+                 ( pi )->lRightVol / 100 * !!( pi )->fRightState +      \
+                 ( pi )->ks.bSilence;                                   \
+        }                                                               \
+    }                                                                   \
+} while( 0 )
+
+static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
+                                   ULONG ulBufSize )
+{
+    PINSTANCELIST pil = pCBData;
+
+    ULONG ulLen = pil->pfnUserCb( pil->pUserData, pBuffer, ulBufSize );
+
+    if( pil->fSoftVol )
+    {
+        switch( pil->ks.ulBitsPerSample )
+        {
+            case 8 :
+                APPLY_SOFT_VOLUME( PBYTE, pBuffer, ulBufSize, pil );
+                break;
+
+            case 16 :
+                APPLY_SOFT_VOLUME( PSHORT, pBuffer, ulBufSize, pil );
+                break;
+
+            case 32 :
+            default :
+                /* Oooops... Possible ? */
+                break;
+        }
+
+    }
+
+    return ulLen;
+}
+
+static PINSTANCELIST instanceNew( VOID )
 {
     PINSTANCELIST pilNew;
 
-    pilNew          = malloc( sizeof( INSTANCELIST ));
-    pilNew->hkai    = hkai;
-    pilNew->pilNext = m_pilStart;
-    m_pilStart      = pilNew;
+    pilNew = calloc( 1, sizeof( INSTANCELIST ));
+    if( !pilNew )
+        return NULL;
+
+    pilNew->lLeftVol    = 100;
+    pilNew->lRightVol   = 100;
+    pilNew->fLeftState  = TRUE;
+    pilNew->fRightState = TRUE;
+
+    // Use the soft volume mode unless KAI_NOSOFTVOLUME is specified
+    pilNew->fSoftVol = getenv("KAI_NOSOFTVOLUME") ? FALSE : TRUE;
+
+    return pilNew;
+}
+
+static void instanceAdd( HKAI hkai, PINSTANCELIST pil )
+{
+    pil->hkai    = hkai;
+    pil->pilNext = m_pilStart;
+
+    m_pilStart = pil;
 }
 
 static VOID instanceDel( HKAI hkai )
@@ -199,6 +277,8 @@ APIRET APIENTRY kaiCaps( PKAICAPS pkc )
 
 APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained, PHKAI phkai )
 {
+    PINSTANCELIST pil;
+
     APIRET rc;
 
     if( !m_ulInitCount )
@@ -210,13 +290,29 @@ APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained, PHKAI p
     if( !pksWanted->pfnCallBack )
         return KAIE_INVALID_PARAMETER;
 
-    memcpy( pksObtained, pksWanted, sizeof( KAISPEC ));
+    pil = instanceNew();
+    if( !pil )
+        return KAIE_NOT_ENOUGH_MEMORY;
 
-    rc = m_kai.pfnOpen( pksObtained, phkai );
+    memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
+    pil->ks.pfnCallBack   = kaiCallBack;
+    pil->ks.pCallBackData = pil;
+    pil->pfnUserCb        = pksWanted->pfnCallBack;
+    pil->pUserData        = pksWanted->pCallBackData;
+
+    rc = m_kai.pfnOpen( &pil->ks, phkai );
     if( rc )
-        return rc;
+    {
+        free( pil );
 
-    instanceAdd( *phkai );
+        return rc;
+    }
+
+    memcpy( pksObtained, &pil->ks, sizeof( KAISPEC ));
+    pksObtained->pfnCallBack   = pksWanted->pfnCallBack;
+    pksObtained->pCallBackData = pksWanted->pCallBackData;
+
+    instanceAdd( *phkai, pil );
 
     return KAIE_NO_ERROR;
 }
@@ -286,33 +382,82 @@ APIRET APIENTRY kaiResume( HKAI hkai )
 
 APIRET APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
 {
+    PINSTANCELIST pil;
+
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !instanceVerify( hkai ))
+    if( !( pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
+
+    if( pil->fSoftVol )
+    {
+        if( pil->ks.ulChannels == 1 ||
+            ulCh == MCI_SET_AUDIO_LEFT || ulCh == MCI_SET_AUDIO_ALL )
+            pil->fLeftState = fState;
+
+        if( pil->ks.ulChannels > 1 &&
+            ( ulCh == MCI_SET_AUDIO_RIGHT || ulCh == MCI_SET_AUDIO_ALL ))
+            pil->fRightState = fState;
+
+        return KAIE_NO_ERROR;
+    }
 
     return m_kai.pfnSetSoundState( hkai, ulCh, fState );
 }
 
 APIRET APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
 {
+    PINSTANCELIST pil;
+
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !instanceVerify( hkai ))
+    if( !( pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
+
+    if( pil->fSoftVol )
+    {
+        if( pil->ks.ulChannels == 1 ||
+            ulCh == MCI_SET_AUDIO_LEFT || ulCh == MCI_SET_AUDIO_ALL )
+            pil->lLeftVol = usVol;
+
+        if( pil->ks.ulChannels > 1 &&
+            ( ulCh == MCI_SET_AUDIO_RIGHT || ulCh == MCI_SET_AUDIO_ALL ))
+            pil->lRightVol = usVol;
+
+        return KAIE_NO_ERROR;
+    }
 
     return m_kai.pfnSetVolume( hkai, ulCh, usVol );
 }
 
 APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
 {
+    PINSTANCELIST pil;
+
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !instanceVerify( hkai ))
+    if( !(pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
+
+    if( pil->fSoftVol )
+    {
+        LONG lLeftVol, lRightVol;
+
+        lLeftVol = pil->lLeftVol;
+        lRightVol = pil->ks.ulChannels > 1 ? pil->lRightVol : lLeftVol;
+
+        if( ulCh == MCI_STATUS_AUDIO_LEFT )
+            return lLeftVol;
+
+        if( ulCh == MCI_STATUS_AUDIO_RIGHT )
+            return lRightVol;
+
+        /* ulCh == MCI_STATUS_AUDIO_ALL */
+        return ( lLeftVol + lRightVol ) / 2;
+    }
 
     return m_kai.pfnGetVolume( hkai, ulCh );
 }
@@ -337,4 +482,19 @@ APIRET APIENTRY kaiStatus( HKAI hkai )
         return KAIE_INVALID_HANDLE;
 
     return m_kai.pfnStatus( hkai );
+}
+
+APIRET APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable )
+{
+    PINSTANCELIST pil;
+
+    if( !m_ulInitCount )
+        return KAIE_NOT_INITIALIZED;
+
+    if( !( pil = instanceVerify( hkai )))
+        return KAIE_INVALID_HANDLE;
+
+    pil->fSoftVol = fEnable;
+
+    return KAIE_NO_ERROR;
 }

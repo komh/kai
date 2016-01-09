@@ -12,3 +12,4 @@ kaiSetVolume
 kaiGetVolume
 kaiClearBuffer
 kaiStatus
+kaiEnableSoftVolume
