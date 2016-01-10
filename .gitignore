@@ -1,0 +1,16 @@
+*.o
+*.obj
+*.dll_obj
+*.exe
+*.a
+*.lib
+*.err
+*.diff
+*.dll
+*.cmd
+*.log
+*.bak
+*.txt
+*.imp
+med.lru
+kaidll.def
