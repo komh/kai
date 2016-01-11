@@ -85,7 +85,9 @@ static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
 
     ULONG ulLen = pil->pfnUserCb( pil->pUserData, pBuffer, ulBufSize );
 
-    if( pil->fSoftVol )
+    if( pil->fSoftVol &&
+        ( pil->lLeftVol  != 100 || !pil->fLeftState ||
+          pil->lRightVol != 100 || !pil->fRightState ))
     {
         switch( pil->ks.ulBitsPerSample )
         {
