@@ -41,15 +41,9 @@ kai_dll.a : $(KAIDLL)
 $(KAIDLL): kai.o kai_dart.o kai_uniaud.o $(KAIDLLDEF)
 	$(CC) -Zdll $(LDFLAGS) -o $@ $^
 
-$(KAIDLLDEF): $(KAIDLLSYM)
+$(KAIDLLDEF):
 	echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
 	echo DATA MULTIPLE NONSHARED >> $@
-	echo EXPORTS >> $@
-	cat $(KAIDLLSYM) >> $@
-
-# To prevent circular dependency between kaidll.def and kaidll.sym
-$(KAIDLLSYM):
-	# tab
 
 kai.o: kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
 
@@ -88,7 +82,7 @@ distclean : clean
 	$(RM) *.zip
 
 src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
-      kai_uniaud.h kaidll.mk $(KAIDLLSYM) \
+      kai_uniaud.h kaidll.mk \
       kaidemo.c kaidemo2.c demo1.wav demo2.wav demo3.wav \
       Makefile Makefile.icc Makefile.wat \
       uniaud.h unidef.h unierrno.h uniaud.dll

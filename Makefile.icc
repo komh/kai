@@ -32,11 +32,9 @@ kai_dll.lib : $(KAIDLL)
 $(KAIDLL): $(DLL_OBJECTS) $(KAIDLLDEF)
     ilink /NOI $(DLL_OBJECTS) $(KAIDLLDEF) /OUT:$@
 
-$(KAIDLLDEF): $(KAIDLLSYM)
+$(KAIDLLDEF):
     echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
     echo DATA MULTIPLE NONSHARED >> $@
-    echo EXPORTS >> $@
-    type $(KAIDLLSYM) >> $@
 
 kai.obj : kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
 

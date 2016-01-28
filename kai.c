@@ -186,7 +186,7 @@ static PINSTANCELIST instanceVerify( HKAI hkai )
     return pil;
 }
 
-APIRET APIENTRY kaiInit( ULONG ulMode )
+APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 {
     const char *pszAutoMode;
     APIRET rc = KAIE_INVALID_PARAMETER;
@@ -238,7 +238,7 @@ APIRET APIENTRY kaiInit( ULONG ulMode )
     return rc;
 }
 
-APIRET APIENTRY kaiDone( VOID )
+APIRET DLLEXPORT APIENTRY kaiDone( VOID )
 {
     APIRET rc;
 
@@ -264,7 +264,7 @@ APIRET APIENTRY kaiDone( VOID )
     return rc;
 }
 
-APIRET APIENTRY kaiCaps( PKAICAPS pkc )
+APIRET DLLEXPORT APIENTRY kaiCaps( PKAICAPS pkc )
 {
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -277,7 +277,8 @@ APIRET APIENTRY kaiCaps( PKAICAPS pkc )
     return KAIE_NO_ERROR;
 }
 
-APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained, PHKAI phkai )
+APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
+                                   PKAISPEC pksObtained, PHKAI phkai )
 {
     PINSTANCELIST pil;
 
@@ -319,7 +320,7 @@ APIRET APIENTRY kaiOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained, PHKAI p
     return KAIE_NO_ERROR;
 }
 
-APIRET APIENTRY kaiClose( HKAI hkai )
+APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
 {
     APIRET rc;
 
@@ -338,7 +339,7 @@ APIRET APIENTRY kaiClose( HKAI hkai )
     return KAIE_NO_ERROR;
 }
 
-APIRET APIENTRY kaiPlay( HKAI hkai )
+APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
 {
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -349,7 +350,7 @@ APIRET APIENTRY kaiPlay( HKAI hkai )
     return m_kai.pfnPlay( hkai );
 }
 
-APIRET APIENTRY kaiStop( HKAI hkai )
+APIRET DLLEXPORT APIENTRY kaiStop( HKAI hkai )
 {
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -360,7 +361,7 @@ APIRET APIENTRY kaiStop( HKAI hkai )
     return m_kai.pfnStop( hkai );
 }
 
-APIRET APIENTRY kaiPause( HKAI hkai )
+APIRET DLLEXPORT APIENTRY kaiPause( HKAI hkai )
 {
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -371,7 +372,7 @@ APIRET APIENTRY kaiPause( HKAI hkai )
     return m_kai.pfnPause( hkai );
 }
 
-APIRET APIENTRY kaiResume( HKAI hkai )
+APIRET DLLEXPORT APIENTRY kaiResume( HKAI hkai )
 {
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -382,7 +383,8 @@ APIRET APIENTRY kaiResume( HKAI hkai )
     return m_kai.pfnResume( hkai );
 }
 
-APIRET APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
+APIRET DLLEXPORT APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh,
+                                            BOOL fState )
 {
     PINSTANCELIST pil;
 
@@ -408,7 +410,7 @@ APIRET APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
     return m_kai.pfnSetSoundState( hkai, ulCh, fState );
 }
 
-APIRET APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
+APIRET DLLEXPORT APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
 {
     PINSTANCELIST pil;
 
@@ -434,7 +436,7 @@ APIRET APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
     return m_kai.pfnSetVolume( hkai, ulCh, usVol );
 }
 
-APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
+APIRET DLLEXPORT APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
 {
     PINSTANCELIST pil;
 
@@ -464,7 +466,7 @@ APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
     return m_kai.pfnGetVolume( hkai, ulCh );
 }
 
-APIRET APIENTRY kaiClearBuffer( HKAI hkai )
+APIRET DLLEXPORT APIENTRY kaiClearBuffer( HKAI hkai )
 {
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -475,7 +477,7 @@ APIRET APIENTRY kaiClearBuffer( HKAI hkai )
     return m_kai.pfnClearBuffer( hkai );
 }
 
-APIRET APIENTRY kaiStatus( HKAI hkai )
+APIRET DLLEXPORT APIENTRY kaiStatus( HKAI hkai )
 {
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -486,7 +488,7 @@ APIRET APIENTRY kaiStatus( HKAI hkai )
     return m_kai.pfnStatus( hkai );
 }
 
-APIRET APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable )
+APIRET DLLEXPORT APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable )
 {
     PINSTANCELIST pil;
 

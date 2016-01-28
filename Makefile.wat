@@ -36,12 +36,11 @@ kai_dll.lib: $(KAIDLL)
 $(KAIDLL): $(DLL_OBJECTS) $(KAIDLLDEF)
     $(LINK) $(LFLAGS) @$(KAIDLLDEF) file { $(DLL_OBJECTS) }
 
-$(KAIDLLDEF): $(KAIDLLSYM)
+$(KAIDLLDEF):
     %create $@
     %append $@ system os2v2 dll initinstance terminstance
     %append $@ name $(KAIDLLNAME)
     %append $@ option manyautodata
-    awk '{print "export "$$1 }' $(KAIDLLSYM) >> $@
 
 kaidemo.exe : kaidemo.obj kai.lib
     $(LINK) $(LFLAGS) system os2v2 name $@ file { $< } library mmpm2

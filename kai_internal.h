@@ -28,8 +28,10 @@ exter "C" {
 
 #ifdef __IBMC__
 #define DECLARE_PFN( ret, callconv, name, arg ) ret ( * callconv name )arg
+#define DLLEXPORT _Export
 #else
 #define DECLARE_PFN( ret, callconv, name, arg ) ret ( callconv * name )arg
+#define DLLEXPORT __declspec(dllexport)
 #endif
 
 typedef struct tagKAIAPIS
