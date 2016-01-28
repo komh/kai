@@ -38,7 +38,7 @@ ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
     {
         if( pcd->iBufIndex >= pcd->iBufLen )
         {
-            pcd->iBufLen = mmioRead( pcd->hmmio, pcd->abBuf, BUF_SIZE );
+            pcd->iBufLen = mmioRead( pcd->hmmio, (PCHAR)pcd->abBuf, BUF_SIZE );
             if( pcd->iBufLen == 0 )
                 break;
 
@@ -84,7 +84,7 @@ void playThread( void *arg )
      */
     memset( &mmioInfo, '\0', sizeof( MMIOINFO ));
     mmioInfo.fccIOProc = mmioFOURCC('W', 'A', 'V', 'E');
-    hmmio = mmioOpen( name, &mmioInfo, MMIO_READ | MMIO_DENYNONE );
+    hmmio = mmioOpen( (PSZ)name, &mmioInfo, MMIO_READ | MMIO_DENYNONE );
     if( !hmmio )
     {
         fprintf( stderr, "[%s] Failed to open a wave file!!!\n", name );
@@ -178,7 +178,7 @@ static int play( const char *name )
 {
     m_nThreads++;
 
-    return _beginthread( playThread, NULL, 256 * 1024, name );
+    return _beginthread( playThread, NULL, 256 * 1024, (void *)name );
 }
 
 int main( int argc, char *argv[])
