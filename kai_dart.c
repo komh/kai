@@ -90,8 +90,8 @@ static APIRET APIENTRY dartPlay( HKAI hkai );
 static APIRET APIENTRY dartStop( HKAI hkai );
 static APIRET APIENTRY dartPause( HKAI hkai );
 static APIRET APIENTRY dartResume( HKAI hkai );
-static APIRET APIENTRY dartGetPos( HKAI hkai );
-static APIRET APIENTRY dartSetPos( HKAI hkai, ULONG ulNewPos );
+static __attribute__((unused)) APIRET APIENTRY dartGetPos( HKAI hkai );
+static __attribute__((unused)) APIRET APIENTRY dartSetPos( HKAI hkai, ULONG ulNewPos );
 static APIRET APIENTRY dartError( APIRET rc );
 static APIRET APIENTRY dartSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState );
 static APIRET APIENTRY dartSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol );
@@ -113,7 +113,7 @@ static BOOL loadMDM( VOID )
     if( m_hmodMDM )
         return TRUE;
 
-    if( DosLoadModule( szFailedName, sizeof( szFailedName ), "MDM", &m_hmodMDM ))
+    if( DosLoadModule( szFailedName, sizeof( szFailedName ), ( PSZ )"MDM", &m_hmodMDM ))
         goto exit_error;
 
     if( DosQueryProcAddr( m_hmodMDM, 1, NULL, ( PFN * )&mciSendCommand ))
@@ -908,7 +908,7 @@ APIRET APIENTRY kaiOSLibGetAudioPDDName( PSZ pszPDDName )
         goto exit;
 
 //    strcpy( pszPDDName, SysInfoParm.szPDDName );
-    strcpy ( pszPDDName, SysInfoParm.szProductInfo );
+    strcpy ( ( char * )pszPDDName, SysInfoParm.szProductInfo );
 //    printf("Audio:\n product info [%s]\n\n",SysInfoParm.szProductInfo);
 //    printf("Audio:\n inst name [%s]\n version [%s]\n MCD drv [%s]\n VSD drv [%s]\n res name: [%s]\n",
 //           SysInfoParm.szInstallName,

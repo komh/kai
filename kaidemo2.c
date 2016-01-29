@@ -38,7 +38,7 @@ ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
     {
         if( pcd->iBufIndex >= pcd->iBufLen )
         {
-            pcd->iBufLen = mmioRead( pcd->hmmio, (PCHAR)pcd->abBuf, BUF_SIZE );
+            pcd->iBufLen = mmioRead( pcd->hmmio, ( PCHAR )pcd->abBuf, BUF_SIZE );
             if( pcd->iBufLen == 0 )
                 break;
 
