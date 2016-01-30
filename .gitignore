@@ -8,6 +8,7 @@
 *.diff
 *.dll
 *.cmd
+!pack.cmd
 *.log
 *.bak
 *.txt

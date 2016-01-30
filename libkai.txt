@@ -1,0 +1,73 @@
+                          Upload Information Template for Hobbes.nmsu.edu
+                          ===============================================
+
+        Archive Filename: libkai-@VER@.zip
+       Short Description: libkai v@VER@
+        Long Description: K Audio Interface v@VER@.
+                          DART/UNIAUD implementation library.
+
+v1.2.0:
+    * Added soft volume control support
+        - now use soft volume control by default
+        - set KAI_NOSOFTVOLUME to any value if you want to disable soft volume
+          control by default
+        - added kaiEnableSoftVolume() API
+
+    * Improved volume control on UNIAUD mode
+    * Now ignore KAISPEC.ulDataFormat field. It is always MCI_WAVE_FORMAT_PCM
+    * Device index is not consistent on UNIAUD mode. Fixed
+        - 0 = default, 1 = first, 2 = second, and so forth
+
+v1.1.4:
+    * Introduced KAI_AUTOMODE to override kai mode if auto mode
+        - set KAI_AUTOMODE=UNIAUD if you want to open in uniaud mode
+        - set KAI_AUTOMODE=DART if you want to open in dart mode
+
+    * Allow multiple initialization
+    * Distribute a DLL, kai0.dll
+
+v1.1.3:
+    * High-memory is not supported on uniaud mode. Fixed
+
+v1.1.2:
+    * If uniaud.dll is present even though Uniaud driver is not loaded,
+    the crash occur in kaiUniaudInit() on a second call time. Fixed
+
+v1.1.1:
+    * Undefine VERSION macro to avoid a name clash
+
+V1.1.0:
+    * Try to improve the compatibility with LIBPATHSTRICT
+    ( Thanks to Andy Willis )
+    * Support multiple instances
+    * dartPlay() checks whether instance is inactive before playing
+    * kaiInit() check a parameter validity
+    * Callback is called one more after EOS. Fixed
+    * dartGetVolume() returns a volume of both channel. Fixed
+
+v1.0.1:
+    * Added KAI_VERSION macro
+    * Sometimes dead lock occur in dartStop(). Fixed
+    * If it takes too long time returning from callback, looping sounds can be
+    generated due to underrun. Fixed
+
+      Proposed directory
+           for placement: /pub/os2/dev/mm
+
+               Your name: KO Myung-Hun
+           Email address: komh@chollian.net
+    Program contact name: (same)
+   Program contact email: (same)
+             Program URL: https://github.com/komh/kai
+
+      Would you like the
+   contact email address
+    included in listings? yes
+
+Operating System/Version:
+ Additional requirements: kLIBC v0.6.6
+
+                Replaces: (none)
+
+
+
