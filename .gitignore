@@ -12,6 +12,8 @@
 *.log
 *.bak
 *.txt
+!libkai.txt
+!donation.txt
 *.imp
 med.lru
 kaidll.def
