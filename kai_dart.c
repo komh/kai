@@ -113,7 +113,7 @@ static BOOL loadMDM( VOID )
     if( m_hmodMDM )
         return TRUE;
 
-    if( DosLoadModule( szFailedName, sizeof( szFailedName ), "MDM", &m_hmodMDM ))
+    if( DosLoadModule( szFailedName, sizeof( szFailedName ), ( PSZ )"MDM", &m_hmodMDM ))
         goto exit_error;
 
     if( DosQueryProcAddr( m_hmodMDM, 1, NULL, ( PFN * )&mciSendCommand ))
@@ -908,7 +908,7 @@ APIRET APIENTRY kaiOSLibGetAudioPDDName( PSZ pszPDDName )
         goto exit;
 
 //    strcpy( pszPDDName, SysInfoParm.szPDDName );
-    strcpy ( pszPDDName, SysInfoParm.szProductInfo );
+    strcpy ( ( char * )pszPDDName, SysInfoParm.szProductInfo );
 //    printf("Audio:\n product info [%s]\n\n",SysInfoParm.szProductInfo);
 //    printf("Audio:\n inst name [%s]\n version [%s]\n MCD drv [%s]\n VSD drv [%s]\n res name: [%s]\n",
 //           SysInfoParm.szInstallName,

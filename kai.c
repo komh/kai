@@ -228,7 +228,7 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
     if( !rc )
     {
         m_kaic.ulMode = ulMode;
-        kaiOSLibGetAudioPDDName( m_kaic.szPDDName );
+        kaiOSLibGetAudioPDDName( ( PSZ )m_kaic.szPDDName );
 
         m_ulInitCount++;
     }

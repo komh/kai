@@ -202,142 +202,142 @@ static BOOL loadUniaud( VOID )
     if( m_hmodUniaud )
         return TRUE;
 
-    if( DosLoadModule( szTempStr, sizeof( szTempStr ), "uniaud", &m_hmodUniaud ))
+    if( DosLoadModule( ( PSZ )szTempStr, sizeof( szTempStr ), ( PSZ )"uniaud", &m_hmodUniaud ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_power_state", ( PFN * )&uniaud_mixer_get_power_state ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_get_power_state", ( PFN * )&uniaud_mixer_get_power_state ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_set_power_state", ( PFN * )&uniaud_mixer_set_power_state ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_set_power_state", ( PFN * )&uniaud_mixer_set_power_state ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_ctls_number", ( PFN * )&uniaud_mixer_get_ctls_number ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_get_ctls_number", ( PFN * )&uniaud_mixer_get_ctls_number ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_ctl_list", ( PFN * )&uniaud_mixer_get_ctl_list ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_get_ctl_list", ( PFN * )&uniaud_mixer_get_ctl_list ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_get_id_by_name", ( PFN * )&uniaud_get_id_by_name ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_get_id_by_name", ( PFN * )&uniaud_get_id_by_name ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_ctl_info", ( PFN * )&uniaud_mixer_get_ctl_info ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_get_ctl_info", ( PFN * )&uniaud_mixer_get_ctl_info ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_ctl_val", ( PFN * )&uniaud_mixer_get_ctl_val ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_get_ctl_val", ( PFN * )&uniaud_mixer_get_ctl_val ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_put_ctl_val", ( PFN * )&uniaud_mixer_put_ctl_val ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_put_ctl_val", ( PFN * )&uniaud_mixer_put_ctl_val ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_wait", ( PFN * )&uniaud_mixer_wait ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_wait", ( PFN * )&uniaud_mixer_wait ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_min_max", ( PFN * )&uniaud_mixer_get_min_max ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_get_min_max", ( PFN * )&uniaud_mixer_get_min_max ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_count_of_values", ( PFN * )&uniaud_mixer_get_count_of_values ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_get_count_of_values", ( PFN * )&uniaud_mixer_get_count_of_values ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_put_value", ( PFN * )&uniaud_mixer_put_value ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_put_value", ( PFN * )&uniaud_mixer_put_value ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_value", ( PFN * )&uniaud_mixer_get_value ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_get_value", ( PFN * )&uniaud_mixer_get_value ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_put_value_by_name", ( PFN * )&uniaud_mixer_put_value_by_name ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_put_value_by_name", ( PFN * )&uniaud_mixer_put_value_by_name ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_get_value_by_name", ( PFN * )&uniaud_mixer_get_value_by_name ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_get_value_by_name", ( PFN * )&uniaud_mixer_get_value_by_name ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_get_pcm_instances", ( PFN * )&uniaud_get_pcm_instances ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_get_pcm_instances", ( PFN * )&uniaud_get_pcm_instances ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_get_caps", ( PFN * )&uniaud_pcm_get_caps ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_get_caps", ( PFN * )&uniaud_pcm_get_caps ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_find_pcm_for_chan", ( PFN * )&uniaud_pcm_find_pcm_for_chan ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_find_pcm_for_chan", ( PFN * )&uniaud_pcm_find_pcm_for_chan ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_set_pcm", ( PFN * )&uniaud_pcm_set_pcm ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_set_pcm", ( PFN * )&uniaud_pcm_set_pcm ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_find_max_chan", ( PFN * )&uniaud_pcm_find_max_chan ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_find_max_chan", ( PFN * )&uniaud_pcm_find_max_chan ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_get_max_channels", ( PFN * )&uniaud_get_max_channels ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_get_max_channels", ( PFN * )&uniaud_get_max_channels ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_format_size", ( PFN * )&uniaud_pcm_format_size ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_format_size", ( PFN * )&uniaud_pcm_format_size ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_open", ( PFN * )&uniaud_pcm_open ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_open", ( PFN * )&uniaud_pcm_open ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_close", ( PFN * )&uniaud_pcm_close ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_close", ( PFN * )&uniaud_pcm_close ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_write", ( PFN * )&uniaud_pcm_write ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_write", ( PFN * )&uniaud_pcm_write ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_read", ( PFN * )&uniaud_pcm_read ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_read", ( PFN * )&uniaud_pcm_read ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_prepare", ( PFN * )&uniaud_pcm_prepare ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_prepare", ( PFN * )&uniaud_pcm_prepare ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_resume", ( PFN * )&uniaud_pcm_resume ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_resume", ( PFN * )&uniaud_pcm_resume ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_status", ( PFN * )&uniaud_pcm_status ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_status", ( PFN * )&uniaud_pcm_status ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_state", ( PFN * )&uniaud_pcm_state ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_state", ( PFN * )&uniaud_pcm_state ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_wait", ( PFN * )&uniaud_pcm_wait ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_wait", ( PFN * )&uniaud_pcm_wait ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_pause", ( PFN * )&uniaud_pcm_pause ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_pause", ( PFN * )&uniaud_pcm_pause ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_start", ( PFN * )&uniaud_pcm_start ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_start", ( PFN * )&uniaud_pcm_start ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_pcm_drop", ( PFN * )&uniaud_pcm_drop ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_pcm_drop", ( PFN * )&uniaud_pcm_drop ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_close_all_pcms", ( PFN * )&uniaud_close_all_pcms ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_close_all_pcms", ( PFN * )&uniaud_close_all_pcms ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_get_cards", ( PFN * )&uniaud_get_cards ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_get_cards", ( PFN * )&uniaud_get_cards ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_get_card_info", ( PFN * )&uniaud_get_card_info ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_get_card_info", ( PFN * )&uniaud_get_card_info ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_get_version", ( PFN * )&uniaud_get_version ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_get_version", ( PFN * )&uniaud_get_version ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "_snd_pcm_hw_params_any", ( PFN * )&_snd_pcm_hw_params_any ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"_snd_pcm_hw_params_any", ( PFN * )&_snd_pcm_hw_params_any ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "snd_pcm_hw_params_any", ( PFN * )&snd_pcm_hw_params_any ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"snd_pcm_hw_params_any", ( PFN * )&snd_pcm_hw_params_any ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "_snd_pcm_hw_param_set", ( PFN * )&_snd_pcm_hw_param_set ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"_snd_pcm_hw_param_set", ( PFN * )&_snd_pcm_hw_param_set ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "_uniaud_pcm_refine_hw_params", ( PFN * )&_uniaud_pcm_refine_hw_params ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"_uniaud_pcm_refine_hw_params", ( PFN * )&_uniaud_pcm_refine_hw_params ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "_uniaud_pcm_set_hw_params", ( PFN * )&_uniaud_pcm_set_hw_params ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"_uniaud_pcm_set_hw_params", ( PFN * )&_uniaud_pcm_set_hw_params ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "_uniaud_pcm_set_sw_params", ( PFN * )&_uniaud_pcm_set_sw_params ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"_uniaud_pcm_set_sw_params", ( PFN * )&_uniaud_pcm_set_sw_params ))
         goto exit_error;
 
-    if( DosQueryProcAddr( m_hmodUniaud, 0, "uniaud_mixer_put_spdif_status", ( PFN * )&uniaud_mixer_put_spdif_status ))
+    if( DosQueryProcAddr( m_hmodUniaud, 0, ( PCSZ )"uniaud_mixer_put_spdif_status", ( PFN * )&uniaud_mixer_put_spdif_status ))
         goto exit_error;
 
     switch( uniaud_get_version())
@@ -510,7 +510,7 @@ static void uniaudPlayThread( void *arg )
                 continue;
             }
 
-            err = uniaud_pcm_write( pui->pcm, pchBuffer + written, count - written );
+            err = uniaud_pcm_write( pui->pcm, (char *)(pchBuffer + written), count - written );
             ret = uniaud_pcm_wait( pui->pcm, timeout );
             if( ret == -77 )
                 uniaud_pcm_prepare( pui->pcm );
