@@ -14,7 +14,7 @@ INSTALL=ginstall
 endif
 
 CC = gcc
-CFLAGS = -Wall -O3 -DINLINE=inline
+CFLAGS = -Wall -O3 -DINLINE=inline -DOS2EMX_PLAIN_CHAR
 LDFLAGS = -Zomf -Zhigh-mem
 
 AR = ar

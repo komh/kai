@@ -178,7 +178,7 @@ static int play( const char *name )
 {
     m_nThreads++;
 
-    return _beginthread( playThread, NULL, 256 * 1024, name );
+    return _beginthread( playThread, NULL, 256 * 1024, ( void * )name );
 }
 
 int main( int argc, char *argv[])

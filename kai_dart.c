@@ -90,8 +90,10 @@ static APIRET APIENTRY dartPlay( HKAI hkai );
 static APIRET APIENTRY dartStop( HKAI hkai );
 static APIRET APIENTRY dartPause( HKAI hkai );
 static APIRET APIENTRY dartResume( HKAI hkai );
+#if 0
 static APIRET APIENTRY dartGetPos( HKAI hkai );
 static APIRET APIENTRY dartSetPos( HKAI hkai, ULONG ulNewPos );
+#endif
 static APIRET APIENTRY dartError( APIRET rc );
 static APIRET APIENTRY dartSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState );
 static APIRET APIENTRY dartSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol );
@@ -108,7 +110,7 @@ static VOID freeMDM( VOID )
 
 static BOOL loadMDM( VOID )
 {
-    UCHAR szFailedName[ 256 ];
+    CHAR szFailedName[ 256 ];
 
     if( m_hmodMDM )
         return TRUE;
@@ -721,6 +723,7 @@ static APIRET APIENTRY dartResume( HKAI hkai )
     return KAIE_NO_ERROR;
 }
 
+#if 0
 static APIRET APIENTRY dartGetPos( HKAI hkai )
 {
     PDARTINFO        pdi = ( PDARTINFO )hkai;
@@ -760,6 +763,7 @@ static APIRET APIENTRY dartSetPos( HKAI hkai, ULONG ulNewPos )
 
     return KAIE_NO_ERROR;
 }
+#endif
 
 static APIRET APIENTRY dartSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState )
 {
