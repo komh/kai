@@ -4,7 +4,7 @@
 .SUFFIXES : .exe .dll .def .a .lib .o .c .h
 
 ifeq ($(PREFIX),)
-PREFIX=/usr
+PREFIX=/usr/local
 endif
 LIBDIR=$(PREFIX)/lib
 INCDIR=$(PREFIX)/include
