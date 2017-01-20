@@ -12,7 +12,7 @@ sCmd = 'sed -n "s/^#define' sVerMacro '*\\\"\(.*\)\\\"$/\1/p"' sVerHeader
 sVer = getOutput( sCmd )
 
 'gmake distclean'
-'gmake dist VER=' || sVer
+'gmake dist VER=' || sVer 'PREFIX=/usr'
 'sed "s/@VER@/' || sVer || '/g"',
      sPackageName || '.txt >' sPackageName || '-' || sVer || '.txt'
 'zip' sPackageName || '-' || sVer || '.zip',
