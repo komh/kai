@@ -71,23 +71,19 @@ clean :
 	$(RM) $(KAIDLL)
 	$(RM) *.exe
 
-dist : src
-	mkdir kai_dist
-	$(MAKE) install PREFIX=$(shell pwd)/kai_dist
-	( cd kai_dist && zip -rpSm ../libkai-$(VER).zip * )
-	rmdir kai_dist
-	zip -m libkai-$(VER).zip src.zip
-
 distclean : clean
-	$(RM) *.zip
+	$(RM) libkai-*
 
 src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
       kai_uniaud.h kaidll.mk \
       kaidemo.c kaidemo2.c demo1.wav demo2.wav demo3.wav \
       Makefile Makefile.icc Makefile.wat \
       uniaud.h unidef.h unierrno.h uniaud.dll
-	$(RM) src.zip
-	zip src.zip $^
+	$(RM) libkai-$(VER)-src.zip
+	$(RM) -r libkai-$(VER)
+	mkdir libkai-$(VER)
+	cp $^ libkai-$(VER)
+	zip -rpSm libkai-$(VER)-src.zip libkai-$(VER)
 
 install : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) kai.h
 	$(INSTALL) -d $(DESTDIR)$(LIBDIR)

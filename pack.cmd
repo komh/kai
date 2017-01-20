@@ -11,12 +11,21 @@ sVerHeader = 'kai.h'
 sCmd = 'sed -n "s/^#define' sVerMacro '*\\\"\(.*\)\\\"$/\1/p"' sVerHeader
 sVer = getOutput( sCmd )
 
+sPackageNameVer = sPackageName || '-' || sVer;
+sDestDir = '/' || sPackageNameVer;
+
 'gmake distclean'
-'gmake dist VER=' || sVer 'PREFIX=/usr'
+'gmake install PREFIX=/usr DESTDIR=' || sDestDir
+'gmake src VER=' || sVer
+
 'sed "s/@VER@/' || sVer || '/g"',
-     sPackageName || '.txt >' sPackageName || '-' || sVer || '.txt'
-'zip' sPackageName || '-' || sVer || '.zip',
-      sPackageName || '-' || sVer || '.txt donation.txt'
+     sPackageName || '.txt >' sPackageNameVer || '.txt'
+
+'mv' sPackageNameVer || '-src.zip' sDestDir
+'cp' sPackageNameVer || '.txt' sDestDir
+'cp donation.txt' sDestDir
+
+'zip -rpSm' sPackageNameVer || '.zip' sDestDir
 
 exit 0
 
