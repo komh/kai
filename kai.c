@@ -213,25 +213,20 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
     if( ulMode == KAIM_UNIAUD || ulMode == KAIM_AUTO )
     {
-        rc = kaiUniaudInit( &m_kai, &m_kaic.ulMaxChannels );
+        rc = kaiUniaudInit( &m_kai, &m_kaic );
         if( !rc )
             ulMode = KAIM_UNIAUD;
     }
 
     if( ulMode == KAIM_DART || ulMode == KAIM_AUTO )
     {
-        rc = kaiDartInit( &m_kai, &m_kaic.ulMaxChannels );
+        rc = kaiDartInit( &m_kai, &m_kaic );
         if( !rc )
             ulMode = KAIM_DART;
     }
 
     if( !rc )
-    {
-        m_kaic.ulMode = ulMode;
-        kaiOSLibGetAudioPDDName( m_kaic.szPDDName );
-
         m_ulInitCount++;
-    }
 
     DosExitCritSec();
 

@@ -358,8 +358,10 @@ exit_error :
     return FALSE;
 }
 
-APIRET APIENTRY kaiUniaudInit( PKAIAPIS pkai, PULONG pulMaxChannels )
+APIRET APIENTRY kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
 {
+    UniaudCardInfo cardInfo;
+
     if( !loadUniaud())
         return KAIE_CANNOT_LOAD_SUB_MODULE;
 
@@ -376,7 +378,11 @@ APIRET APIENTRY kaiUniaudInit( PKAIAPIS pkai, PULONG pulMaxChannels )
     pkai->pfnClearBuffer   = uniaudClearBuffer;
     pkai->pfnStatus        = uniaudStatus;
 
-    *pulMaxChannels  = uniaudChNum();
+    pkc->ulMode         = KAIM_UNIAUD;
+    pkc->ulMaxChannels  = uniaudChNum();
+
+    uniaud_get_card_info( 0, &cardInfo );
+    strcpy( pkc->szPDDName, ( char * )cardInfo.name );
 
     m_fDebugMode = getenv("KAIDEBUG") != NULL;
 

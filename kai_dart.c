@@ -101,6 +101,7 @@ static APIRET APIENTRY dartGetVolume( HKAI hkai, ULONG ulCh );
 static APIRET APIENTRY dartChNum( VOID );
 static APIRET APIENTRY dartClearBuffer( HKAI hkai );
 static APIRET APIENTRY dartStatus( HKAI hkai );
+static APIRET APIENTRY dartOSLibGetAudioPDDName( PSZ pszPDDName );
 
 static VOID freeMDM( VOID )
 {
@@ -133,7 +134,7 @@ exit_error:
     return FALSE;
 }
 
-APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PULONG pulMaxChannels )
+APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
 {
     if( !loadMDM())
         return KAIE_CANNOT_LOAD_SUB_MODULE;
@@ -151,7 +152,9 @@ APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PULONG pulMaxChannels )
     pkai->pfnClearBuffer   = dartClearBuffer;
     pkai->pfnStatus        = dartStatus;
 
-    *pulMaxChannels  = dartChNum();
+    pkc->ulMode         = KAIM_DART;
+    pkc->ulMaxChannels  = dartChNum();
+    dartOSLibGetAudioPDDName( &pkc->szPDDName[ 0 ]);
 
     m_fDebugMode = getenv("KAIDEBUG") != NULL;
 
@@ -858,7 +861,7 @@ static APIRET APIENTRY dartStatus( HKAI hkai )
 // OS/2 32-bit program to query the Physical Device Driver name
 // for the default MMPM/2 WaveAudio device.  Joe Nord 10-Mar-1999
 /******************************************************************************/
-APIRET APIENTRY kaiOSLibGetAudioPDDName( PSZ pszPDDName )
+static APIRET APIENTRY dartOSLibGetAudioPDDName( PSZ pszPDDName )
 {
     ULONG                   ulRC;
     CHAR                    szAmpMix[9] = "AMPMIX01";
@@ -912,7 +915,7 @@ APIRET APIENTRY kaiOSLibGetAudioPDDName( PSZ pszPDDName )
         goto exit;
 
 //    strcpy( pszPDDName, SysInfoParm.szPDDName );
-    strcpy ( pszPDDName, SysInfoParm.szProductInfo );
+    strcpy( pszPDDName, SysInfoParm.szProductInfo );
 //    printf("Audio:\n product info [%s]\n\n",SysInfoParm.szProductInfo);
 //    printf("Audio:\n inst name [%s]\n version [%s]\n MCD drv [%s]\n VSD drv [%s]\n res name: [%s]\n",
 //           SysInfoParm.szInstallName,

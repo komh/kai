@@ -28,8 +28,7 @@
 extern "C" {
 #endif
 
-APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PULONG pulMaxChannels );
-APIRET APIENTRY kaiOSLibGetAudioPDDName( PSZ pszPDDName );
+APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc );
 
 #ifdef __cplusplus
 }
