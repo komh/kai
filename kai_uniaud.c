@@ -417,7 +417,7 @@ static APIRET APIENTRY uniaudClearBuffer( HKAI hkai )
 {
     PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
 
-    memset( pui->pchBuffer,0, pui->pcm->bufsize );
+    memset( pui->pchBuffer, pui->bSilence, pui->pcm->bufsize );
 
     return KAIE_NO_ERROR;
 }
