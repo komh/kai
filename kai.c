@@ -497,3 +497,31 @@ APIRET DLLEXPORT APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable )
 
     return KAIE_NO_ERROR;
 }
+
+APIRET DLLEXPORT APIENTRY kaiFloatToS16( short *dst, float *src, int len )
+{
+    float *end = src + len / sizeof( float );
+    long l;
+
+    while( src < end )
+    {
+        float f = *src++;
+
+        /* Convert float samples to s16 samples with rounding */
+        if( f > 0 )
+            f = f * 32767 + 0.5;
+        else
+            f = f * 32768 - 0.5;
+        l = f;
+
+        /* Bounds check */
+        if( l > 32767 )
+            l = 32767;
+        else if( l < -32768 )
+            l = -32768;
+
+        *dst++ = ( short )l;
+    }
+
+    return len / sizeof( float ) * sizeof( short );
+}

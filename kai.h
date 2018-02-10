@@ -254,6 +254,15 @@ APIRET APIENTRY kaiStatus( HKAI hkai );
  */
 APIRET APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable );
 
+/**
+ * @brief Convert float samples to s16 samples
+ * @param[out] dst Where to place converted s16 samples.
+ * @param[in] src Where float samples to be converted are placed
+ * @param[in] len Samples to be converted in bytes
+ * @return Converted s16 samples in bytes
+ */
+APIRET APIENTRY kaiFloatToS16( short *dst, float *src, int len );
+
 #ifdef __cplusplus
 }
 #endif
