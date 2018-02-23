@@ -714,7 +714,7 @@ static APIRET APIENTRY uniaudResume( HKAI hkai )
     if( !pui->fPaused )
         return KAIE_NO_ERROR;
 
-    uniaud_pcm_start( pui->pcm );
+    uniaud_pcm_prepare( pui->pcm );
     pui->fPaused = FALSE;
 
     return KAIE_NO_ERROR;
