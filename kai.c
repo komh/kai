@@ -498,12 +498,15 @@ APIRET DLLEXPORT APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable )
     return KAIE_NO_ERROR;
 }
 
-APIRET DLLEXPORT APIENTRY kaiFloatToS16( short *dst, float *src, int len )
+APIRET DLLEXPORT APIENTRY kaiFloatToS16( short *dst, int dstLen,
+                                         float *src, int srcLen )
 {
-    float *end = src + len / sizeof( float );
+    short *dstStart = dst;
+    short *dstEnd = dst + dstLen / sizeof( *dst );
+    float *srcEnd = src + srcLen / sizeof( *src );
     long l;
 
-    while( src < end )
+    while( dst < dstEnd && src < srcEnd )
     {
         float f = *src++;
 
@@ -523,5 +526,5 @@ APIRET DLLEXPORT APIENTRY kaiFloatToS16( short *dst, float *src, int len )
         *dst++ = ( short )l;
     }
 
-    return len / sizeof( float ) * sizeof( short );
+    return (dst - dstStart) * sizeof( *dst );
 }
