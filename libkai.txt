@@ -6,6 +6,9 @@
         Long Description: K Audio Interface v@VER@.
                           DART/UNIAUD implementation library.
 
+v1.3.0:
+    * Added kaiFloatToS16() API to convert float samples to s16 samples
+
 v1.2.0:
     * Added soft volume control support
         - now use soft volume control by default
