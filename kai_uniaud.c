@@ -833,7 +833,7 @@ static void set_perc_vol( int card_id, char *name, ULONG ulCh, USHORT usVol)
     if( ctl_id > 0 )
     {
         uniaud_mixer_get_min_max( card_id, ctl_id, &min, &max );
-        new_vol = (( float )( max - min ) / 100.0f ) * usVol;
+        new_vol = (( float )( max - min ) / 100.0f ) * usVol + min;
 
         uniaud_mixer_get_count_of_values( card_id, ctl_id, &values_cnt );
 
@@ -898,7 +898,7 @@ static APIRET APIENTRY uniaudGetVolume( HKAI hkai, ULONG ulCh )
     else /* if( ulCh == MCI_STATUS_AUDIO_ALL ) */
         vol = ( left_vol + right_vol ) / 2;
 
-    return vol * ( 100.0f / ( max - min ));
+    return (vol - min) * ( 100.0f / ( max - min ));
 }
 
 static APIRET APIENTRY uniaudStatus( HKAI hkai )
