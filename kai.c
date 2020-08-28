@@ -415,6 +415,9 @@ APIRET DLLEXPORT APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
     if( !( pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
 
+    if( usVol > 100 )
+        usVol = 100;
+
     if( pil->fSoftVol )
     {
         if( pil->ks.ulChannels == 1 ||
