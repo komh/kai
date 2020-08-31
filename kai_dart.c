@@ -44,6 +44,13 @@
 // at finish.
 #define LET_SYSTEM_FREE_MODULE
 
+// MCI_RELEASEDEVICE is used to release a device instance being used
+// exclusively. However, MCI_CLOSE also do it. So, MCI_RELEASEDEVICE is
+// redundant if MCI_CLOSE follows.
+// In addition, when libkai is used in multimedia sub-system, MCI_RELEASEDEVICE
+// in dartClose() is blocked.
+#define USE_RELEASEDEVICE   0
+
 // DART need 2 buffers at least to play.
 #define DART_MIN_BUFFERS     2
 
@@ -536,6 +543,7 @@ exit_free_mix_buffers :
 exit_release :
     GenericParms.hwndCallback = 0;
 
+#if USE_RELEASEDEVICE
     if( !pdi->fShareable )
     {
         // Release exclusive rights to device instance (NOT entire device)
@@ -545,6 +553,7 @@ exit_release :
                         ( PVOID )&GenericParms,
                         0 );
     }
+#endif
 
 exit_close :
     mciSendCommand( pdi->usDeviceID,
@@ -570,6 +579,7 @@ static APIRET APIENTRY dartClose( HKAI hkai )
 
     GenericParms.hwndCallback = 0;
 
+#if USE_RELEASEDEVICE
     if( !pdi->fShareable )
     {
         // Release exclusive rights to device instance (NOT entire device)
@@ -581,6 +591,7 @@ static APIRET APIENTRY dartClose( HKAI hkai )
         if( dartError( rc ))
             return LOUSHORT( rc );
     }
+#endif
 
     rc = mciSendCommand( pdi->usDeviceID,
                          MCI_CLOSE,
