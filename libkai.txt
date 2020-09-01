@@ -6,6 +6,10 @@
         Long Description: K Audio Interface v@VER@.
                           DART/UNIAUD implementation library.
 
+v1.3.1:
+    * Improved volume control
+    * Fixed freezing in dartClose() in multimedia sub-system
+
 v1.3.0:
     * Added kaiFloatToS16() API to convert float samples to s16 samples
 
