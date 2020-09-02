@@ -21,6 +21,14 @@ AR = ar
 
 RM = rm -f
 
+BLDLEVEL_VENDOR := OS/2 Factory
+BLDLEVEL_VERSION_MACRO := KAI_VERSION
+BLDLEVEL_VERSION_FILE := kai.h
+BLDLEVEL_VERSION := $(shell sed -n -e "s/^[ \t]*\#[ \t]*define[ \t]\+$(BLDLEVEL_VERSION_MACRO)[ \t]\+\"\(.*\)\"/\1/p" $(BLDLEVEL_VERSION_FILE))
+BLDLEVEL_DATE := $(shell LANG=C date +"\" %F %T %^Z  \"")
+BLDLEVEL_HOST = $(shell echo $(HOSTNAME) | cut -b -11)
+BLDLEVEL := @\#$(BLDLEVEL_VENDOR):$(BLDLEVEL_VERSION)\#@\#\#1\#\#$(BLDLEVEL_DATE)$(BLDLEVEL_HOST)::::::@@
+
 include kaidll.mk
 
 .c.o :
@@ -40,6 +48,7 @@ kai_dll.a : $(KAIDLL)
 
 $(KAIDLL): kai.o kai_dart.o kai_uniaud.o $(KAIDLLDEF)
 	$(CC) -Zdll $(LDFLAGS) -o $@ $^
+	echo $(BLDLEVEL)K Audio Interface >> $@
 
 $(KAIDLLDEF):
 	echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
@@ -53,11 +62,13 @@ kai_uniaud.o : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h kai_uniaud.h
 
 kaidemo.exe : kaidemo.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
+	echo $(BLDLEVEL)KAI demo >> $@
 
 kaidemo.o : kaidemo.c kai.h
 
 kaidemo2.exe : kaidemo2.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
+	echo $(BLDLEVEL)KAI demo >> $@
 
 kaidemo2.o : kaidemo2.c kai.h
 
