@@ -38,6 +38,10 @@
 static ULONG    m_ulInitCount = 0;
 static KAIAPIS  m_kai = { NULL, };
 static KAICAPS  m_kaic = { 0, };
+static HKAI     m_hkai = NULLHANDLE;
+static KAISPEC  m_ks = { 0, };
+
+static HMTX m_hmtx = NULLHANDLE;
 
 typedef struct tagINSTANCELIST INSTANCELIST, *PINSTANCELIST;
 struct tagINSTANCELIST
@@ -48,6 +52,10 @@ struct tagINSTANCELIST
     BOOL     fLeftState;
     BOOL     fRightState;
     BOOL     fSoftVol;
+    BOOL     fPlaying;
+    BOOL     fPaused;
+    BOOL     fCompleted;
+    BOOL     fEOS;
     KAISPEC  ks;
     PFNKAICB pfnUserCb;
     PVOID    pUserData;
@@ -78,25 +86,66 @@ do {                                                                    \
     }                                                                   \
 } while( 0 )
 
-static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
-                                   ULONG ulBufSize )
+static ULONG normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
+                       PINSTANCELIST pil )
 {
-    PINSTANCELIST pil = pCBData;
+    short s16[ ulSize / sizeof( short )];
 
-    ULONG ulLen = pil->pfnUserCb( pil->pUserData, pBuffer, ulBufSize );
+    int samples = ulLen / pil->ks.ulChannels /
+                  ( pil->ks.ulBitsPerSample >> 3 );
+
+    if( pil->ks.ulBitsPerSample == 8 )
+    {
+        unsigned char *pu8 = pBuffer;
+        short *ps16 = s16;
+
+        int i;
+
+        for( i = 0; i < samples; i++ )
+        {
+            int sample = *pu8++ * 65535 / 255 - 32768;
+
+            *ps16++ = sample;
+
+            if( pil->ks.ulChannels == 1 )
+                *ps16++ = sample;
+        }
+
+        ulLen = ( ps16 - s16 ) * sizeof( *ps16 );
+        memcpy( pBuffer, s16, ulLen );
+    }
+    else if( pil->ks.ulBitsPerSample == 16 && pil->ks.ulChannels == 1 )
+    {
+        short *ps16m = pBuffer;
+        short *ps16s = s16;
+
+        int i;
+
+        for( i = 0; i < samples; i++ )
+        {
+            *ps16s++ = *ps16m;
+            *ps16s++ = *ps16m++;
+        }
+
+        ulLen = ( ps16s - s16 ) * sizeof( *ps16s );
+        pBuffer = s16;
+    }
 
     if( pil->fSoftVol &&
         ( pil->lLeftVol  != 100 || !pil->fLeftState ||
           pil->lRightVol != 100 || !pil->fRightState ))
     {
+#if 0
         switch( pil->ks.ulBitsPerSample )
         {
             case 8 :
-                APPLY_SOFT_VOLUME( PBYTE, pBuffer, ulBufSize, pil );
+                APPLY_SOFT_VOLUME( PBYTE, pBuffer, ulLen, pil );
                 break;
 
             case 16 :
-                APPLY_SOFT_VOLUME( PSHORT, pBuffer, ulBufSize, pil );
+#endif
+                APPLY_SOFT_VOLUME( PSHORT, pBuffer, ulLen, pil );
+#if 0
                 break;
 
             case 32 :
@@ -104,10 +153,78 @@ static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
                 /* Oooops... Possible ? */
                 break;
         }
-
+#endif
     }
 
     return ulLen;
+}
+
+static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
+                                   ULONG ulBufSize )
+{
+    PINSTANCELIST pilStart = *( PINSTANCELIST * )pCBData;
+    short pBuf[ ulBufSize ];
+
+    PINSTANCELIST pil;
+    ULONG ulMaxLen = 0;
+
+    int samples = ulBufSize / m_ks.ulChannels / ( m_ks.ulBitsPerSample >> 3 );
+
+    memset( pBuffer, 0, ulBufSize );
+
+    for( pil = pilStart; pil; pil = pil->pilNext )
+    {
+        if( !pil->fPlaying || pil->fPaused )
+            continue;
+
+        if( pil->fEOS )
+        {
+            pil->fPlaying = FALSE;
+            pil->fPaused = FALSE;
+            pil->fCompleted = TRUE;
+            pil->fEOS = FALSE;
+
+            continue;
+        }
+
+        ULONG ulLen = pil->pfnUserCb( pil->pUserData, pBuf,
+                                      samples * pil->ks.ulChannels *
+                                      ( pil->ks.ulBitsPerSample >> 3 ));
+
+        ulLen = normalize( pBuf, ulLen, ulBufSize, pil );
+
+        if( ulLen < ulBufSize )
+        {
+            pil->fEOS = TRUE;
+
+            memset((( CHAR * )pBuf) + ulLen, m_ks.bSilence,
+                   ulBufSize - ulLen );
+            ulLen = ulBufSize;
+        }
+
+        short *pDst = pBuffer;
+        short *pSrc = pBuf;
+        short *pEnd = pSrc + ulLen / sizeof( *pSrc );
+
+        while( pSrc < pEnd )
+        {
+            int sample = *pDst;
+
+            sample += *pSrc++;
+
+            if( sample > 32767 )
+                sample = 32767;
+            else if( sample < -32768 )
+                sample = -32768;
+
+            *pDst++ = sample;
+        }
+
+        if( ulMaxLen < ulLen )
+            ulMaxLen = ulLen;
+    }
+
+    return ulMaxLen;
 }
 
 static PINSTANCELIST instanceNew( VOID )
@@ -186,12 +303,46 @@ static PINSTANCELIST instanceVerify( HKAI hkai )
     return pil;
 }
 
+static int instanceCount( VOID )
+{
+    PINSTANCELIST pil;
+    int count = 0;
+
+    for( pil = m_pilStart; pil; pil = pil->pilNext )
+        count++;
+
+    return count;
+}
+
+static int instancePlayingCount( VOID )
+{
+    PINSTANCELIST pil;
+    int count = 0;
+
+    for( pil = m_pilStart; pil; pil = pil->pilNext )
+    {
+        if( pil->fPlaying )
+            count++;
+    }
+
+    return count;
+}
+
 APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 {
     const char *pszAutoMode;
     APIRET rc = KAIE_INVALID_PARAMETER;
 
     DosEnterCritSec();
+
+    if( !m_hmtx && DosCreateMutexSem( NULL, &m_hmtx, 0, FALSE ))
+    {
+        m_hmtx = NULLHANDLE;
+
+        DosExitCritSec();
+
+        return KAIE_NOT_ENOUGH_MEMORY;
+    }
 
     if( m_ulInitCount )
     {
@@ -251,7 +402,11 @@ APIRET DLLEXPORT APIENTRY kaiDone( VOID )
         m_ulInitCount--;
 
         if( m_ulInitCount == 0 )
+        {
             instanceDelAll();
+
+            DosCloseMutexSem( m_hmtx );
+        }
     }
 
     DosExitCritSec();
@@ -288,9 +443,39 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     if( !pksWanted->pfnCallBack )
         return KAIE_INVALID_PARAMETER;
 
+    DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
+
+    if( instanceCount() == 0 )
+    {
+        m_ks.usDeviceIndex    = 0;
+        m_ks.ulType           = KAIT_PLAY;
+        m_ks.ulBitsPerSample  = 16;     /* 16 bits/sample only */
+        m_ks.ulSamplingRate   = pksWanted->ulSamplingRate;
+        m_ks.ulDataFormat     = 0;
+        m_ks.ulChannels       = 2;      /* stereo channels only */
+        m_ks.ulNumBuffers     = 2;
+        m_ks.ulBufferSize     = 512 * ( m_ks.ulBitsPerSample >> 3 ) *
+                                m_ks.ulChannels; /* 512 samples */
+        m_ks.fShareable       = TRUE;
+        m_ks.pfnCallBack      = kaiCallBack;
+        m_ks.pCallBackData    = &m_pilStart;
+
+        rc = m_kai.pfnOpen( &m_ks, &m_hkai );
+        if( rc )
+        {
+            DosReleaseMutexSem( m_hmtx );
+
+            return rc;
+        }
+    }
+
     pil = instanceNew();
     if( !pil )
+    {
+        DosReleaseMutexSem( m_hmtx );
+
         return KAIE_NOT_ENOUGH_MEMORY;
+    }
 
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
     pil->ks.pfnCallBack   = kaiCallBack;
@@ -298,26 +483,23 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     pil->pfnUserCb        = pksWanted->pfnCallBack;
     pil->pUserData        = pksWanted->pCallBackData;
 
-    rc = m_kai.pfnOpen( &pil->ks, phkai );
-    if( rc )
-    {
-        free( pil );
-
-        return rc;
-    }
-
     memcpy( pksObtained, &pil->ks, sizeof( KAISPEC ));
     pksObtained->pfnCallBack   = pksWanted->pfnCallBack;
     pksObtained->pCallBackData = pksWanted->pCallBackData;
+    pksObtained->bSilence = pksObtained->ulBitsPerSample == 8 ? 0x80 : 0x00;
+
+    *phkai = ( HKAI )pil;
 
     instanceAdd( *phkai, pil );
+
+    DosReleaseMutexSem( m_hmtx );
 
     return KAIE_NO_ERROR;
 }
 
 APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
 {
-    APIRET rc;
+    APIRET rc = KAIE_NO_ERROR;
 
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -325,57 +507,124 @@ APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
     if( !instanceVerify( hkai ))
         return KAIE_INVALID_HANDLE;
 
-    rc = m_kai.pfnClose( hkai );
-    if( rc )
-        return rc;
+    DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
 
     instanceDel( hkai );
 
-    return KAIE_NO_ERROR;
+    if( instanceCount() == 0 )
+        rc = m_kai.pfnClose( m_hkai );
+
+    DosReleaseMutexSem( m_hmtx );
+
+    return rc;
 }
 
 APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
 {
+    PINSTANCELIST pil;
+    APIRET rc = KAIE_NO_ERROR;
+
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !instanceVerify( hkai ))
+    if( !( pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnPlay( hkai );
+    if( pil->fPlaying )
+        return KAIE_NO_ERROR;
+
+    DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
+
+    if( instancePlayingCount() == 0 )
+        rc = m_kai.pfnPlay( m_hkai );
+
+    if( !rc )
+    {
+        pil->fPlaying = TRUE;
+        pil->fPaused = FALSE;
+        pil->fCompleted = FALSE;
+    }
+
+    DosReleaseMutexSem( m_hmtx );
+
+    return rc;
 }
 
 APIRET DLLEXPORT APIENTRY kaiStop( HKAI hkai )
 {
+    PINSTANCELIST pil;
+    APIRET rc = KAIE_NO_ERROR;
+
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !instanceVerify( hkai ))
+    if( !( pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnStop( hkai );
+    DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
+
+    if( instancePlayingCount() == 1 )
+        rc = m_kai.pfnStop( m_hkai );
+
+    if( !rc )
+    {
+        pil->fPlaying = FALSE;
+        pil->fPaused = FALSE;
+        pil->fCompleted = FALSE;
+    }
+
+    DosReleaseMutexSem( m_hmtx );
+
+    return rc;
 }
 
 APIRET DLLEXPORT APIENTRY kaiPause( HKAI hkai )
 {
+    PINSTANCELIST pil;
+    APIRET rc = KAIE_NO_ERROR;
+
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !instanceVerify( hkai ))
+    if( !( pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnPause( hkai );
+    if( pil->fPaused )
+        return KAIE_NO_ERROR;
+
+    DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
+
+    if( instancePlayingCount() == 1 )
+        rc = m_kai.pfnPause( m_hkai );
+
+    if( !rc )
+        pil->fPaused = TRUE;
+
+    DosReleaseMutexSem( m_hmtx );
+
+    return rc;
 }
 
 APIRET DLLEXPORT APIENTRY kaiResume( HKAI hkai )
 {
+    PINSTANCELIST pil;
+    APIRET rc = KAIE_NO_ERROR;
+
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !instanceVerify( hkai ))
+    if( !( pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnResume( hkai );
+    DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
+
+    if( instancePlayingCount() == 1 )
+        rc = m_kai.pfnResume( m_hkai );
+
+    if( !rc )
+        pil->fPaused = FALSE;
+
+    return rc;
 }
 
 APIRET DLLEXPORT APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh,
@@ -402,7 +651,7 @@ APIRET DLLEXPORT APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh,
         return KAIE_NO_ERROR;
     }
 
-    return m_kai.pfnSetSoundState( hkai, ulCh, fState );
+    return m_kai.pfnSetSoundState( m_hkai, ulCh, fState );
 }
 
 APIRET DLLEXPORT APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
@@ -431,7 +680,7 @@ APIRET DLLEXPORT APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
         return KAIE_NO_ERROR;
     }
 
-    return m_kai.pfnSetVolume( hkai, ulCh, usVol );
+    return m_kai.pfnSetVolume( m_hkai, ulCh, usVol );
 }
 
 APIRET DLLEXPORT APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
@@ -461,7 +710,7 @@ APIRET DLLEXPORT APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
         return ( lLeftVol + lRightVol ) / 2;
     }
 
-    return m_kai.pfnGetVolume( hkai, ulCh );
+    return m_kai.pfnGetVolume( m_hkai, ulCh );
 }
 
 APIRET DLLEXPORT APIENTRY kaiClearBuffer( HKAI hkai )
@@ -472,18 +721,32 @@ APIRET DLLEXPORT APIENTRY kaiClearBuffer( HKAI hkai )
     if( !instanceVerify( hkai ))
         return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnClearBuffer( hkai );
+    return m_kai.pfnClearBuffer( m_hkai );
 }
 
 APIRET DLLEXPORT APIENTRY kaiStatus( HKAI hkai )
 {
+    PINSTANCELIST pil;
+    ULONG ulStatus;
+
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !instanceVerify( hkai ))
+    if( !( pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
 
-    return m_kai.pfnStatus( hkai );
+    ulStatus = 0;
+
+    if( pil->fPlaying )
+        ulStatus |= KAIS_PLAYING;
+
+    if( pil->fPaused )
+        ulStatus |= KAIS_PAUSED;
+
+    if( pil->fCompleted )
+        ulStatus |= KAIS_COMPLETED;
+
+    return ulStatus;
 }
 
 APIRET DLLEXPORT APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable )
