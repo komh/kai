@@ -28,12 +28,25 @@
 #include "kai_dart.h"
 #include "kai_uniaud.h"
 
+#include "speex/speex_resampler.h"
+
 #ifdef __KLIBC__
 #include <emx/umalloc.h>
 
 #define calloc _lcalloc
 #define malloc _lmalloc
 #endif
+
+#define MIXER_SAMPLES           512
+#define MIXER_MAX_SAMPLES       ( MIXER_SAMPLES * 8 )
+#define MIXER_MAX_CHANNELS      2
+#define MIXER_MAX_SAMPLEBITS    16  /* bits per sample */
+#define MIXER_MAX_SAMPLEBYTES   2   /* bytes per sample */
+
+#define SAMPLESTOBYTES( s, ks ) (( s ) * (( ks ).ulBitsPerSample >> 3 ) * \
+                                 ( ks ).ulChannels )
+#define BYTESTOSAMPLES( b, ks ) (( b ) / (( ks ).ulBitsPerSample >> 3 ) / \
+                                 ( ks ).ulChannels )
 
 static ULONG    m_ulInitCount = 0;
 static KAIAPIS  m_kai = { NULL, };
@@ -60,6 +73,13 @@ struct tagINSTANCELIST
     PFNKAICB pfnUserCb;
     PVOID    pUserData;
 
+    CHAR     pBuffer[ MIXER_MAX_SAMPLES * MIXER_MAX_SAMPLEBYTES *
+                      MIXER_MAX_CHANNELS ];
+    ULONG    ulBufLen;
+    ULONG    ulBufPos;
+
+    SpeexResamplerState *srs;
+
     PINSTANCELIST    pilNext;
 };
 
@@ -70,7 +90,7 @@ do {                                                                    \
     ptype pEnd = ( ptype )( buf ) + ( size ) / sizeof( *pEnd );         \
     ptype p;                                                            \
                                                                         \
-    for( p = ( buf ); p < pEnd; p++ )                                   \
+    for( p = ( ptype )( buf ); p < pEnd; p++ )                          \
     {                                                                   \
         *p = ( *p - ( pi )->ks.bSilence ) *                             \
              ( pi )->lLeftVol / 100 * !!( pi )->fLeftState +            \
@@ -86,16 +106,16 @@ do {                                                                    \
     }                                                                   \
 } while( 0 )
 
-static ULONG normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
+static void normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
                        PINSTANCELIST pil )
 {
     short s16[ ulSize / sizeof( short )];
 
-    int samples = ulLen / pil->ks.ulChannels /
-                  ( pil->ks.ulBitsPerSample >> 3 );
+    int samples = BYTESTOSAMPLES( ulLen, pil->ks );
 
     if( pil->ks.ulBitsPerSample == 8 )
     {
+        /* 8 bits mono/stereo to 16 bits stereo */
         unsigned char *pu8 = pBuffer;
         short *ps16 = s16;
 
@@ -112,10 +132,11 @@ static ULONG normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
         }
 
         ulLen = ( ps16 - s16 ) * sizeof( *ps16 );
-        memcpy( pBuffer, s16, ulLen );
+        pBuffer = s16;
     }
     else if( pil->ks.ulBitsPerSample == 16 && pil->ks.ulChannels == 1 )
     {
+        /* 16 bits mono to 16 bits stereo */
         short *ps16m = pBuffer;
         short *ps16s = s16;
 
@@ -131,49 +152,49 @@ static ULONG normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
         pBuffer = s16;
     }
 
-    if( pil->fSoftVol &&
-        ( pil->lLeftVol  != 100 || !pil->fLeftState ||
-          pil->lRightVol != 100 || !pil->fRightState ))
+    if( pil->ks.ulSamplingRate != m_ks.ulSamplingRate )
     {
-#if 0
-        switch( pil->ks.ulBitsPerSample )
-        {
-            case 8 :
-                APPLY_SOFT_VOLUME( PBYTE, pBuffer, ulLen, pil );
-                break;
+        /* resampling */
+        speex_resampler_set_rate( pil->srs,
+            pil->ks.ulSamplingRate, m_ks.ulSamplingRate );
 
-            case 16 :
-#endif
-                APPLY_SOFT_VOLUME( PSHORT, pBuffer, ulLen, pil );
-#if 0
-                break;
+        spx_uint32_t inSamples = samples;
+        spx_uint32_t outSamples = MIXER_MAX_SAMPLES;
 
-            case 32 :
-            default :
-                /* Oooops... Possible ? */
-                break;
-        }
-#endif
+        speex_resampler_process_interleaved_int( pil->srs,
+            ( spx_int16_t * )pBuffer, &inSamples,
+            ( spx_int16_t * )pil->pBuffer, &outSamples );
+
+        ulLen = SAMPLESTOBYTES( outSamples, m_ks );
+    }
+    else
+    {
+        /* straight copy */
+        memcpy( pil->pBuffer, pBuffer, ulLen );
     }
 
-    return ulLen;
+    pil->ulBufLen = ulLen;
+    pil->ulBufPos = 0;
 }
 
 static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
                                    ULONG ulBufSize )
 {
     PINSTANCELIST pilStart = *( PINSTANCELIST * )pCBData;
-    short pBuf[ ulBufSize ];
+    CHAR pBuf[ ulBufSize ];
 
     PINSTANCELIST pil;
     ULONG ulMaxLen = 0;
 
-    int samples = ulBufSize / m_ks.ulChannels / ( m_ks.ulBitsPerSample >> 3 );
+    int samples = BYTESTOSAMPLES( ulBufSize, m_ks );
 
     memset( pBuffer, 0, ulBufSize );
 
     for( pil = pilStart; pil; pil = pil->pilNext )
     {
+        ULONG ulLen = 0;
+        ULONG ulSize = ulBufSize;
+
         if( !pil->fPlaying || pil->fPaused )
             continue;
 
@@ -187,23 +208,47 @@ static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
             continue;
         }
 
-        ULONG ulLen = pil->pfnUserCb( pil->pUserData, pBuf,
-                                      samples * pil->ks.ulChannels *
-                                      ( pil->ks.ulBitsPerSample >> 3 ));
+        ULONG ulReqSize = SAMPLESTOBYTES( samples, pil->ks );
+        ULONG ulRetLen = ulReqSize;
 
-        ulLen = normalize( pBuf, ulLen, ulBufSize, pil );
+        while( ulSize > 0 && ulRetLen == ulReqSize )
+        {
+            if( pil->ulBufLen == 0 )
+            {
+                CHAR pCBBuf[ ulBufSize ];
+
+                ulRetLen = pil->pfnUserCb( pil->pUserData, pCBBuf, ulReqSize );
+
+                normalize( pCBBuf, ulRetLen, ulBufSize, pil );
+            }
+
+            ULONG ulCopyLen = ulSize < pil->ulBufLen ? ulSize : pil->ulBufLen;
+
+            memcpy( pBuf + ulLen, pil->pBuffer + pil->ulBufPos,
+                    ulCopyLen );
+
+            pil->ulBufPos += ulCopyLen;
+            pil->ulBufLen -= ulCopyLen;
+
+            ulLen  += ulCopyLen;
+            ulSize -= ulCopyLen;
+        }
+
+        if( pil->fSoftVol &&
+            ( pil->lLeftVol  != 100 || !pil->fLeftState ||
+              pil->lRightVol != 100 || !pil->fRightState ))
+            APPLY_SOFT_VOLUME( PSHORT, pBuf, ulLen, pil );
 
         if( ulLen < ulBufSize )
         {
             pil->fEOS = TRUE;
 
-            memset((( CHAR * )pBuf) + ulLen, m_ks.bSilence,
-                   ulBufSize - ulLen );
+            memset( pBuf + ulLen, m_ks.bSilence, ulBufSize - ulLen );
             ulLen = ulBufSize;
         }
 
         short *pDst = pBuffer;
-        short *pSrc = pBuf;
+        short *pSrc = ( short * )pBuf;
         short *pEnd = pSrc + ulLen / sizeof( *pSrc );
 
         while( pSrc < pEnd )
@@ -430,7 +475,7 @@ APIRET DLLEXPORT APIENTRY kaiCaps( PKAICAPS pkc )
 APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
                                    PKAISPEC pksObtained, PHKAI phkai )
 {
-    PINSTANCELIST pil;
+    PINSTANCELIST pil = NULL;
 
     APIRET rc;
 
@@ -443,6 +488,12 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     if( !pksWanted->pfnCallBack )
         return KAIE_INVALID_PARAMETER;
 
+    if( pksWanted->ulBitsPerSample > MIXER_MAX_SAMPLEBITS )
+        return KAIE_INVALID_PARAMETER;
+
+    if( pksWanted->ulChannels > MIXER_MAX_CHANNELS )
+        return KAIE_INVALID_PARAMETER;
+
     DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
 
     if( instanceCount() == 0 )
@@ -450,12 +501,11 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
         m_ks.usDeviceIndex    = 0;
         m_ks.ulType           = KAIT_PLAY;
         m_ks.ulBitsPerSample  = 16;     /* 16 bits/sample only */
-        m_ks.ulSamplingRate   = pksWanted->ulSamplingRate;
+        m_ks.ulSamplingRate   = 48000;  /* 48 KHz */
         m_ks.ulDataFormat     = 0;
         m_ks.ulChannels       = 2;      /* stereo channels only */
         m_ks.ulNumBuffers     = 2;
-        m_ks.ulBufferSize     = 512 * ( m_ks.ulBitsPerSample >> 3 ) *
-                                m_ks.ulChannels; /* 512 samples */
+        m_ks.ulBufferSize     = SAMPLESTOBYTES( MIXER_SAMPLES, m_ks );
         m_ks.fShareable       = TRUE;
         m_ks.pfnCallBack      = kaiCallBack;
         m_ks.pCallBackData    = &m_pilStart;
@@ -463,18 +513,32 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
         rc = m_kai.pfnOpen( &m_ks, &m_hkai );
         if( rc )
         {
-            DosReleaseMutexSem( m_hmtx );
-
-            return rc;
+            m_ks.ulBitsPerSample = 44100; /* at least 44.1 KHz */
+            rc = m_kai.pfnOpen( &m_ks, &m_hkai );
+            if( rc )
+                goto error;
         }
     }
 
     pil = instanceNew();
     if( !pil )
     {
-        DosReleaseMutexSem( m_hmtx );
+        rc = KAIE_NOT_ENOUGH_MEMORY;
 
-        return KAIE_NOT_ENOUGH_MEMORY;
+        goto error;
+    }
+
+    int err;
+    pil->srs = speex_resampler_init( m_ks.ulChannels,
+                                     pksWanted->ulSamplingRate,
+                                     m_ks.ulSamplingRate,
+                                     SPEEX_RESAMPLER_QUALITY_DESKTOP,
+                                     &err );
+    if( !pil->srs )
+    {
+        rc = KAIE_NOT_ENOUGH_MEMORY;
+
+        goto error;
     }
 
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
@@ -484,6 +548,8 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     pil->pUserData        = pksWanted->pCallBackData;
 
     memcpy( pksObtained, &pil->ks, sizeof( KAISPEC ));
+    pksObtained->ulNumBuffers  = m_ks.ulNumBuffers;
+    pksObtained->ulBufferSize  = m_ks.ulBufferSize;
     pksObtained->pfnCallBack   = pksWanted->pfnCallBack;
     pksObtained->pCallBackData = pksWanted->pCallBackData;
     pksObtained->bSilence = pksObtained->ulBitsPerSample == 8 ? 0x80 : 0x00;
@@ -495,10 +561,28 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     DosReleaseMutexSem( m_hmtx );
 
     return KAIE_NO_ERROR;
+
+error:
+    free( pil );
+
+    if( instanceCount() == 0 )
+    {
+        if( m_hkai )
+        {
+            m_kai.pfnClose( m_hkai );
+
+            m_hkai = NULLHANDLE;
+        }
+    }
+
+    DosReleaseMutexSem( m_hmtx );
+
+    return rc;
 }
 
 APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
 {
+    PINSTANCELIST pil = ( PINSTANCELIST )hkai;
     APIRET rc = KAIE_NO_ERROR;
 
     if( !m_ulInitCount )
@@ -509,10 +593,16 @@ APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
 
     DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
 
+    speex_resampler_destroy( pil->srs );
+
     instanceDel( hkai );
 
     if( instanceCount() == 0 )
+    {
         rc = m_kai.pfnClose( m_hkai );
+        if( !rc )
+            m_hkai = NULLHANDLE;
+    }
 
     DosReleaseMutexSem( m_hmtx );
 

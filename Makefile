@@ -15,6 +15,7 @@ endif
 
 CC = gcc
 CFLAGS = -Wall -O3 -DINLINE=inline -DOS2EMX_PLAIN_CHAR -funsigned-char
+SPEEX_CFLAGS = -DOUTSIDE_SPEEX -DEXPORT= -DRANDOM_PREFIX=kai -DFLOATING_POINT
 LDFLAGS = -Zomf -Zhigh-mem
 
 AR = ar
@@ -40,13 +41,13 @@ include kaidll.mk
 all : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) \
       kaidemo.exe kaidemo2.exe
 
-kai.a : kai.o kai_dart.o kai_uniaud.o
+kai.a : kai.o kai_dart.o kai_uniaud.o speex/resample.o
 	$(AR) rc $@ $^
 
 kai_dll.a : $(KAIDLL)
 	emximp -o $@ $(KAIDLL)
 
-$(KAIDLL): kai.o kai_dart.o kai_uniaud.o $(KAIDLLDEF)
+$(KAIDLL): kai.o kai_dart.o kai_uniaud.o speex/resample.o $(KAIDLLDEF)
 	$(CC) -Zdll $(LDFLAGS) -o $@ $^
 	echo $(BLDLEVEL)K Audio Interface >> $@
 
@@ -54,11 +55,17 @@ $(KAIDLLDEF):
 	echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
 	echo DATA MULTIPLE NONSHARED >> $@
 
-kai.o: kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
+kai.o: kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h \
+       speex/speex_resampler.h
 
 kai_dart.o : kai_dart.c kai.h kai_internal.h kai_dart.h
 
 kai_uniaud.o : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h kai_uniaud.h
+
+speex/resample.o: speex/resample.c speex/speex_resampler.h \
+                  speex/arch.h speex/stack_alloc.h
+
+kai.o speex/resample.o: CFLAGS += $(SPEEX_CFLAGS)
 
 kaidemo.exe : kaidemo.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
@@ -73,10 +80,10 @@ kaidemo2.exe : kaidemo2.o kai.lib
 kaidemo2.o : kaidemo2.c kai.h
 
 clean :
-	$(RM) *.bak
-	$(RM) *.o
+	$(RM) *.bak speex/*.bak
+	$(RM) *.o speex/*.o
 	$(RM) *.a
-	$(RM) *.obj
+	$(RM) *.obj speex/*.obj
 	$(RM) *.lib
 	$(RM) *.def
 	$(RM) $(KAIDLL)
