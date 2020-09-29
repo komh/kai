@@ -685,8 +685,17 @@ APIRET DLLEXPORT APIENTRY kaiClearBuffer( HKAI hkai )
     if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
         return KAIE_INVALID_HANDLE;
 
-    /* TODO: for mixer-stream */
+    if( pil->pms )
+    {
+        /* Mixer stream */
+        PMIXERSTREAM pms = pil->pms;
 
+        memset( pms->pchBuffer, pil->ks.bSilence, pms->ulBufSize );
+
+        return KAIE_NO_ERROR;
+    }
+
+    /* Normal instance */
     return m_kai.pfnClearBuffer( hkai );
 }
 
