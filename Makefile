@@ -75,13 +75,13 @@ kaidemo.o : kaidemo.c kai.h
 
 kaidemo2.exe : kaidemo2.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
-	echo $(BLDLEVEL)KAI demo >> $@
+	echo $(BLDLEVEL)KAI demo for multiple instances >> $@
 
 kaidemo2.o : kaidemo2.c kai.h
 
 kaidemo3.exe : kaidemo3.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
-	echo $(BLDLEVEL)KAI demo >> $@
+	echo $(BLDLEVEL)KAI demo for mixer streams >> $@
 
 kaidemo3.o : kaidemo3.c kai.h
 
