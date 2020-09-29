@@ -194,7 +194,7 @@ int main( int argc, char *argv[])
     {
         fprintf( stderr, "Failed to init kai\n");
 
-        return 0;
+        return 1;
     }
 
     kaiCaps( &kaic );
