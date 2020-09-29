@@ -37,12 +37,6 @@
 #define malloc _lmalloc
 #endif
 
-#define MIXER_SAMPLES           512
-#define MIXER_MAX_SAMPLES       ( MIXER_SAMPLES * 8 )
-#define MIXER_MAX_CHANNELS      2
-#define MIXER_MAX_SAMPLEBITS    16  /* bits per sample */
-#define MIXER_MAX_SAMPLEBYTES   2   /* bytes per sample */
-
 #define SAMPLESTOBYTES( s, ks ) (( s ) * (( ks ).ulBitsPerSample >> 3 ) * \
                                  ( ks ).ulChannels )
 #define BYTESTOSAMPLES( b, ks ) (( b ) / (( ks ).ulBitsPerSample >> 3 ) / \
@@ -61,9 +55,8 @@ typedef struct tagMIXERSTREAM
     BOOL fCompleted;
     BOOL fEOS;
 
-    CHAR pBuffer[ MIXER_MAX_SAMPLES * MIXER_MAX_SAMPLEBYTES *
-                  MIXER_MAX_CHANNELS ];
-
+    PCHAR pchBuffer;
+    ULONG ulBufSize;
     ULONG ulBufLen;
     ULONG ulBufPos;
 
@@ -144,7 +137,9 @@ static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
     return ulLen;
 }
 
-static PINSTANCELIST instanceNew( BOOL fStream )
+static void instanceFree( PINSTANCELIST pil );
+
+static PINSTANCELIST instanceNew( BOOL fStream, ULONG ulBufSize )
 {
     PINSTANCELIST pilNew;
 
@@ -155,12 +150,17 @@ static PINSTANCELIST instanceNew( BOOL fStream )
     if( fStream )
     {
         pilNew->pms = calloc( 1, sizeof( MIXERSTREAM ));
-        if( !pilNew->pms )
+        if( pilNew->pms )
+            pilNew->pms->pchBuffer = malloc( ulBufSize );
+
+        if( !pilNew->pms || !pilNew->pms->pchBuffer )
         {
-            free( pilNew );
+            instanceFree( pilNew );
 
             return NULL;
         }
+
+        pilNew->pms->ulBufSize = ulBufSize;
     }
 
     pilNew->lLeftVol    = 100;
@@ -181,6 +181,9 @@ static void instanceFree( PINSTANCELIST pil )
 {
     if( pil )
     {
+        if( pil->pms )
+            free( pil->pms->pchBuffer );
+
         free( pil->pms );
         free( pil );
     }
@@ -393,7 +396,7 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     if( !pksWanted->pfnCallBack )
         return KAIE_INVALID_PARAMETER;
 
-    pil = instanceNew( FALSE );
+    pil = instanceNew( FALSE, 0 );
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
 
@@ -820,18 +823,18 @@ static void normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
             pil->ks.ulSamplingRate, pilMixer->ks.ulSamplingRate );
 
         spx_uint32_t inSamples = samples;
-        spx_uint32_t outSamples = MIXER_MAX_SAMPLES;
-
+        spx_uint32_t outSamples = BYTESTOSAMPLES( pms->ulBufSize,
+                                                  pilMixer->ks );
         speex_resampler_process_interleaved_int( pms->srs,
             ( spx_int16_t * )pBuffer, &inSamples,
-            ( spx_int16_t * )pms->pBuffer, &outSamples );
+            ( spx_int16_t * )pms->pchBuffer, &outSamples );
 
         ulLen = SAMPLESTOBYTES( outSamples, pilMixer->ks );
     }
     else
     {
         /* straight copy */
-        memcpy( pms->pBuffer, pBuffer, ulLen );
+        memcpy( pms->pchBuffer, pBuffer, ulLen );
     }
 
     pms->ulBufLen = ulLen;
@@ -892,7 +895,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
 
             ULONG ulCopyLen = ulSize < pms->ulBufLen ? ulSize : pms->ulBufLen;
 
-            memcpy( pBuf + ulLen, pms->pBuffer + pms->ulBufPos,
+            memcpy( pBuf + ulLen, pms->pchBuffer + pms->ulBufPos,
                     ulCopyLen );
 
             pms->ulBufPos += ulCopyLen;
@@ -953,7 +956,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
     if( !pksWanted || !pksObtained || !phkm )
         return KAIE_INVALID_PARAMETER;
 
-    pil = instanceNew( FALSE );
+    pil = instanceNew( FALSE, 0 );
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
 
@@ -1010,6 +1013,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
 {
     PINSTANCELIST pilMixer;
     PINSTANCELIST pil;
+    ULONG ulBufSize;
 
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -1032,7 +1036,12 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
     if( pksWanted->ulChannels > pilMixer->ks.ulChannels )
         return KAIE_INVALID_PARAMETER;
 
-    pil = instanceNew( TRUE );
+    ulBufSize = pilMixer->ks.ulBufferSize *
+                pilMixer->ks.ulSamplingRate / pksWanted->ulSamplingRate;
+    if( pilMixer->ks.ulSamplingRate % pksWanted->ulSamplingRate )
+        ulBufSize += pilMixer->ks.ulBufferSize;
+
+    pil = instanceNew( TRUE, ulBufSize );
     if( pil )
     {
         int err;
