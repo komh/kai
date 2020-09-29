@@ -6,6 +6,7 @@
 
 CC = wcc386
 CFLAGS = -zq -wx -bm -d0 -oaxt -DINLINE=inline
+SPEEX_CFLAGS = -DOUTSIDE_SPEEX -DEXPORT= -DRANDOM_PREFIX=kai -DFLOATING_POINT
 
 LINK = wlink
 LFLAGS = option quiet
@@ -14,16 +15,19 @@ RM = del
 
 !include kaidll.mk
 
-STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj
+STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj speex/resample.obj
 DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
 
+.c: speex   # find .c in speex, too
+
 .c.obj : .AUTODEPEND
-    $(CC) $(CFLAGS) -fo=$@ $[@
+    $(CC) $(CFLAGS) $(SPEEX_CFLAGS) -fo=$@ $[@
 
 .c.dll_obj: .AUTODEPEND
-    $(CC) $(CFLAGS) -bd -fo=$@ $[@
+    $(CC) $(CFLAGS) $(SPEEX_CFLAGS) -bd -fo=$@ $[@
 
-all : .SYMBOLIC kai.lib kai_dll.lib $(KAIDLL) kaidemo.exe kaidemo2.exe
+all : .SYMBOLIC kai.lib kai_dll.lib $(KAIDLL) &
+      kaidemo.exe kaidemo2.exe kaidemo3.exe
 
 kai.lib : $(STATIC_OBJECTS)
     -$(RM) $@
@@ -48,6 +52,9 @@ kaidemo.exe : kaidemo.obj kai.lib
 kaidemo2.exe : kaidemo2.obj kai.lib
     $(LINK) $(LFLAGS) system os2v2 name $@ file { $< } library mmpm2
 
+kaidemo3.exe : kaidemo3.obj kai.lib
+    $(LINK) $(LFLAGS) system os2v2 name $@ file { $< } library mmpm2
+
 clean : .SYMBOLIC
     -$(RM) *.bak
     -$(RM) *.obj
@@ -56,3 +63,9 @@ clean : .SYMBOLIC
     -$(RM) *.def
     -$(RM) $(KAIDLL)
     -$(RM) *.exe
+    -cd speex
+    -$(RM) *.bak
+    -$(RM) *.obj
+    -$(RM) *.dll_obj
+    -cd ..
+

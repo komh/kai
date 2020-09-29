@@ -37,6 +37,10 @@
 #define malloc _lmalloc
 #endif
 
+#ifdef __WATCOMC__
+#include <alloca.h>
+#endif
+
 #define SAMPLESTOBYTES( s, ks ) (( s ) * (( ks ).ulBitsPerSample >> 3 ) * \
                                  ( ks ).ulChannels )
 #define BYTESTOSAMPLES( b, ks ) (( b ) / (( ks ).ulBitsPerSample >> 3 ) / \
