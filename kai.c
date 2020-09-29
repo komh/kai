@@ -177,6 +177,15 @@ static PINSTANCELIST instanceNew( BOOL fStream )
     return pilNew;
 }
 
+static void instanceFree( PINSTANCELIST pil )
+{
+    if( pil )
+    {
+        free( pil->pms );
+        free( pil );
+    }
+}
+
 static void instanceAdd( ULONG id, HKAI hkai, PINSTANCELIST pil )
 {
     pil->id      = id;
@@ -206,8 +215,7 @@ static VOID instanceDel( ULONG id )
     else
         m_pilStart = pil->pilNext;
 
-    free( pil->pms );
-    free( pil );
+    instanceFree( pil );
 }
 
 static VOID instanceDelAll( VOID )
@@ -217,8 +225,8 @@ static VOID instanceDelAll( VOID )
     for( pil = m_pilStart; pil; pil = pilNext )
     {
         pilNext = pil->pilNext;
-        free( pil->pms );
-        free( pil );
+
+        instanceFree( pil );
     }
 
     m_pilStart = NULL;
@@ -393,7 +401,7 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     rc = m_kai.pfnOpen( &pil->ks, phkai );
     if( rc )
     {
-        free( pil );
+        instanceFree( pil );
 
         return rc;
     }
@@ -953,7 +961,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
     rc = m_kai.pfnOpen( &pil->ks, phkm );
     if( rc )
     {
-        free( pil );
+        instanceFree( pil );
 
         return rc;
     }
@@ -1032,7 +1040,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
 
     if( !pil || !pil->pms->srs )
     {
-        free( pil );
+        instanceFree( pil );
 
         return KAIE_NOT_ENOUGH_MEMORY;
     }
