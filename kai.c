@@ -89,7 +89,7 @@ struct tagINSTANCELIST
     PINSTANCELIST    pilNext;
 };
 
-PINSTANCELIST m_pilStart = NULL;
+static PINSTANCELIST m_pilStart = NULL;
 
 #define APPLY_SOFT_VOLUME( ptype, buf, size, pi )                       \
 do {                                                                    \
