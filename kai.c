@@ -232,6 +232,11 @@ static VOID instanceDelAll( VOID )
     m_pilStart = NULL;
 }
 
+static PINSTANCELIST instanceStart( VOID )
+{
+    return m_pilStart;
+}
+
 static PINSTANCELIST instanceVerify( ULONG id )
 {
     PINSTANCELIST pil;
@@ -846,7 +851,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
 
     memset( pBuffer, 0, ulBufSize );
 
-    for( pil = m_pilStart; pil; pil = pil->pilNext )
+    for( pil = instanceStart(); pil; pil = pil->pilNext )
     {
         PMIXERSTREAM pms;
         ULONG ulLen = 0;
