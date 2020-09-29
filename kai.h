@@ -63,6 +63,7 @@ extern "C" {
 #define KAIE_NOT_ENOUGH_MEMORY      ( -7 )
 #define KAIE_INVALID_HANDLE         ( -8 )
 #define KAIE_NOT_READY              ( -9 )
+#define KAIE_STREAMS_NOT_CLOSED     ( -10 )
 /** @} */
 
 /** @defgroup kaitypes KAI types
@@ -123,6 +124,12 @@ typedef struct tagKAISPEC
 
 /** KAI handle */
 typedef ULONG HKAI, *PHKAI;
+
+/** KAI MIXER handle */
+typedef ULONG HKAIMIXER, *PHKAIMIXER;
+
+/** KAI MIXER STREAM handle */
+typedef ULONG HKAIMIXERSTREAM, *PHKAIMIXERSTREAM;
 
 /**
  * @brief Initialize KAI
@@ -264,6 +271,48 @@ APIRET APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable );
  */
 APIRET APIENTRY kaiFloatToS16( short *dst, int dstLen,
                                float *src, int srcLen );
+
+/**
+ * @brief Open KAIMIXER instance
+ * @param[in] pksWanted Requested specification
+ * @param[out] pksObtained Obtained specification
+ * @param[out] phkm Opened KAIMIXER instance
+ * @return KAIE_NO_ERROR on success, or error codes
+ * @remark pfnCallBack and pCallBackData of @a pksWanted are ignored
+ */
+APIRET APIENTRY kaiMixerOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained,
+                              PHKAIMIXER phkm );
+
+/**
+ * @brief Close KAIMIXER instance
+ * @param[in] hkm KAIMIXER instance
+ * @return KAIE_NO_ERROR on success, or error codes
+ */
+APIRET APIENTRY kaiMixerClose( HKAIMIXER hkm );
+
+/**
+ * @brief Open KAIMIXERSTREAM instance
+ * @param[in] hkm KAIMIXER instance
+ * @param[in] pksWanted Requested specification
+ * @param[out] pksObtained Obtained specification
+ * @param[out] phkms Opened KAIMIXERSTREAM instance
+ * @return KAIE_NO_ERROR on success, or error codes
+ * @remark usDeviceIndex, ulNumBuffer, ulBufferSize and fShareble of
+ *         @a pksWanted are ignored
+ * @remark fShareble of @a pksObtained is always TRUE
+ */
+APIRET APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
+                                    const PKAISPEC pksWanted,
+                                    PKAISPEC pksObtained,
+                                    PHKAIMIXERSTREAM phkms );
+
+/**
+ * @brief Close KAIMIXERSTREAM instance
+ * @param[in] hkm KAIMIXER instance
+ * @param[in] hkms KAIMIXERSTREAM instance
+ * @return KAIE_NO_ERROR on success, or error codes
+ */
+APIRET APIENTRY kaiMixerStreamClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
 
 #ifdef __cplusplus
 }

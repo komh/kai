@@ -39,7 +39,7 @@ include kaidll.mk
 	emxomf -o $@ $<
 
 all : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) \
-      kaidemo.exe kaidemo2.exe
+      kaidemo.exe kaidemo2.exe kaidemo3.exe
 
 kai.a : kai.o kai_dart.o kai_uniaud.o speex/resample.o
 	$(AR) rc $@ $^
@@ -78,6 +78,12 @@ kaidemo2.exe : kaidemo2.o kai.lib
 	echo $(BLDLEVEL)KAI demo >> $@
 
 kaidemo2.o : kaidemo2.c kai.h
+
+kaidemo3.exe : kaidemo3.o kai.lib
+	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
+	echo $(BLDLEVEL)KAI demo >> $@
+
+kaidemo3.o : kaidemo3.c kai.h
 
 clean :
 	$(RM) *.bak speex/*.bak
