@@ -465,15 +465,7 @@ static void uniaudPlayThread( void *arg )
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
 
-    if( pui->pcm->multi_channels > 0 )
-        pui->nFillSize = pui->pcm->bufsize;
-    else
-    {
-        if( pui->pcm->resample && (( ReSampleContext1 * )( pui->pcm->resample ))->ratio >= 2.0f )
-            pui->nFillSize = pui->pcm->period_size;
-        else
-            pui->nFillSize = pui->pcm->period_size * 2;
-    }
+    pui->nFillSize = pui->pcm->bufsize;
 
     pchBuffer = malloc( pui->nFillSize );
     if( !pchBuffer )
@@ -643,8 +635,8 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
 
     memset( pui->pchBuffer, pui->bSilence, pui->pcm->bufsize );
 
-    pks->ulNumBuffers = pui->pcm->periods;
-    pks->ulBufferSize = pui->pcm->period_size;
+    pks->ulNumBuffers = 2;
+    pks->ulBufferSize = pui->pcm->bufsize;
     pks->bSilence     = pui->bSilence;
 
     uniaud_pcm_prepare( pui->pcm );
