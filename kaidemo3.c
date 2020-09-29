@@ -18,7 +18,6 @@
 #define BUF_SIZE    1024
 
 static volatile BOOL m_fQuit;
-static volatile int  m_nThreads;
 
 static HKAIMIXER m_hkm;
 
@@ -92,7 +91,7 @@ void playThread( void *arg )
     {
         fprintf( stderr, "[%s] Failed to open a wave file!!!\n", name );
 
-        goto exit_discount_threads;
+        return;
     }
 
     /* Get the audio file header.
@@ -176,16 +175,10 @@ exit_kai_close :
 exit_mmio_close :
 
     mmioClose( hmmio, 0 );
-
-exit_discount_threads :
-
-    m_nThreads--;
 }
 
 static int play( const char *name )
 {
-    m_nThreads++;
-
     return _beginthread( playThread, NULL, 256 * 1024, ( void * )name );
 }
 
@@ -233,13 +226,12 @@ int main( int argc, char *argv[])
     }
 
     m_fQuit    = FALSE;
-    m_nThreads = 0;
 
     tid1 = play("demo1.wav");
     tid2 = play("demo2.wav");
     tid3 = play("demo3.wav");
 
-    while( !m_fQuit && m_nThreads )
+    while( !m_fQuit & !( kaiStatus( m_hkm ) & KAIS_COMPLETED ))
     {
         key = read_key();
 

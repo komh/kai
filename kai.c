@@ -694,7 +694,7 @@ APIRET DLLEXPORT APIENTRY kaiStatus( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
+    if( !( pil = instanceVerify( hkai )))
         return KAIE_INVALID_HANDLE;
 
     if( pil->pms )
@@ -715,7 +715,7 @@ APIRET DLLEXPORT APIENTRY kaiStatus( HKAI hkai )
         return ulStatus;
     }
 
-    /* Normal instance */
+    /* Normal instance or mixer instance */
     return m_kai.pfnStatus( hkai );
 }
 
