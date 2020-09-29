@@ -493,6 +493,9 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
         if( instancePlayingStreamCount( pil->hkai ) == 1 )
             rc = m_kai.pfnPlay( pil->hkai );
 
+        if( !rc && ( kaiStatus( pil->hkai ) & KAIS_PAUSED ))
+            rc = m_kai.pfnResume( pil->hkai );
+
         if( rc )
         {
             /* If error, clear */
