@@ -5,21 +5,23 @@
 
 CC = icc
 CFLAGS = /W3 /Ss /Gm /q /DNO_LONGLONG /DINLINE=
+SPEEX_CFLAGS = /DOUTSIDE_SPEEX /DEXPORT= /DRANDOM_PREFIX=kai /DFLOATING_POINT /Dinline=
 
 RM = del
 
 !include kaidll.mk
 
-STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj
+STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj speex/resample.obj
 DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
 
 .c.obj :
-    $(CC) $(CFLAGS) /c /Fo$@ $<
+    $(CC) $(CFLAGS) $(SPEEX_CFLAGS) /c /Fo$@ $<
 
 .c.dll_obj :
-    $(CC) $(CFLAGS) /Ge- /c /Fo$@ $<
+    $(CC) $(CFLAGS) $(SPEEX_CFLAGS) /Ge- /c /Fo$@ $<
 
-all : kai.lib kai_dll.lib $(KAIDLL) kaidemo.exe kaidemo2.exe
+all : kai.lib kai_dll.lib $(KAIDLL) \
+      kaidemo.exe kaidemo2.exe kaidemo3.exe
 
 kai.lib : $(STATIC_OBJECTS)
     -$(RM) $@
@@ -60,6 +62,11 @@ kaidemo2.exe : kaidemo2.obj kai.lib
 
 kaidemo2.obj : kaidemo2.c kai.h
 
+kaidemo3.exe : kaidemo3.obj kai.lib
+    $(CC) /Fe$@ $** mmpm2.lib
+
+kaidemo3.obj : kaidemo3.c kai.h
+
 clean :
     -$(RM) *.bak
     -$(RM) *.obj
@@ -68,3 +75,8 @@ clean :
     -$(RM) *.def
     -$(RM) $(KAIDLL)
     -$(RM) *.exe
+    -cd speex
+    -$(RM) *.bak
+    -$(RM) *.obj
+    -$(RM) *.dll_obj
+    -cd ..
