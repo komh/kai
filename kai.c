@@ -479,8 +479,6 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
         PMIXERSTREAM pms = pil->pms;
         APIRET rc = KAIE_NO_ERROR;
 
-        pms = pil->pms;
-
         if( pms->fPlaying )
             return KAIE_NO_ERROR;
 
