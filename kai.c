@@ -42,6 +42,11 @@
 #define BYTESTOSAMPLES( b, ks ) (( b ) / (( ks ).ulBitsPerSample >> 3 ) / \
                                  ( ks ).ulChannels )
 
+#define IVF_NORMAL  0x0001
+#define IVF_MIXER   0x0002
+#define IVF_STREAM  0x0004
+#define IVF_ANY     ( IVF_NORMAL | IVF_MIXER | IVF_STREAM )
+
 static ULONG    m_ulInitCount = 0;
 static KAIAPIS  m_kai = { NULL, };
 static KAICAPS  m_kaic = { 0, };
@@ -81,6 +86,10 @@ struct tagINSTANCELIST
 
     PINSTANCELIST    pilNext;
 };
+
+#define ISNORMAL( pil ) (( pil )->pfnUserCb && !( pil )->pms )
+#define ISMIXER( pil )  (!( pil )->pfnUserCb && !( pil )->pms )
+#define ISSTREAM( pil ) (( pil )->pfnUserCb && ( pil )->pms )
 
 static PINSTANCELIST m_pilStart = NULL;
 
@@ -240,14 +249,26 @@ static PINSTANCELIST instanceStart( VOID )
     return m_pilStart;
 }
 
-static PINSTANCELIST instanceVerify( ULONG id )
+static PINSTANCELIST instanceVerify( ULONG id, ULONG ivf )
 {
     PINSTANCELIST pil;
 
     for( pil = m_pilStart; pil; pil = pil->pilNext )
     {
-        if( pil->id == id )
-            break;
+        if( pil->id == id)
+        {
+            if(( ivf & IVF_NORMAL ) && ISNORMAL( pil ))
+                break;
+
+            if(( ivf & IVF_MIXER ) && ISMIXER( pil ))
+                break;
+
+            if(( ivf & IVF_STREAM ) && ISSTREAM( pil ))
+                break;
+
+            /* Oooops... not matched! */
+            return NULL;
+        }
     }
 
     return pil;
@@ -260,7 +281,7 @@ static int instanceStreamCount( HKAIMIXER hkm )
 
     for( pil = m_pilStart; pil; pil = pil->pilNext )
     {
-        if( pil->hkai == hkm && pil->pms )
+        if( pil->hkai == hkm && ISSTREAM( pil ))
             count++;
     }
 
@@ -274,7 +295,7 @@ static int instancePlayingStreamCount( HKAIMIXER hkm )
 
     for( pil = m_pilStart; pil; pil = pil->pilNext )
     {
-        if( pil->hkai == hkm && pil->pms && pil->pms->fPlaying )
+        if( pil->hkai == hkm && ISSTREAM( pil ) && pil->pms->fPlaying )
             count++;
     }
 
@@ -425,13 +446,12 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
 
 APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
 {
-    PINSTANCELIST pil;
     APIRET rc;
 
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb || pil->pms )
+    if( !instanceVerify( hkai, IVF_NORMAL ))
         return KAIE_INVALID_HANDLE;
 
     rc = m_kai.pfnClose( hkai );
@@ -450,10 +470,10 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
         return KAIE_INVALID_HANDLE;
 
-    if( pil->pms )
+    if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         PMIXERSTREAM pms = pil->pms;
@@ -492,10 +512,10 @@ APIRET DLLEXPORT APIENTRY kaiStop( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
         return KAIE_INVALID_HANDLE;
 
-    if( pil->pms )
+    if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         PMIXERSTREAM pms = pil->pms;
@@ -529,10 +549,10 @@ APIRET DLLEXPORT APIENTRY kaiPause( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
         return KAIE_INVALID_HANDLE;
 
-    if( pil->pms )
+    if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         PMIXERSTREAM pms = pil->pms;
@@ -565,10 +585,10 @@ APIRET DLLEXPORT APIENTRY kaiResume( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
         return KAIE_INVALID_HANDLE;
 
-    if( pil->pms )
+    if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         PMIXERSTREAM pms = pil->pms;
@@ -597,7 +617,7 @@ APIRET DLLEXPORT APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh,
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
         return KAIE_INVALID_HANDLE;
 
     if( pil->fSoftVol )
@@ -623,7 +643,7 @@ APIRET DLLEXPORT APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
         return KAIE_INVALID_HANDLE;
 
     if( usVol > 100 )
@@ -652,7 +672,7 @@ APIRET DLLEXPORT APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
         return KAIE_INVALID_HANDLE;
 
     if( pil->fSoftVol )
@@ -682,10 +702,10 @@ APIRET DLLEXPORT APIENTRY kaiClearBuffer( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb )
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
         return KAIE_INVALID_HANDLE;
 
-    if( pil->pms )
+    if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         PMIXERSTREAM pms = pil->pms;
@@ -706,10 +726,10 @@ APIRET DLLEXPORT APIENTRY kaiStatus( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )))
+    if( !( pil = instanceVerify( hkai, IVF_ANY )))
         return KAIE_INVALID_HANDLE;
 
-    if( pil->pms )
+    if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         PMIXERSTREAM pms = pil->pms;
@@ -738,7 +758,7 @@ APIRET DLLEXPORT APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai )) || !pil->pfnUserCb || pil->pms )
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL )))
         return KAIE_INVALID_HANDLE;
 
     pil->fSoftVol = fEnable;
@@ -869,7 +889,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
         ULONG ulLen = 0;
         ULONG ulSize = ulBufSize;
 
-        if( !pil->pms || pil->hkai != pilMixer->hkai )
+        if( !ISSTREAM( pil ) || pil->hkai != pilMixer->hkai )
             continue;
 
         pms = pil->pms;
@@ -994,13 +1014,12 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
 
 APIRET DLLEXPORT APIENTRY kaiMixerClose( HKAIMIXER hkm )
 {
-    PINSTANCELIST pilMixer;
     APIRET rc = KAIE_NO_ERROR;
 
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pilMixer = instanceVerify( hkm )) || pilMixer->pfnUserCb )
+    if( !instanceVerify( hkm, IVF_MIXER ))
         return KAIE_INVALID_HANDLE;
 
     if( instanceStreamCount( hkm ) != 0 )
@@ -1027,7 +1046,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pilMixer = instanceVerify( hkm )) || pilMixer->pfnUserCb )
+    if( !( pilMixer = instanceVerify( hkm, IVF_MIXER )))
         return KAIE_INVALID_HANDLE;
 
     if( !pksWanted || !pksObtained || !phkms )
@@ -1099,10 +1118,10 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamClose( HKAIMIXER hkm,
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pilMixer = instanceVerify( hkm )) || pilMixer->pfnUserCb )
+    if( !( pilMixer = instanceVerify( hkm, IVF_MIXER )))
         return KAIE_INVALID_HANDLE;
 
-    if( !( pilStream = instanceVerify( hkms )) ||
+    if( !( pilStream = instanceVerify( hkms, IVF_STREAM )) ||
         pilStream->hkai != pilMixer->hkai )
         return KAIE_INVALID_HANDLE;
 
