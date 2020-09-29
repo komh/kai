@@ -892,9 +892,8 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
 
         pms = pil->pms;
 
-        if( !pms->fPlaying || pms->fPaused )
+        if( !pms->fPlaying )
             continue;
-
 
         if( pms->fEOS )
         {
@@ -909,7 +908,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
         ULONG ulReqSize = SAMPLESTOBYTES( samples, pil->ks );
         ULONG ulRetLen = ulReqSize;
 
-        while( ulSize > 0 && ulRetLen == ulReqSize )
+        while( !pms->fPaused && ulSize > 0 && ulRetLen == ulReqSize )
         {
             if( pms->ulBufLen == 0 )
             {
@@ -930,6 +929,12 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
 
             ulLen  += ulCopyLen;
             ulSize -= ulCopyLen;
+        }
+
+        if( pms->fPaused )
+        {
+            memset( pBuf, 0, ulBufSize );
+            ulLen = ulBufSize;
         }
 
         if( pil->fSoftVol &&
