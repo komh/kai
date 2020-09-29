@@ -127,10 +127,10 @@ void playThread( void *arg )
     }
 
     printf("[%s] hkms = %lx\n", name, hkms );
-    printf("[%lx] Number of channels = %lu\n", hkms, ksObtained.ulChannels );
-    printf("[%lx] Number of buffers = %lu\n", hkms, ksObtained.ulNumBuffers );
-    printf("[%lx] Buffer size = %lu bytes\n", hkms, ksObtained.ulBufferSize );
-    printf("[%lx] Silence = %02x\n", hkms, ksObtained.bSilence );
+    printf("[%s] Number of channels = %lu\n", name, ksObtained.ulChannels );
+    printf("[%s] Number of buffers = %lu\n", name, ksObtained.ulNumBuffers );
+    printf("[%s] Buffer size = %lu bytes\n", name, ksObtained.ulBufferSize );
+    printf("[%s] Silence = %02x\n", name, ksObtained.bSilence );
 
     kaiSetVolume( hkms, MCI_SET_AUDIO_ALL, 50 );
 
