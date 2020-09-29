@@ -484,12 +484,19 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
 
         DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
 
-        if( instancePlayingStreamCount( pil->hkai ) == 0 )
+        /* Set fPlaying to TRUE before calling pfnPlay() to prevent
+           calling call back function from being stopped */
+        pms->fPlaying = TRUE;
+        pms->fPaused = FALSE;
+        pms->fCompleted = FALSE;
+
+        if( instancePlayingStreamCount( pil->hkai ) == 1 )
             rc = m_kai.pfnPlay( pil->hkai );
 
-        if( !rc )
+        if( rc )
         {
-            pms->fPlaying = TRUE;
+            /* If error, clear */
+            pms->fPlaying = FALSE;
             pms->fPaused = FALSE;
             pms->fCompleted = FALSE;
         }
