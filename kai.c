@@ -63,6 +63,7 @@ typedef struct tagMIXERSTREAM
     BOOL fPaused;
     BOOL fCompleted;
     BOOL fEOS;
+    LONG lCountDown;
 
     PCHAR pchBuffer;
     ULONG ulBufSize;
@@ -916,7 +917,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
         if( !pms->fPlaying )
             continue;
 
-        if( pms->fEOS )
+        if( pms->fEOS && --pms->lCountDown == 0 )
         {
             pms->fPlaying = FALSE;
             pms->fPaused = FALSE;
@@ -929,7 +930,8 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
         ulReqSize = SAMPLESTOBYTES( samples, pil->ks );
         ulRetLen = ulReqSize;
 
-        while( !pms->fPaused && ulSize > 0 && ulRetLen == ulReqSize )
+        while( !pms->fEOS && !pms->fPaused &&
+               ulSize > 0 && ulRetLen == ulReqSize )
         {
             ULONG ulCopyLen;
 
@@ -955,7 +957,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
             ulSize -= ulCopyLen;
         }
 
-        if( pms->fPaused )
+        if( pms->fEOS || pms->fPaused )
         {
             memset( pchBuf, 0, ulBufSize );
             ulLen = ulBufSize;
@@ -969,6 +971,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
         if( ulLen < ulBufSize )
         {
             pms->fEOS = TRUE;
+            pms->lCountDown = pilMixer->ks.ulNumBuffers;
 
             memset( pchBuf + ulLen, pilMixer->ks.bSilence, ulBufSize - ulLen );
             ulLen = ulBufSize;
