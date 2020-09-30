@@ -55,6 +55,23 @@ static ULONG    m_ulInitCount = 0;
 static KAIAPIS  m_kai = { NULL, };
 static KAICAPS  m_kaic = { 0, };
 
+static BOOL      m_fSoftMixer = FALSE;
+static HKAIMIXER m_hkm = NULLHANDLE;
+static KAISPEC   m_ks = {
+    0,                                      /* usDeviceIndex */
+    KAIT_PLAY,                              /* ulType */
+    16,                                     /* ulBitsPerSample */
+    48000,                                  /* ulSamplingRate */
+    0,                                      /* ulDataFormat */
+    2,                                      /* ulChannels */
+    2,                                      /* ulNumBuffers */
+    512 * 2/* 16 bits */ * 2/* stereo */,   /* ulBufferSize */
+    TRUE,                                   /* fShareable */
+    NULL,                                   /* pfnCallBack */
+    NULL,                                   /* pCallBackData */
+    0,                                      /* bSilence */
+};
+
 static HMTX m_hmtx = NULLHANDLE;
 
 typedef struct tagMIXERSTREAM
@@ -331,6 +348,9 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         return KAIE_NO_ERROR;
     }
 
+    // Use the soft mixer mode unless KAI_NOSOFTMIXER is specified
+    m_fSoftMixer = getenv("KAI_NOSOFTMIXER") ? FALSE : TRUE;
+
     // Use the specified mode by KAI_AUTOMODE if auto mode
     pszAutoMode = getenv("KAI_AUTOMODE");
     if( ulMode == KAIM_AUTO && pszAutoMode )
@@ -411,7 +431,7 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
 {
     PINSTANCELIST pil;
 
-    APIRET rc;
+    APIRET rc = KAIE_NO_ERROR;
 
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
@@ -422,6 +442,29 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     if( !pksWanted->pfnCallBack )
         return KAIE_INVALID_PARAMETER;
 
+    if( m_fSoftMixer )
+    {
+        /* Soft mixer mode */
+        DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
+
+        if( !m_hkm )
+        {
+            KAISPEC ksObtained;
+
+            rc = kaiMixerOpen( &m_ks, &ksObtained, &m_hkm );
+            if( !rc )
+                memcpy( &m_ks, &ksObtained, sizeof( KAISPEC ));
+        }
+
+        if( !rc && m_hkm )
+            rc = kaiMixerStreamOpen( m_hkm, pksWanted, pksObtained, phkai );
+
+        DosReleaseMutexSem( m_hmtx );
+
+        return rc;
+    }
+
+    /* Normal mode */
     pil = instanceNew( FALSE, 0 );
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
@@ -451,14 +494,37 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
 
 APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
 {
-    APIRET rc;
+    PINSTANCELIST pil;
+    APIRET rc = KAIE_NO_ERROR;
 
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !instanceVerify( hkai, IVF_NORMAL ))
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
         return KAIE_INVALID_HANDLE;
 
+    if( ISSTREAM( pil ) && pil->hkai != m_hkm )
+        return KAIE_INVALID_HANDLE;
+
+    if( m_fSoftMixer )
+    {
+        /* Soft mixer mode */
+        DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
+
+        rc = kaiMixerStreamClose( m_hkm, hkai );
+        if( !rc && instanceStreamCount( m_hkm ) == 0 )
+        {
+            rc = kaiMixerClose( m_hkm );
+            if( !rc )
+                m_hkm = NULLHANDLE;
+        }
+
+        DosReleaseMutexSem( m_hmtx );
+
+        return rc;
+    }
+
+    /* Normal mode */
     rc = m_kai.pfnClose( hkai );
     if( rc )
         return rc;
@@ -1158,6 +1224,22 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamClose( HKAIMIXER hkm,
     speex_resampler_destroy( pilStream->pms->srs );
 
     instanceDel( hkms );
+
+    return KAIE_NO_ERROR;
+}
+
+APIRET DLLEXPORT APIENTRY kaiEnableSoftMixer( BOOL fEnable,
+                                              const PKAISPEC pks )
+{
+    if( !m_ulInitCount )
+        return KAIE_NOT_INITIALIZED;
+
+    if( fEnable && !pks )
+        return KAIE_INVALID_PARAMETER;
+
+    m_fSoftMixer = fEnable;
+    if( fEnable )
+        memcpy( &m_ks, pks, sizeof( KAISPEC ));
 
     return KAIE_NO_ERROR;
 }

@@ -314,6 +314,21 @@ APIRET APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
  */
 APIRET APIENTRY kaiMixerStreamClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
 
+/**
+ * @brief Enable soft mixer mode.
+ *        If enabled, #kaiOpen() and #kaiClose() behave like
+ *        #kaiMixerStreamOpen() and #kaiMixerStreamClose(), respectively.
+ * @param[in] fEnable Enable flag
+ *            TRUE to enable soft mixer mode
+ *            FALSE to disable soft mixer mode
+ * @param[in] pks Specification for a mixer
+ * @return KAIE_NO_ERROR on success, or error codes
+ * @remark pfnCallBack and pCallBackData of @a pks are ignored
+ * @remark Default spec of a mixer is default device, 16 bits,
+ *         48 KHz, stereo, 2 buffers, 512 samples and shareable
+ */
+APIRET APIENTRY kaiEnableSoftMixer( BOOL fEnable, const PKAISPEC pks );
+
 #ifdef __cplusplus
 }
 #endif
