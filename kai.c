@@ -54,6 +54,7 @@
 static ULONG    m_ulInitCount = 0;
 static KAIAPIS  m_kai = { NULL, };
 static KAICAPS  m_kaic = { 0, };
+static BOOL     m_fSoftVol = FALSE;
 
 static BOOL      m_fSoftMixer = FALSE;
 static HKAIMIXER m_hkm = NULLHANDLE;
@@ -198,12 +199,9 @@ static PINSTANCELIST instanceNew( BOOL fStream, ULONG ulBufSize )
     pilNew->lRightVol   = 100;
     pilNew->fLeftState  = TRUE;
     pilNew->fRightState = TRUE;
-
-    // Use the soft volume mode unless KAI_NOSOFTVOLUME is specified
-    pilNew->fSoftVol = getenv("KAI_NOSOFTVOLUME") ? FALSE : TRUE;
-
-    // Mixer stream always use the soft volume mode
-    pilNew->fSoftVol = pilNew->fSoftVol || fStream;
+    pilNew->fSoftVol    = m_fSoftVol ||
+                          // Mixer stream always use the soft volume mode
+                          fStream;
 
     return pilNew;
 }
@@ -347,6 +345,9 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
         return KAIE_NO_ERROR;
     }
+
+    // Use the soft volume mode unless KAI_NOSOFTVOLUME is specified
+    m_fSoftVol = getenv("KAI_NOSOFTVOLUME") ? FALSE : TRUE;
 
     // Use the soft mixer mode unless KAI_NOSOFTMIXER is specified
     m_fSoftMixer = getenv("KAI_NOSOFTMIXER") ? FALSE : TRUE;
