@@ -51,10 +51,13 @@
 #define IVF_STREAM  0x0004
 #define IVF_ANY     ( IVF_NORMAL | IVF_MIXER | IVF_STREAM )
 
+#define DEFAULT_MIN_SAMPLES 2048
+
 static ULONG    m_ulInitCount = 0;
 static KAIAPIS  m_kai = { NULL, };
 static KAICAPS  m_kaic = { 0, };
 static BOOL     m_fSoftVol = FALSE;
+static ULONG    m_ulMinSamples = DEFAULT_MIN_SAMPLES;
 
 static BOOL      m_fSoftMixer = FALSE;
 static HKAIMIXER m_hkm = NULLHANDLE;
@@ -66,7 +69,8 @@ static KAISPEC   m_ks = {
     0,                                      /* ulDataFormat */
     2,                                      /* ulChannels */
     2,                                      /* ulNumBuffers */
-    512 * 2/* 16 bits */ * 2/* stereo */,   /* ulBufferSize */
+    DEFAULT_MIN_SAMPLES * 2/* 16 bits */ *
+    2/* stereo */,                          /* ulBufferSize */
     TRUE,                                   /* fShareable */
     NULL,                                   /* pfnCallBack */
     NULL,                                   /* pCallBackData */
@@ -324,6 +328,7 @@ static int instancePlayingStreamCount( HKAIMIXER hkm )
 
 APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 {
+    const char *pszMinSamples;
     const char *pszAutoMode;
     APIRET rc = KAIE_INVALID_PARAMETER;
 
@@ -351,6 +356,19 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
     // Use the soft mixer mode unless KAI_NOSOFTMIXER is specified
     m_fSoftMixer = getenv("KAI_NOSOFTMIXER") ? FALSE : TRUE;
+
+    // Use the minimum samples of KAI_MINSAMPLES if specified
+    pszMinSamples = getenv("KAI_MINSAMPLES");
+    if( pszMinSamples )
+    {
+        ULONG ulMinSamples = atoi( pszMinSamples );
+
+        if( ulMinSamples != 0 )
+        {
+            m_ulMinSamples = ulMinSamples;
+            m_ks.ulBufferSize = SAMPLESTOBYTES( m_ulMinSamples, m_ks );
+        }
+    }
 
     // Use the specified mode by KAI_AUTOMODE if auto mode
     pszAutoMode = getenv("KAI_AUTOMODE");
@@ -471,6 +489,9 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
         return KAIE_NOT_ENOUGH_MEMORY;
 
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
+    if( pil->ks.ulBufferSize > 0 &&
+        pil->ks.ulBufferSize < SAMPLESTOBYTES( m_ulMinSamples, pil->ks ))
+        pil->ks.ulBufferSize = SAMPLESTOBYTES( m_ulMinSamples, pil->ks );
     pil->ks.pfnCallBack   = kaiCallBack;
     pil->ks.pCallBackData = pil;
     pil->pfnUserCb        = pksWanted->pfnCallBack;
@@ -1087,6 +1108,9 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
         return KAIE_NOT_ENOUGH_MEMORY;
 
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
+    if( pil->ks.ulBufferSize > 0 &&
+        pil->ks.ulBufferSize < SAMPLESTOBYTES( m_ulMinSamples, pil->ks ))
+        pil->ks.ulBufferSize = SAMPLESTOBYTES( m_ulMinSamples, pil->ks );
     pil->ks.pfnCallBack   = kaiMixerCallBack;
     pil->ks.pCallBackData = pil;
     pil->pfnUserCb        = NULL;

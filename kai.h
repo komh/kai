@@ -325,7 +325,8 @@ APIRET APIENTRY kaiMixerStreamClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
  * @return KAIE_NO_ERROR on success, or error codes
  * @remark pfnCallBack and pCallBackData of @a pks are ignored
  * @remark Default spec of a mixer is default device, 16 bits,
- *         48 KHz, stereo, 2 buffers, 512 samples and shareable
+ *         48 KHz, stereo, 2 buffers, KAI_MINSAMPLES samples if specified,
+ *         or 2048 samples, and shareable
  */
 APIRET APIENTRY kaiEnableSoftMixer( BOOL fEnable, const PKAISPEC pks );
 
