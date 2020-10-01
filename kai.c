@@ -1259,11 +1259,8 @@ APIRET DLLEXPORT APIENTRY kaiEnableSoftMixer( BOOL fEnable,
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( fEnable && !pks )
-        return KAIE_INVALID_PARAMETER;
-
     m_fSoftMixer = fEnable;
-    if( fEnable )
+    if( fEnable && pks )
         memcpy( &m_ks, pks, sizeof( KAISPEC ));
 
     return KAIE_NO_ERROR;
