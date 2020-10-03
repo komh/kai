@@ -495,6 +495,9 @@ static void uniaudPlayThread( void *arg )
         }
         else
         {
+            if( m_fDebugMode )
+                fprintf( stderr, "buffer underrun!\n");
+
             memset( pchBuffer, pui->bSilence, pui->nFillSize );
             count = pui->nFillSize;
         }
