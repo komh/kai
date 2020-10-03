@@ -275,10 +275,13 @@ APIRET APIENTRY kaiFloatToS16( short *dst, int dstLen,
 /**
  * @brief Open KAIMIXER instance
  * @param[in] pksWanted Requested specification
+ *            pksWanted->ulBitsPerSample should be 16
+ *            pksWanted->ulChannels should be 2
  * @param[out] pksObtained Obtained specification
  * @param[out] phkm Opened KAIMIXER instance
  * @return KAIE_NO_ERROR on success, or error codes
  * @remark pfnCallBack and pCallBackData of @a pksWanted are ignored
+ * @remark Only 16 bits stereo audio is supported
  */
 APIRET APIENTRY kaiMixerOpen( const PKAISPEC pksWanted, PKAISPEC pksObtained,
                               PHKAIMIXER phkm );

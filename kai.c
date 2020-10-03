@@ -1104,6 +1104,10 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
     if( !pksWanted || !pksObtained || !phkm )
         return KAIE_INVALID_PARAMETER;
 
+    /* Support 16 bits stereo audio only */
+    if( pksWanted->ulBitsPerSample != 16 || pksWanted->ulChannels != 2 )
+        return KAIE_INVALID_PARAMETER;
+
     pil = instanceNew( FALSE, 0 );
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
