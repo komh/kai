@@ -698,6 +698,9 @@ APIRET DLLEXPORT APIENTRY kaiResume( HKAI hkai )
         PMIXERSTREAM pms = pil->pms;
         APIRET rc = KAIE_NO_ERROR;
 
+        if( !pms->fPaused )
+            return KAIE_NO_ERROR;
+
         DosRequestMutexSem( m_hmtx, SEM_INDEFINITE_WAIT );
 
         if( instancePlayingStreamCount( pil->hkai ) == 1 )
