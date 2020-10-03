@@ -18,6 +18,7 @@
 */
 
 #define INCL_DOS
+#define INCL_DOSERRORS
 #include <os2.h>
 
 #include <string.h>
@@ -93,6 +94,15 @@ typedef struct tagMIXERSTREAM
     ULONG ulBufPos;
 
     SpeexResamplerState *srs;
+
+    TID tid;
+    PKAISPEC pksMixer;
+    PCHAR pchFillBuffer;
+    ULONG ulFillSize;
+    ULONG ulFilledLen;
+
+    HEV hevFill;
+    HEV hevFillDone;
 } MIXERSTREAM, *PMIXERSTREAM;
 
 typedef struct tagINSTANCELIST INSTANCELIST, *PINSTANCELIST;
@@ -141,6 +151,8 @@ do {                                                                    \
     }                                                                   \
 } while( 0 )
 
+static void mixerFillThread( void *arg );
+
 static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
                                    ULONG ulBufSize )
 {
@@ -175,7 +187,8 @@ static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
 
 static void instanceFree( PINSTANCELIST pil );
 
-static PINSTANCELIST instanceNew( BOOL fStream, ULONG ulBufSize )
+static PINSTANCELIST instanceNew( BOOL fStream,
+                                  PKAISPEC pksMixer, PKAISPEC pks )
 {
     PINSTANCELIST pilNew;
 
@@ -185,18 +198,31 @@ static PINSTANCELIST instanceNew( BOOL fStream, ULONG ulBufSize )
 
     if( fStream )
     {
+        ULONG ulBufSize = pksMixer->ulBufferSize * pksMixer->ulSamplingRate /
+                          pks->ulSamplingRate;
+
+        if( pksMixer->ulSamplingRate % pks->ulSamplingRate )
+            ulBufSize += pksMixer->ulBufferSize;
+
         pilNew->pms = calloc( 1, sizeof( MIXERSTREAM ));
         if( pilNew->pms )
+        {
             pilNew->pms->pchBuffer = malloc( ulBufSize );
+            if( pilNew->pms )
+                pilNew->pms->pchFillBuffer = malloc( pksMixer->ulBufferSize );
+        }
 
-        if( !pilNew->pms || !pilNew->pms->pchBuffer )
+        if( !pilNew->pms || !pilNew->pms->pchBuffer ||
+            !pilNew->pms->pchFillBuffer )
         {
             instanceFree( pilNew );
 
             return NULL;
         }
 
+        pilNew->pms->pksMixer = pksMixer;
         pilNew->pms->ulBufSize = ulBufSize;
+        pilNew->pms->ulFillSize = pksMixer->ulBufferSize;
     }
 
     pilNew->lLeftVol    = 100;
@@ -215,7 +241,10 @@ static void instanceFree( PINSTANCELIST pil )
     if( pil )
     {
         if( pil->pms )
+        {
             free( pil->pms->pchBuffer );
+            free( pil->pms->pchFillBuffer );
+        }
 
         free( pil->pms );
         free( pil );
@@ -484,7 +513,7 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     }
 
     /* Normal mode */
-    pil = instanceNew( FALSE, 0 );
+    pil = instanceNew( FALSE, NULL, NULL );
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
 
@@ -583,6 +612,11 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
         pms->fPaused = FALSE;
         pms->fCompleted = FALSE;
 
+        DosCreateEventSem( NULL, &pms->hevFill, 0, TRUE );
+        DosCreateEventSem( NULL, &pms->hevFillDone, 0, FALSE );
+
+        pms->tid = _beginthread( mixerFillThread, NULL, 256 * 1024, pil );
+
         if( instancePlayingStreamCount( pil->hkai ) == 1 )
             rc = m_kai.pfnPlay( pil->hkai );
 
@@ -592,9 +626,7 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
         if( rc )
         {
             /* If error, clear */
-            pms->fPlaying = FALSE;
-            pms->fPaused = FALSE;
-            pms->fCompleted = FALSE;
+            kaiStop( pil->id );
         }
 
         DosReleaseMutexSem( m_hmtx );
@@ -634,7 +666,12 @@ APIRET DLLEXPORT APIENTRY kaiStop( HKAI hkai )
         {
             pms->fPlaying = FALSE;
             pms->fPaused = FALSE;
-            pms->fCompleted = FALSE;
+
+            DosPostEventSem( pms->hevFill );
+            while( DosWaitThread( &pms->tid, DCWW_WAIT ) == ERROR_INTERRUPT );
+
+            DosCloseEventSem( pms->hevFill );
+            DosCloseEventSem( pms->hevFillDone );
         }
 
         DosReleaseMutexSem( m_hmtx );
@@ -904,16 +941,17 @@ APIRET DLLEXPORT APIENTRY kaiFloatToS16( short *dst, int dstLen,
     return (dst - dstStart) * sizeof( *dst );
 }
 
-static void normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
-                       PINSTANCELIST pil, PINSTANCELIST pilMixer )
+static void normalize( PVOID pBuffer, ULONG ulLen, PINSTANCELIST pil )
 {
-    short *ps16Buf = alloca( ulSize );
+    short *ps16Buf = alloca( pil->pms->ulFillSize );
 
     int samples = BYTESTOSAMPLES( ulLen, pil->ks );
 
+    PKAISPEC pks = &pil->ks;
     PMIXERSTREAM pms = pil->pms;
+    PKAISPEC pksMixer = pms->pksMixer;
 
-    if( pil->ks.ulBitsPerSample == 8 )
+    if( pks->ulBitsPerSample == 8 )
     {
         /* 8 bits mono/stereo to 16 bits stereo */
         unsigned char *pu8 = pBuffer;
@@ -927,14 +965,14 @@ static void normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
 
             *ps16++ = sample;
 
-            if( pil->ks.ulChannels == 1 )
+            if( pks->ulChannels == 1 )
                 *ps16++ = sample;
         }
 
         ulLen = ( ps16 - ps16Buf ) * sizeof( *ps16 );
         pBuffer = ps16Buf;
     }
-    else if( pil->ks.ulBitsPerSample == 16 && pil->ks.ulChannels == 1 )
+    else if( pks->ulBitsPerSample == 16 && pks->ulChannels == 1 )
     {
         /* 16 bits mono to 16 bits stereo */
         short *ps16m = pBuffer;
@@ -952,21 +990,20 @@ static void normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
         pBuffer = ps16Buf;
     }
 
-    if( pil->ks.ulSamplingRate != pilMixer->ks.ulSamplingRate )
+    if( pks->ulSamplingRate != pksMixer->ulSamplingRate )
     {
         /* resampling */
         spx_uint32_t inSamples = samples;
-        spx_uint32_t outSamples = BYTESTOSAMPLES( pms->ulBufSize,
-                                                  pilMixer->ks );
+        spx_uint32_t outSamples = BYTESTOSAMPLES( pms->ulBufSize, *pksMixer );
 
         speex_resampler_set_rate( pms->srs,
-            pil->ks.ulSamplingRate, pilMixer->ks.ulSamplingRate );
+            pks->ulSamplingRate, pksMixer->ulSamplingRate );
 
         speex_resampler_process_interleaved_int( pms->srs,
             ( spx_int16_t * )pBuffer, &inSamples,
             ( spx_int16_t * )pms->pchBuffer, &outSamples );
 
-        ulLen = SAMPLESTOBYTES( outSamples, pilMixer->ks );
+        ulLen = SAMPLESTOBYTES( outSamples, *pksMixer );
     }
     else
     {
@@ -976,6 +1013,58 @@ static void normalize( PVOID pBuffer, ULONG ulLen, ULONG ulSize,
 
     pms->ulBufLen = ulLen;
     pms->ulBufPos = 0;
+}
+
+static void mixerFillThread( void *arg )
+{
+    PINSTANCELIST pil = arg;
+    PMIXERSTREAM pms = pil->pms;
+    PCHAR pchBuf = alloca( pil->ks.ulBufferSize );
+
+    for(;;)
+    {
+        ULONG ulPost;
+        ULONG ulLen = 0;
+        ULONG ulSize = pms->ulFillSize;
+        ULONG ulReqSize = pil->ks.ulBufferSize;
+        ULONG ulRetLen = ulReqSize;
+
+        while( DosWaitEventSem( pms->hevFill, SEM_INDEFINITE_WAIT ) ==
+                    ERROR_INTERRUPT );
+
+        DosResetEventSem( pms->hevFill, &ulPost );
+
+        if( !pms->fPlaying )
+            break;
+
+        while( ulSize > 0 && ulRetLen == ulReqSize )
+        {
+            ULONG ulCopyLen;
+
+            if( pms->ulBufLen == 0 )
+            {
+                ulRetLen = pil->pfnUserCb( pil->pUserData, pchBuf,
+                                           ulReqSize );
+
+                normalize( pchBuf, ulRetLen, pil );
+            }
+
+            ulCopyLen = ulSize < pms->ulBufLen ? ulSize : pms->ulBufLen;
+
+            memcpy( pms->pchFillBuffer + ulLen, pms->pchBuffer + pms->ulBufPos,
+                    ulCopyLen );
+
+            pms->ulBufPos += ulCopyLen;
+            pms->ulBufLen -= ulCopyLen;
+
+            ulLen  += ulCopyLen;
+            ulSize -= ulCopyLen;
+        }
+
+        pms->ulFilledLen = ulLen;
+
+        DosPostEventSem( pms->hevFillDone );
+    }
 }
 
 static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
@@ -993,9 +1082,6 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
     {
         PMIXERSTREAM pms;
         ULONG ulLen = 0;
-        ULONG ulSize = ulBufSize;
-        ULONG ulReqSize;
-        ULONG ulRetLen;
 
         short *pDst;
         short *pSrc;
@@ -1019,40 +1105,24 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
             continue;
         }
 
-        ulReqSize = pil->ks.ulBufferSize;
-        ulRetLen = ulReqSize;
-
-        while( !pms->fEOS && !pms->fPaused &&
-               ulSize > 0 && ulRetLen == ulReqSize )
-        {
-            ULONG ulCopyLen;
-
-            if( pms->ulBufLen == 0 )
-            {
-                PCHAR pchCBBuf = alloca( ulBufSize );
-
-                ulRetLen = pil->pfnUserCb( pil->pUserData, pchCBBuf,
-                                           ulReqSize );
-
-                normalize( pchCBBuf, ulRetLen, ulBufSize, pil, pilMixer );
-            }
-
-            ulCopyLen = ulSize < pms->ulBufLen ? ulSize : pms->ulBufLen;
-
-            memcpy( pchBuf + ulLen, pms->pchBuffer + pms->ulBufPos,
-                    ulCopyLen );
-
-            pms->ulBufPos += ulCopyLen;
-            pms->ulBufLen -= ulCopyLen;
-
-            ulLen  += ulCopyLen;
-            ulSize -= ulCopyLen;
-        }
-
-        if( pms->fEOS || pms->fPaused )
+        if( pms->fEOS || pms->fPaused ||
+            DosWaitEventSem( pms->hevFillDone, SEM_IMMEDIATE_RETURN ))
         {
             memset( pchBuf, 0, ulBufSize );
             ulLen = ulBufSize;
+        }
+        else
+        {
+            ULONG ulCount;
+
+            DosResetEventSem( pms->hevFillDone, &ulCount );
+
+            ulLen = pms->ulFilledLen;
+
+            memcpy( pchBuf, pms->pchFillBuffer, ulLen );
+
+            if( ulLen == ulBufSize )
+                DosPostEventSem( pms->hevFill );
         }
 
         if( pil->fSoftVol &&
@@ -1063,9 +1133,10 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
         if( ulLen < ulBufSize )
         {
             pms->fEOS = TRUE;
-            pms->lCountDown = pilMixer->ks.ulNumBuffers;
+            pms->lCountDown = pil->ks.ulNumBuffers;
 
-            memset( pchBuf + ulLen, pilMixer->ks.bSilence, ulBufSize - ulLen );
+            memset( pchBuf + ulLen, 0, ulBufSize - ulLen );
+
             ulLen = ulBufSize;
         }
 
@@ -1111,7 +1182,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
     if( pksWanted->ulBitsPerSample != 16 || pksWanted->ulChannels != 2 )
         return KAIE_INVALID_PARAMETER;
 
-    pil = instanceNew( FALSE, 0 );
+    pil = instanceNew( FALSE, NULL, NULL );
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
 
@@ -1198,7 +1269,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
     if( pilMixer->ks.ulSamplingRate % pksWanted->ulSamplingRate )
         ulBufSize += pilMixer->ks.ulBufferSize;
 
-    pil = instanceNew( TRUE, ulBufSize );
+    pil = instanceNew( TRUE, &pilMixer->ks, pksWanted );
     if( pil )
     {
         int err;
