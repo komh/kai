@@ -984,8 +984,6 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
     PINSTANCELIST pil;
     ULONG ulMaxLen = 0;
 
-    int samples = BYTESTOSAMPLES( ulBufSize, pilMixer->ks );
-
     memset( pBuffer, 0, ulBufSize );
 
     for( pil = instanceStart(); pil; pil = pil->pilNext )
@@ -1018,7 +1016,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
             continue;
         }
 
-        ulReqSize = SAMPLESTOBYTES( samples, pil->ks );
+        ulReqSize = pil->ks.ulBufferSize;
         ulRetLen = ulReqSize;
 
         while( !pms->fEOS && !pms->fPaused &&
@@ -1212,19 +1210,21 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
     }
 
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
+    pil->ks.usDeviceIndex = pilMixer->ks.usDeviceIndex;
+    pil->ks.ulNumBuffers  = pilMixer->ks.ulNumBuffers;
+    pil->ks.ulBufferSize  =
+        SAMPLESTOBYTES( BYTESTOSAMPLES(pilMixer->ks.ulBufferSize,
+                                       pilMixer->ks), pil->ks);
+    pil->ks.fShareable    = TRUE;
     pil->ks.pfnCallBack   = NULL;
     pil->ks.pCallBackData = NULL;
+    pil->ks.bSilence      = pksWanted->ulBitsPerSample == 8 ? 0x80 : 0;
     pil->pfnUserCb        = pksWanted->pfnCallBack;
     pil->pUserData        = pksWanted->pCallBackData;
 
     memcpy( pksObtained, &pil->ks, sizeof( KAISPEC ));
-    pksObtained->usDeviceIndex  = pilMixer->ks.usDeviceIndex;
-    pksObtained->ulNumBuffers   = pilMixer->ks.ulNumBuffers;
-    pksObtained->ulBufferSize   = pilMixer->ks.ulBufferSize;
-    pksObtained->fShareable     = TRUE;
-    pksObtained->pfnCallBack    = pksWanted->pfnCallBack;
-    pksObtained->pCallBackData  = pksWanted->pCallBackData;
-    pksObtained->bSilence       = pksWanted->ulBitsPerSample == 8 ? 0x80 : 0;
+    pksObtained->pfnCallBack   = pksWanted->pfnCallBack;
+    pksObtained->pCallBackData = pksWanted->pCallBackData;
 
     *phkms = ( HKAIMIXERSTREAM )pil;
 
