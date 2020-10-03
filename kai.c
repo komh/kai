@@ -61,6 +61,7 @@ static BOOL     m_fSoftVol = FALSE;
 static ULONG    m_ulMinSamples = DEFAULT_MIN_SAMPLES;
 
 static BOOL      m_fSoftMixer = FALSE;
+static int       m_iResamplerQ = 0;
 static HKAIMIXER m_hkm = NULLHANDLE;
 static KAISPEC   m_ks = {
     0,                                      /* usDeviceIndex */
@@ -358,6 +359,7 @@ static int instancePlayingStreamCount( HKAIMIXER hkm )
 APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 {
     const char *pszMinSamples;
+    const char *pszResamplerQ;
     const char *pszAutoMode;
     APIRET rc = KAIE_INVALID_PARAMETER;
 
@@ -397,6 +399,20 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
             m_ulMinSamples = ulMinSamples;
             m_ks.ulBufferSize = SAMPLESTOBYTES( m_ulMinSamples, m_ks );
         }
+    }
+
+    // User the resampler quality of KAI_RESAMPLERQ if specified
+    pszResamplerQ = getenv("KAI_RESAMPLERQ");
+    if( pszResamplerQ )
+    {
+        int q = atoi( pszResamplerQ );
+
+        if( q < 0 )
+            q = 0;
+        else if( q > 10 )
+            q = 10;
+
+        m_iResamplerQ = q;
     }
 
     // Use the specified mode by KAI_AUTOMODE if auto mode
@@ -1276,8 +1292,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
         pil->pms->srs = speex_resampler_init( pilMixer->ks.ulChannels,
                                               pksWanted->ulSamplingRate,
                                               pilMixer->ks.ulSamplingRate,
-                                              SPEEX_RESAMPLER_QUALITY_DESKTOP,
-                                              &err );
+                                              m_iResamplerQ, &err );
     }
 
     if( !pil || !pil->pms->srs )
