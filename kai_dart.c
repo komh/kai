@@ -163,7 +163,7 @@ APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
     pkc->ulMaxChannels  = dartChNum();
     dartOSLibGetAudioPDDName( &pkc->szPDDName[ 0 ]);
 
-    m_fDebugMode = getenv("KAIDEBUG") != NULL;
+    m_fDebugMode = getenv("KAI_DEBUG") != NULL;
 
     return KAIE_NO_ERROR;
 }

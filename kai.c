@@ -391,7 +391,7 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         return KAIE_NO_ERROR;
     }
 
-    m_fDebugMode = getenv("KAIDEBUG") != NULL;
+    m_fDebugMode = getenv("KAI_DEBUG") != NULL;
 
     // Use the soft volume mode unless KAI_NOSOFTVOLUME is specified
     m_fSoftVol = getenv("KAI_NOSOFTVOLUME") ? FALSE : TRUE;

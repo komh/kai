@@ -384,7 +384,7 @@ APIRET APIENTRY kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
     uniaud_get_card_info( 0, &cardInfo );
     strcpy( pkc->szPDDName, ( char * )cardInfo.name );
 
-    m_fDebugMode = getenv("KAIDEBUG") != NULL;
+    m_fDebugMode = getenv("KAI_DEBUG") != NULL;
 
     return KAIE_NO_ERROR;
 }
