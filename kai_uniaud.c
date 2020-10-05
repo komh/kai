@@ -497,7 +497,7 @@ static void uniaudPlayThread( void *arg )
         else
         {
             if( m_fDebugMode )
-                fprintf( stderr, "buffer underrun!\n");
+                fprintf( stderr, "UNIAUD: buffer underrun!\n");
 
             memset( pchBuffer, pui->bSilence, pui->nFillSize );
             count = pui->nFillSize;
@@ -521,7 +521,7 @@ static void uniaudPlayThread( void *arg )
             {
                 state = uniaud_pcm_state( pui->pcm );
                 if (m_fDebugMode)
-                    fprintf( stderr, "EAGAIN : written = %i of %i, state = %i\n", written, count, state );
+                    fprintf( stderr, "UNIAUD: EAGAIN : written = %i of %i, state = %i\n", written, count, state );
 
                 uniaud_pcm_drop( pui->pcm );
 
@@ -536,7 +536,7 @@ static void uniaudPlayThread( void *arg )
                 if( err < -10000 )
                 {
                     if (m_fDebugMode)
-                        fprintf( stderr, "part written = %i from %i, err = %i\n", written, count, err );
+                        fprintf( stderr, "UNIAUD: part written = %i from %i, err = %i\n", written, count, err );
 
                     break; // internal uniaud error
                 }
@@ -620,7 +620,7 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
     if( !pui->pcm || err )
     {
         if (m_fDebugMode)
-            fprintf( stderr, "pcm open error %d\n", err );
+            fprintf( stderr, "UNIAUD: pcm open error %d\n", err );
 
         goto exit_free;
     }

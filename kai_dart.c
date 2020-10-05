@@ -339,7 +339,7 @@ void DART_FILL_BUFFERS( PDARTINFO pdi, PMCI_MIX_BUFFER pBuffer )
     }
 
     if( m_fDebugMode)
-        fprintf( stderr, "buffer underrun!\n");
+        fprintf( stderr, "DART: buffer underrun!\n");
 
     memset( pBuffer->pBuffer, pdi->bSilence, pdi->ulBufferSize );
     pBuffer->ulFlags = 0;

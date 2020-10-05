@@ -1119,7 +1119,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
               DosWaitEventSem( pms->hevFillDone, SEM_IMMEDIATE_RETURN )))
         {
             if( m_fDebugMode && !pms->fEOS && !pms->fPaused )
-                fprintf(stderr, "buffer underrun!\n");
+                fprintf(stderr, "MIXER: buffer underrun!\n");
 
             memset( pchBuf, 0, ulBufSize );
             ulLen = ulBufSize;
