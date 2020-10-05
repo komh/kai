@@ -26,9 +26,6 @@ ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
     PBYTE   pbBuffer = Buffer;
     LONG    lLen;
 
-    if( m_ulStatus & KAIS_COMPLETED )
-        mmioSeek( m_hmmio, 0, SEEK_SET );
-
     while( BufferSize > 0 )
     {
         if( m_iBufIndex >= m_iBufLen )
@@ -48,6 +45,9 @@ ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
         pbBuffer     += lLen;
         BufferSize   -= lLen;
     }
+
+    if( BufferSize > 0 )
+        mmioSeek( m_hmmio, 0, SEEK_SET );
 
     return pbBuffer - ( PBYTE )Buffer;
 }
