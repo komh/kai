@@ -651,7 +651,8 @@ static APIRET APIENTRY dartPlay( HKAI hkai )
 
     DosCreateEventSem( NULL, &pdi->hevFill, 0, TRUE );
     DosCreateEventSem( NULL, &pdi->hevFillDone, 0, FALSE );
-    pdi->tidFillThread = _beginthread( dartFillThread, NULL, 256 * 1024, pdi );
+    pdi->tidFillThread = _beginthread( dartFillThread, NULL,
+                                       THREAD_STACK_SIZE, pdi );
 
     for( i = 0; i < pdi->ulNumBuffers; i++ )
     {

@@ -648,7 +648,8 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
         DosPostEventSem( pms->hevFill );
         DosResetEventSem( pms->hevFillDone, &ulCount );
 
-        pms->tid = _beginthread( mixerFillThread, NULL, 256 * 1024, pil );
+        pms->tid = _beginthread( mixerFillThread, NULL, THREAD_STACK_SIZE,
+                                 pil );
 
         if( instancePlayingStreamCount( pil->hkai ) == 1 )
             rc = m_kai.pfnPlay( pil->hkai );

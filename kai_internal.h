@@ -68,6 +68,8 @@ APIRET DosLoadModuleCW( PSZ pszName, ULONG cbName, PSZ pszModName,
 
 #define DosLoadModule( a, b, c, d ) DosLoadModuleCW( a, b, c, d )
 
+#define THREAD_STACK_SIZE   ( 1024 * 1024 )
+
 #ifdef __cplusplus
 }
 #endif

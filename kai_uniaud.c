@@ -477,7 +477,8 @@ static void uniaudPlayThread( void *arg )
 
     DosCreateEventSem( NULL, &pui->hevFill, 0, TRUE );
     DosCreateEventSem( NULL, &pui->hevFillDone, 0, FALSE );
-    tidFillThread = _beginthread( uniaudFillThread, NULL, 256 * 1024, pui );
+    tidFillThread = _beginthread( uniaudFillThread, NULL, THREAD_STACK_SIZE,
+                                  pui );
 
     timeout *= pui->pcm->channels;
 
@@ -684,7 +685,8 @@ static APIRET APIENTRY uniaudPlay( HKAI hkai )
     pui->fPaused    = FALSE;
     pui->fCompleted = FALSE;
 
-    pui->tidPlayThread = _beginthread( uniaudPlayThread, NULL, 256 * 1024, pui );
+    pui->tidPlayThread = _beginthread( uniaudPlayThread, NULL,
+                                       THREAD_STACK_SIZE, pui );
 
     return KAIE_NO_ERROR;
 }
