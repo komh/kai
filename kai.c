@@ -21,6 +21,7 @@
 #define INCL_DOSERRORS
 #include <os2.h>
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -80,6 +81,8 @@ static KAISPEC   m_ks = {
 };
 
 static HMTX m_hmtx = NULLHANDLE;
+
+static BOOL m_fDebugMode = FALSE;
 
 typedef struct tagBUFFER
 {
@@ -387,6 +390,8 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
         return KAIE_NO_ERROR;
     }
+
+    m_fDebugMode = getenv("KAIDEBUG") != NULL;
 
     // Use the soft volume mode unless KAI_NOSOFTVOLUME is specified
     m_fSoftVol = getenv("KAI_NOSOFTVOLUME") ? FALSE : TRUE;
@@ -1112,6 +1117,9 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
             ( pms->fMoreData && pms->buf.ulLen < ulBufSize &&
               DosWaitEventSem( pms->hevFillDone, SEM_IMMEDIATE_RETURN )))
         {
+            if( m_fDebugMode && !pms->fEOS && !pms->fPaused )
+                fprintf(stderr, "buffer underrun!\n");
+
             memset( pchBuf, 0, ulBufSize );
             ulLen = ulBufSize;
         }
