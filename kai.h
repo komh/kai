@@ -38,7 +38,7 @@ extern "C" {
 #endif
 
 /** KAI version macro */
-#define KAI_VERSION     "1.3.1"
+#define KAI_VERSION     "2.0.0"
 
 /**
  * @defgroup kaimodes KAI modes

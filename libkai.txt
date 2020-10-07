@@ -6,6 +6,31 @@
         Long Description: K Audio Interface v@VER@.
                           DART/UNIAUD implementation library.
 
+v2.0.0:
+    * Added a soft mixer
+        - now use a soft mixer by default
+        - set KAI_NOSOFTMIXER to any value if you want to disable a soft mixer
+          by default
+        - kaiMixer* APIS
+        - added kaiMixer*() APIs
+            kaiMixerOpen(), kaiMixerClose(),
+            kaiMixerStreamOpen(), kaiMixerStreamClose(),
+            kaiEnableSoftMixer()
+        - a soft mixer should be opend in 16 bits stereo audio mode
+        - with a soft mixer, it's possible to play multiple instances
+          simultaneously
+        - number of instances is limited by RAM size and CPU power
+        - added KAI_RESAMPLEQ to set resampling quality
+            0 is lowest and 10 is highest quality.
+            default is 0
+
+    * Added KAI_MINSAMPLES to set minimum audio buffer size in samples
+        - default value is 2048
+        - if audio buffer is too small, sound is not played correctly
+
+    * Set DLL version to 1, that is, kai1.dll
+    * Fixed kaidemo3 repeats very first samples in DART mode
+
 v1.3.1:
     * Improved volume control
     * Fixed freezing in dartClose() in multimedia sub-system
