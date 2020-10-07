@@ -1367,6 +1367,8 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamClose( HKAIMIXER hkm,
         pilStream->hkai != pilMixer->hkai )
         return KAIE_INVALID_HANDLE;
 
+    kaiStop( hkms );
+
     DosCloseEventSem( pilStream->pms->hevFill );
     DosCloseEventSem( pilStream->pms->hevFillDone );
 
