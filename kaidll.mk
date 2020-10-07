@@ -1,4 +1,4 @@
-DLLVER = 0
+DLLVER = 1
 KAIDLL = kai$(DLLVER).dll
 KAIDLLNAME = kai$(DLLVER)
 KAIDLLDEF = kaidll.def
