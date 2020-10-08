@@ -41,6 +41,7 @@
 
 #ifdef __WATCOMC__
 #include <alloca.h>
+#include <process.h>
 #endif
 
 #define SAMPLESTOBYTES( s, ks ) (( s ) * (( ks ).ulBitsPerSample >> 3 ) * \
