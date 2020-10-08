@@ -23,7 +23,7 @@
 #include <float.h>
 
 #ifdef __cplusplus
-exter "C" {
+extern "C" {
 #endif
 
 #ifdef __IBMC__
