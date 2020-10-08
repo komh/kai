@@ -5,13 +5,13 @@
 .SUFFIXES : .exe .dll .def .lib .dll_obj .obj .c .h
 
 CC = wcc386
-CFLAGS = -zq -wx -bm -d0 -oaxt -DINLINE=inline
+CFLAGS = -zq -bt=os2 -wx -bm -d0 -oaxt -DINLINE=inline
 SPEEX_CFLAGS = -DOUTSIDE_SPEEX -DEXPORT= -DRANDOM_PREFIX=kai -DFLOATING_POINT
 
 LINK = wlink
 LFLAGS = option quiet
 
-RM = del
+RM = rm -f
 
 !include kaidll.mk
 
@@ -31,18 +31,18 @@ all : .SYMBOLIC kai.lib kai_dll.lib $(KAIDLL) &
 
 kai.lib : $(STATIC_OBJECTS)
     -$(RM) $@
-    wlib -b $@ $(STATIC_OBJECTS)
+    wlib -b -c -q $@ $(STATIC_OBJECTS)
 
 kai_dll.lib: $(KAIDLL)
     -$(RM) $@
-    wlib -b $@ +$(KAIDLL)
+    wlib -b -c -q $@ +$(KAIDLL)
 
 $(KAIDLL): $(DLL_OBJECTS) $(KAIDLLDEF)
     $(LINK) $(LFLAGS) @$(KAIDLLDEF) file { $(DLL_OBJECTS) }
 
 $(KAIDLLDEF):
     %create $@
-    %append $@ system os2v2 dll initinstance terminstance
+    %append $@ system os2v2_dll initinstance terminstance
     %append $@ name $(KAIDLLNAME)
     %append $@ option manyautodata
 
