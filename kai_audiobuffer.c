@@ -106,6 +106,13 @@ LONG bufReadUnlock( PKAIAUDIOBUFFER pbuf )
     return 0;
 }
 
+VOID bufReadWaitDone( PKAIAUDIOBUFFER pbuf, ULONG ulTimeout )
+{
+    PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ pbuf->ulReadPos ];
+
+    DosWaitEventSem( pbufelm->hevDone, ulTimeout );
+}
+
 LONG bufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize )
 {
     PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ pbuf->ulWritePos ];
