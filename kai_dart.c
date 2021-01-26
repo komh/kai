@@ -75,6 +75,7 @@ typedef struct DARTINFO
     BOOL volatile       fPlaying;
     BOOL volatile       fPaused;
     BOOL volatile       fCompleted;
+    BOOL volatile       fStopping;
 } DARTINFO, *PDARTINFO;
 #pragma pack()
 
@@ -196,7 +197,7 @@ static APIRET APIENTRY dartError( APIRET rc )
     return MCIERR_SUCCESS;
 }
 
-#define USE_UNIAUD_WORKAROUND
+#define USE_UNIAUD_WORKAROUND   0
 
 static APIRET APIENTRY dartStop( HKAI hkai )
 {
@@ -207,7 +208,7 @@ static APIRET APIENTRY dartStop( HKAI hkai )
     if( !pdi->fPlaying )
         return KAIE_NO_ERROR;
 
-#ifdef USE_UNIAUD_WORKAROUND
+#if USE_UNIAUD_WORKAROUND
     // workaround for uniaud
     // clean up thread before MCI_STOP
     // otherwise looping sound or dead lock can occur when trying to stop
@@ -225,15 +226,20 @@ static APIRET APIENTRY dartStop( HKAI hkai )
 
     GenericParms.hwndCallback = 0;
 
+    pdi->fStopping = TRUE;
+
     rc = mciSendCommand( pdi->usDeviceID,
                          MCI_STOP,
                          MCI_WAIT,
                          ( PVOID )&GenericParms,
                          0 );
+
+    pdi->fStopping = FALSE;
+
     if( dartError( rc ))
         return LOUSHORT( rc );
 
-#ifndef USE_UNIAUD_WORKAROUND
+#if !USE_UNIAUD_WORKAROUND
     pdi->fPlaying = FALSE;
     pdi->fPaused  = FALSE;
 
@@ -350,7 +356,7 @@ static LONG APIENTRY MixHandler( ULONG ulStatus, PMCI_MIX_BUFFER pBuffer, ULONG 
 
                 pdi->fCompleted = TRUE;
             }
-            else if( pdi->fPlaying && !pdi->fWaitStreamEnd )
+            else if( pdi->fPlaying && !pdi->fWaitStreamEnd && !pdi->fStopping )
             {
                 dartFillMixBuffer( pdi, pBuffer );
 
