@@ -41,13 +41,13 @@ include kaidll.mk
 all : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) \
       kaidemo.exe kaidemo2.exe kaidemo3.exe
 
-kai.a : kai.o kai_dart.o kai_uniaud.o speex/resample.o
+kai.a : kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o speex/resample.o
 	$(AR) rc $@ $^
 
 kai_dll.a : $(KAIDLL)
 	emximp -o $@ $(KAIDLL)
 
-$(KAIDLL): kai.o kai_dart.o kai_uniaud.o speex/resample.o $(KAIDLLDEF)
+$(KAIDLL): kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o speex/resample.o $(KAIDLLDEF)
 	$(CC) -Zdll $(LDFLAGS) -o $@ $^
 	echo $(BLDLEVEL)K Audio Interface >> $@
 
@@ -58,9 +58,11 @@ $(KAIDLLDEF):
 kai.o: kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h \
        speex/speex_resampler.h
 
-kai_dart.o : kai_dart.c kai.h kai_internal.h kai_dart.h
+kai_dart.o : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h
 
 kai_uniaud.o : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h kai_uniaud.h
+
+kai_audiobuffer.o: kai_audiobuffer.c kai_audiobuffer.h
 
 speex/resample.o: speex/resample.c speex/speex_resampler.h \
                   speex/arch.h speex/stack_alloc.h
@@ -99,7 +101,7 @@ distclean : clean
 	$(RM) libkai-*
 
 src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
-      kai_uniaud.h kaidll.mk \
+      kai_uniaud.h kai_audiobuffer.c kai_audiobuffer.h kaidll.mk \
       kaidemo.c kaidemo2.c demo1.wav demo2.wav demo3.wav \
       Makefile Makefile.icc Makefile.wat \
       uniaud.h unidef.h unierrno.h uniaud.dll

@@ -70,9 +70,7 @@ typedef struct DARTINFO
     BOOL                fWaitStreamEnd;
     PFNKAICB            pfndicb;
     PVOID               pCBData;
-    MCI_MIX_BUFFER      mixBuffer;
-    HEV                 hevFill;
-    HEV                 hevFillDone;
+    PKAIAUDIOBUFFER     pbuf;
     TID                 tidFillThread;
     BOOL volatile       fPlaying;
     BOOL volatile       fPaused;
@@ -217,11 +215,10 @@ static APIRET APIENTRY dartStop( HKAI hkai )
     pdi->fPlaying = FALSE;
     pdi->fPaused  = FALSE;
 
-    DosPostEventSem( pdi->hevFill );
+    bufWritePostFill( pdi->pbuf );
     while( DosWaitThread( &pdi->tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
-    DosCloseEventSem( pdi->hevFill );
 
-    DosCloseEventSem( pdi->hevFillDone );
+    bufDestroy( pdi->pbuf );
 #endif
 
     memset( &GenericParms, 0, sizeof( GenericParms ));
@@ -240,11 +237,10 @@ static APIRET APIENTRY dartStop( HKAI hkai )
     pdi->fPlaying = FALSE;
     pdi->fPaused  = FALSE;
 
-    DosPostEventSem( pdi->hevFill );
+    bufWritePostFill( pdi->pbuf );
     while( DosWaitThread( &pdi->tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
-    DosCloseEventSem( pdi->hevFill );
 
-    DosCloseEventSem( pdi->hevFillDone );
+    bufDestroy( pdi->pbuf );
 #endif
 
     return KAIE_NO_ERROR;
@@ -255,7 +251,9 @@ static APIRET APIENTRY dartClearBuffer( HKAI hkai )
     PDARTINFO pdi = ( PDARTINFO )hkai;
     int       i;
 
-    for( i = 0; i < pdi->ulNumBuffers; i++)
+    bufClear( pdi->pbuf, pdi->bSilence );
+
+    for( i = 0; i < DART_MIN_BUFFERS; i++)
        memset( pdi->pMixBuffers[ i ].pBuffer, pdi->bSilence, pdi->ulBufferSize );
 
     return KAIE_NO_ERROR;
@@ -282,67 +280,57 @@ static APIRET APIENTRY dartFreeBuffers( HKAI hkai )
     return KAIE_NO_ERROR;
 }
 
-static ULONG dartFillBuffer( PDARTINFO pdi )
-{
-    ULONG ulWritten;
-
-    ulWritten = pdi->pfndicb( pdi->pCBData, pdi->mixBuffer.pBuffer, pdi->ulBufferSize );
-    if( ulWritten < pdi->ulBufferSize )
-    {
-        memset(( PCH )pdi->mixBuffer.pBuffer + ulWritten, pdi->bSilence, pdi->ulBufferSize - ulWritten );
-        pdi->mixBuffer.ulFlags = MIX_BUFFER_EOS;
-    }
-    else
-        pdi->mixBuffer.ulFlags = 0;
-
-    return ulWritten;
-}
-
 static void dartFillThread( void *arg )
 {
     PDARTINFO pdi = arg;
-    ULONG ulPost;
+    PVOID pBuffer;
+    ULONG ulSize;
+    ULONG ulLength;
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
 
-    for(;;)
+    do
     {
-        while( DosWaitEventSem( pdi->hevFill, SEM_INDEFINITE_WAIT ) == ERROR_INTERRUPT );
-        DosResetEventSem( pdi->hevFill, &ulPost );
+        bufWriteLock( pdi->pbuf, &pBuffer, &ulSize );
 
         if( !pdi->fPlaying )
             break;
 
-        // Transfer buffer to DART
-        dartFillBuffer( pdi );
+        ulLength = pdi->pfndicb( pdi->pCBData, pBuffer, ulSize );
 
-        DosPostEventSem( pdi->hevFillDone );
-    }
+        bufWriteUnlock( pdi->pbuf, ulLength );
+    } while( ulLength == ulSize );
 }
 
-void DART_FILL_BUFFERS( PDARTINFO pdi, PMCI_MIX_BUFFER pBuffer )
+static void dartFillMixBuffer( PDARTINFO pdi, PMCI_MIX_BUFFER pMixBuffer )
 {
-    ULONG ulPost;
+    PVOID pBuffer;
+    ULONG ulLength;
 
-    if( DosWaitEventSem( pdi->hevFillDone, SEM_IMMEDIATE_RETURN ) == NO_ERROR )
+    if( bufReadLock( pdi->pbuf, &pBuffer, &ulLength ) == -1 )
     {
-        DosResetEventSem( pdi->hevFillDone, &ulPost );
+       if( m_fDebugMode )
+           fprintf( stderr, "DART: buffer underrun!\n");
 
-        memcpy( pBuffer->pBuffer, pdi->mixBuffer.pBuffer, pdi->ulBufferSize );
-        pBuffer->ulFlags = pdi->mixBuffer.ulFlags;
-        if( pBuffer->ulFlags == MIX_BUFFER_EOS )
-            pdi->fWaitStreamEnd = TRUE;
-        else
-            DosPostEventSem( pdi->hevFill );
+        /* fill the whole buffer with silence */
+        memset(pMixBuffer->pBuffer, pdi->bSilence, pdi->ulBufferSize );
 
         return;
     }
 
-    if( m_fDebugMode)
-        fprintf( stderr, "DART: buffer underrun!\n");
+    memcpy( pMixBuffer->pBuffer, pBuffer, ulLength );
 
-    memset( pBuffer->pBuffer, pdi->bSilence, pdi->ulBufferSize );
-    pBuffer->ulFlags = 0;
+    bufReadUnlock( pdi->pbuf );
+
+    if( ulLength < pdi->ulBufferSize )
+    {
+        pMixBuffer->ulFlags = MIX_BUFFER_EOS;
+        pdi->fWaitStreamEnd = TRUE;
+
+        /* fill the remaining buffer with silence */
+        memset(( PCH )pMixBuffer->pBuffer + ulLength, pdi->bSilence,
+               pdi->ulBufferSize - ulLength );
+    }
 }
 
 static LONG APIENTRY MixHandler( ULONG ulStatus, PMCI_MIX_BUFFER pBuffer, ULONG ulFlags )
@@ -364,7 +352,7 @@ static LONG APIENTRY MixHandler( ULONG ulStatus, PMCI_MIX_BUFFER pBuffer, ULONG 
             }
             else if( pdi->fPlaying && !pdi->fWaitStreamEnd )
             {
-                DART_FILL_BUFFERS( pdi, pBuffer );
+                dartFillMixBuffer( pdi, pBuffer );
 
                 pdi->MixSetupParms.pmixWrite( pdi->MixSetupParms.ulMixHandle, pBuffer, 1 );
             }
@@ -498,12 +486,14 @@ static APIRET APIENTRY dartOpen( PKAISPEC pks, PHKAI phkai )
         pks->ulBufferSize = pdi->MixSetupParms.ulBufferSize;
 
     // Allocate mixer buffers
-    pdi->pMixBuffers = ( MCI_MIX_BUFFER * )malloc( sizeof( MCI_MIX_BUFFER ) * pks->ulNumBuffers );
+    pdi->pMixBuffers = malloc( sizeof( MCI_MIX_BUFFER ) * DART_MIN_BUFFERS );
+    if( !pdi->pMixBuffers )
+        goto exit_release;
 
     // Set up the BufferParms data structure and allocate device buffers
     // from the Amp-Mixer
     pdi->BufferParms.ulStructLength = sizeof( MCI_BUFFER_PARMS );
-    pdi->BufferParms.ulNumBuffers   = pks->ulNumBuffers;
+    pdi->BufferParms.ulNumBuffers   = DART_MIN_BUFFERS;
     pdi->BufferParms.ulBufferSize   = pks->ulBufferSize;
     pdi->BufferParms.pBufList       = pdi->pMixBuffers;
 
@@ -516,12 +506,8 @@ static APIRET APIENTRY dartOpen( PKAISPEC pks, PHKAI phkai )
         goto exit_free_mix_buffers;
 
     // The mixer possibly changed these values
-    pdi->ulNumBuffers = pdi->BufferParms.ulNumBuffers;
+    pdi->ulNumBuffers = pks->ulNumBuffers;
     pdi->ulBufferSize = pdi->BufferParms.ulBufferSize;
-
-    pdi->mixBuffer.pBuffer = malloc( pdi->ulBufferSize );
-    if( !pdi->mixBuffer.pBuffer )
-        goto exit_deallocate;
 
     pdi->pfndicb = pks->pfnCallBack;
     pdi->pCBData = pks->pCallBackData;
@@ -533,12 +519,6 @@ static APIRET APIENTRY dartOpen( PKAISPEC pks, PHKAI phkai )
     *phkai = ( HKAI )pdi;
 
     return KAIE_NO_ERROR;
-
-exit_deallocate :
-    mciSendCommand( pdi->usDeviceID,
-                    MCI_BUFFER,
-                    MCI_WAIT | MCI_DEALLOCATE_MEMORY,
-                    ( PVOID )&pdi->BufferParms, 0 );
 
 exit_free_mix_buffers :
     free( pdi->pMixBuffers );
@@ -604,7 +584,6 @@ static APIRET APIENTRY dartClose( HKAI hkai )
     if( dartError( rc ))
         return LOUSHORT( rc );
 
-    free( pdi->mixBuffer.pBuffer );
     free( pdi );
     pdi = NULL;
 
@@ -649,21 +628,20 @@ static APIRET APIENTRY dartPlay( HKAI hkai )
     pdi->fPaused         = FALSE;
     pdi->fCompleted      = FALSE;
 
-    DosCreateEventSem( NULL, &pdi->hevFill, 0, TRUE );
-    DosCreateEventSem( NULL, &pdi->hevFillDone, 0, FALSE );
+    pdi->pbuf = bufCreate( pdi->ulNumBuffers, pdi->ulBufferSize );
+    if( !pdi->pbuf )
+        return KAIE_NOT_ENOUGH_MEMORY;
+
     pdi->tidFillThread = _beginthread( dartFillThread, NULL,
                                        THREAD_STACK_SIZE, pdi );
 
-    for( i = 0; i < pdi->ulNumBuffers; i++ )
+    for( i = 0; i < DART_MIN_BUFFERS; i++ )
     {
         pdi->pMixBuffers[ i ].ulBufferLength = pdi->ulBufferSize;
         pdi->pMixBuffers[ i ].ulFlags = 0;
         pdi->pMixBuffers[ i ].ulUserParm = ( ULONG )pdi;
-    }
 
-    for( i = 0; i < DART_MIN_BUFFERS; i++ )
-    {
-        DART_FILL_BUFFERS( pdi, &pdi->pMixBuffers[ i ]);
+        dartFillMixBuffer( pdi, &pdi->pMixBuffers[ i ]);
 
         if( pdi->fWaitStreamEnd )
             break;

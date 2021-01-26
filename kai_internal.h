@@ -22,6 +22,8 @@
 
 #include <float.h>
 
+#include "kai_audiobuffer.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
