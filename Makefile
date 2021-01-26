@@ -104,7 +104,7 @@ src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
       kai_uniaud.h kai_audiobuffer.c kai_audiobuffer.h kaidll.mk \
       kaidemo.c kaidemo2.c demo1.wav demo2.wav demo3.wav \
       Makefile Makefile.icc Makefile.wat \
-      uniaud.h unidef.h unierrno.h uniaud.dll
+      uniaud.h unidef.h unierrno.h
 	$(RM) libkai-$(VER)-src.zip
 	$(RM) -r libkai-$(VER)
 	mkdir libkai-$(VER)
