@@ -66,11 +66,10 @@ typedef struct tagUNIAUDINFO
     BYTE             bSilence;
     PFNKAICB         pfnUniaudCB;
     PVOID            pUniaudCBData;
-    PCH              pchBuffer;
-    HEV              hevFill;
-    HEV              hevFillDone;
+    ULONG            ulBufferSize;
+    ULONG            ulNumBuffers;
+    PKAIAUDIOBUFFER  pbuf;
     TID              tidPlayThread;
-    INT              nFillSize;
     ULONG   volatile ulCount;
     BOOL    volatile fPlaying;
     BOOL    volatile fPaused;
@@ -417,17 +416,7 @@ static APIRET APIENTRY uniaudClearBuffer( HKAI hkai )
 {
     PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
 
-    memset( pui->pchBuffer, pui->bSilence, pui->pcm->bufsize );
-
-    return KAIE_NO_ERROR;
-}
-
-static APIRET APIENTRY uniaudFreeBuffers( HKAI hkai )
-{
-    PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
-
-    free( pui->pchBuffer );
-    pui->pchBuffer = NULL;
+    bufClear( pui->pbuf, pui->bSilence );
 
     return KAIE_NO_ERROR;
 }
@@ -435,22 +424,23 @@ static APIRET APIENTRY uniaudFreeBuffers( HKAI hkai )
 static void uniaudFillThread( void *arg )
 {
     PUNIAUDINFO pui = arg;
-    ULONG       ulPost;
+    PVOID pBuffer;
+    ULONG ulSize;
+    ULONG ulLength;
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
 
-    for(;;)
+    do
     {
-        while( DosWaitEventSem( pui->hevFill, SEM_INDEFINITE_WAIT ) == ERROR_INTERRUPT );
-        DosResetEventSem( pui->hevFill, &ulPost );
+        bufWriteLock( pui->pbuf, &pBuffer, &ulSize );
 
         if( !pui->fPlaying )
             break;
 
-        pui->ulCount = pui->pfnUniaudCB( pui->pUniaudCBData, pui->pchBuffer, pui->nFillSize );
+        ulLength = pui->pfnUniaudCB( pui->pUniaudCBData, pBuffer, ulSize );
 
-        DosPostEventSem( pui->hevFillDone );
-    }
+        bufWriteUnlock( pui->pbuf, ulLength );
+    } while( ulLength == ulSize );
 }
 
 static void uniaudPlayThread( void *arg )
@@ -460,23 +450,24 @@ static void uniaudPlayThread( void *arg )
     int         err, ret, state;
     int         written;
     TID         tidFillThread;
-    ULONG       ulPost;
     PCH         pchBuffer;
+    PVOID       pBuffer;
+    ULONG       ulLength;
 
     //DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, PRTYD_MAXIMUM, 0 );
 
-    pui->nFillSize = pui->pcm->bufsize;
-
-    pchBuffer = malloc( pui->nFillSize );
-    if( !pchBuffer )
+    pchBuffer = malloc( pui->ulBufferSize );
+    pui->pbuf = bufCreate( pui->ulNumBuffers, pui->ulBufferSize );
+    if( !pchBuffer || !pui->pbuf )
     {
+        bufDestroy( pui->pbuf );
+        free( pchBuffer );
+
         pui->fPlaying = FALSE;
 
         return;
     }
 
-    DosCreateEventSem( NULL, &pui->hevFill, 0, TRUE );
-    DosCreateEventSem( NULL, &pui->hevFillDone, 0, FALSE );
     tidFillThread = _beginthread( uniaudFillThread, NULL, THREAD_STACK_SIZE,
                                   pui );
 
@@ -484,23 +475,20 @@ static void uniaudPlayThread( void *arg )
 
     while( pui->fPlaying )
     {
-        if( DosWaitEventSem( pui->hevFillDone, SEM_IMMEDIATE_RETURN ) == NO_ERROR )
+        if( bufReadLock( pui->pbuf, &pBuffer, &ulLength ) == 0 )
         {
-            DosResetEventSem( pui->hevFillDone, &ulPost );
+            memcpy( pchBuffer, pBuffer, ulLength );
+            count = ulLength;
 
-            memcpy( pchBuffer, pui->pchBuffer, pui->nFillSize );
-            count = pui->ulCount;
-
-            if( pui->ulCount == pui->nFillSize )
-                DosPostEventSem( pui->hevFill );
+            bufReadUnlock( pui->pbuf );
         }
         else
         {
             if( m_fDebugMode )
                 fprintf( stderr, "UNIAUD: buffer underrun!\n");
 
-            memset( pchBuffer, pui->bSilence, pui->nFillSize );
-            count = pui->nFillSize;
+            memset( pchBuffer, pui->bSilence, pui->ulBufferSize );
+            count = pui->ulBufferSize;
         }
 
         written = 0;
@@ -556,7 +544,7 @@ static void uniaudPlayThread( void *arg )
             }
         }
 
-        if( count < pui->nFillSize )
+        if( count < pui->ulBufferSize )
         {
             // stop playing
             pui->fPlaying = FALSE;
@@ -568,11 +556,11 @@ static void uniaudPlayThread( void *arg )
         }
     }
 
-    DosPostEventSem( pui->hevFill );
-    while( DosWaitThread( &tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
-    DosCloseEventSem( pui->hevFill );
+    bufWritePostFill( pui->pbuf );
+    while( DosWaitThread( &tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT )
+        /* nothing */;
 
-    DosCloseEventSem( pui->hevFillDone );
+    bufDestroy( pui->pbuf );
 
     free( pchBuffer );
 }
@@ -622,25 +610,18 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
         if (m_fDebugMode)
             fprintf( stderr, "UNIAUD: pcm open error %d\n", err );
 
-        goto exit_free;
-    }
+        free( pui );
 
-    pui->pchBuffer = malloc( pui->pcm->bufsize );
-    if( !pui->pchBuffer )
-    {
-        err = KAIE_NOT_ENOUGH_MEMORY;
-
-        goto exit_close;
+        return err;
     }
 
     pui->pfnUniaudCB   = pks->pfnCallBack;
     pui->pUniaudCBData = pks->pCallBackData;
+    pui->ulBufferSize  = pui->pcm->bufsize;
+    pui->ulNumBuffers  = pks->ulNumBuffers;
     pui->bSilence      = ( pks->ulBitsPerSample == BPS_8 ) ? 0x80 : 0x00;
 
-    memset( pui->pchBuffer, pui->bSilence, pui->pcm->bufsize );
-
-    pks->ulNumBuffers = 2;
-    pks->ulBufferSize = pui->pcm->bufsize;
+    pks->ulBufferSize = pui->ulBufferSize;
     pks->bSilence     = pui->bSilence;
 
     uniaud_pcm_prepare( pui->pcm );
@@ -648,14 +629,6 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
     *phkai = ( HKAI )pui;
 
     return KAIE_NO_ERROR;
-
-exit_close :
-    uniaud_pcm_close( pui->pcm );
-
-exit_free :
-    free( pui );
-
-    return err;
 }
 
 static APIRET APIENTRY uniaudClose( HKAI hkai )
@@ -663,7 +636,6 @@ static APIRET APIENTRY uniaudClose( HKAI hkai )
     PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
 
     uniaudStop( hkai );
-    uniaudFreeBuffers( hkai );
 
     uniaud_pcm_close( pui->pcm );
 

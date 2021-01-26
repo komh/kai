@@ -60,7 +60,8 @@ kai.o: kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h \
 
 kai_dart.o : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h
 
-kai_uniaud.o : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h kai_uniaud.h
+kai_uniaud.o : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h \
+               kai_uniaud.h kai_audiobuffer.h
 
 kai_audiobuffer.o: kai_audiobuffer.c kai_audiobuffer.h
 
