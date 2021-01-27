@@ -671,6 +671,9 @@ static APIRET APIENTRY uniaudPause( HKAI hkai )
 {
     PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
 
+    if( !pui->fPlaying )
+        return KAIE_NO_ERROR;
+
     if( pui->fPaused )
         return KAIE_NO_ERROR;
 
@@ -683,6 +686,9 @@ static APIRET APIENTRY uniaudPause( HKAI hkai )
 static APIRET APIENTRY uniaudResume( HKAI hkai )
 {
     PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+
+    if( !pui->fPlaying )
+        return KAIE_NO_ERROR;
 
     if( !pui->fPaused )
         return KAIE_NO_ERROR;

@@ -731,6 +731,9 @@ APIRET DLLEXPORT APIENTRY kaiPause( HKAI hkai )
         PMIXERSTREAM pms = pil->pms;
         APIRET rc = KAIE_NO_ERROR;
 
+        if( !pms->fPlaying )
+            return KAIE_NO_ERROR;
+
         if( pms->fPaused )
             return KAIE_NO_ERROR;
 
@@ -766,6 +769,9 @@ APIRET DLLEXPORT APIENTRY kaiResume( HKAI hkai )
         /* Mixer stream */
         PMIXERSTREAM pms = pil->pms;
         APIRET rc = KAIE_NO_ERROR;
+
+        if( !pms->fPlaying )
+            return KAIE_NO_ERROR;
 
         if( !pms->fPaused )
             return KAIE_NO_ERROR;

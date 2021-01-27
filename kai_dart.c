@@ -683,6 +683,9 @@ static APIRET APIENTRY dartPause( HKAI hkai )
     MCI_GENERIC_PARMS GenericParms;
     ULONG             rc;
 
+    if( !pdi->fPlaying )
+        return KAIE_NO_ERROR;
+
     if( pdi->fPaused )
         return KAIE_NO_ERROR;
 
@@ -708,6 +711,9 @@ static APIRET APIENTRY dartResume( HKAI hkai )
     PDARTINFO         pdi = ( PDARTINFO )hkai;
     MCI_GENERIC_PARMS GenericParms;
     ULONG             rc;
+
+    if( !pdi->fPlaying )
+        return KAIE_NO_ERROR;
 
     if( !pdi->fPaused )
         return KAIE_NO_ERROR;
