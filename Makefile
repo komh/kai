@@ -101,15 +101,24 @@ clean :
 distclean : clean
 	$(RM) libkai-*
 
-src : kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
-      kai_uniaud.h kai_audiobuffer.c kai_audiobuffer.h kaidll.mk \
-      kaidemo.c kaidemo2.c demo1.wav demo2.wav demo3.wav \
-      Makefile Makefile.icc Makefile.wat \
-      uniaud.h unidef.h unierrno.h
+KAI_SRCS := kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
+            kai_uniaud.h kai_audiobuffer.c kai_audiobuffer.h kaidll.mk \
+            kaidemo.c kaidemo2.c kaidemo3.c demo1.wav demo2.wav demo3.wav \
+            Makefile Makefile.icc Makefile.wat \
+            uniaud.h unidef.h unierrno.h
+
+SPEEX_SRCS := speex/arch.h speex/fixed_generic.h speex/resample.c \
+              speex/resample_neon.h speex/resample_sse.h \
+              speex/speex_config_types.h speex/speex_resampler.h \
+              speex/stack_alloc.h \
+
+src : $(KAI_SRCS) $(SPEEX_SRCS)
 	$(RM) libkai-$(VER)-src.zip
 	$(RM) -r libkai-$(VER)
 	mkdir libkai-$(VER)
-	cp $^ libkai-$(VER)
+	mkdir libkai-$(VER)/speex
+	cp $(KAI_SRCS) libkai-$(VER)
+	cp $(SPEEX_SRCS) libkai-$(VER)/speex
 	zip -rpSm libkai-$(VER)-src.zip libkai-$(VER)
 
 install : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) kai.h
