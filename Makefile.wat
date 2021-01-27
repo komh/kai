@@ -15,7 +15,8 @@ RM = rm -f
 
 !include kaidll.mk
 
-STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj speex/resample.obj
+STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj kai_audiobuffer.obj &
+                 speex/resample.obj
 DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
 
 .c: speex   # find .c in speex, too

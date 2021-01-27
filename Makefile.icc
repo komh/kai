@@ -11,7 +11,8 @@ RM = del
 
 !include kaidll.mk
 
-STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj speex/resample.obj
+STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj kai_audiobuffer.obj \
+                 speex/resample.obj
 DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
 
 .c.obj :
@@ -42,15 +43,19 @@ kai.obj : kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
 
 kai.dll_obj : kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h
 
-kai_dart.obj : kai_dart.c kai.h kai_internal.h kai_dart.h
+kai_dart.obj : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h
 
-kai_dart.dll_obj : kai_dart.c kai.h kai_internal.h kai_dart.h
+kai_dart.dll_obj : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h
 
 kai_uniaud.obj : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h \
-                 kai_uniaud.h
+                 kai_uniaud.h kai_audiobuffer.h
 
 kai_uniaud.dll_obj : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h \
-                     kai_uniaud.h
+                     kai_uniaud.h kai_audiobuffer.h
+
+kai_audiobuffer.obj: kai_audiobuffer.c kai_audiobuffer.h
+
+kai_audiobuffer.dll_obj: kai_audiobuffer.c kai_audiobuffer.h
 
 kaidemo.exe : kaidemo.obj kai.lib
     $(CC) /Fe$@ $** mmpm2.lib
