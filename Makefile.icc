@@ -57,6 +57,12 @@ kai_audiobuffer.obj: kai_audiobuffer.c kai_audiobuffer.h
 
 kai_audiobuffer.dll_obj: kai_audiobuffer.c kai_audiobuffer.h
 
+speex/resample.obj: speex/resample.c speex/speex_resampler.h \
+                    speex/arch.h speex/stack_alloc.h
+
+speex/resample.dll_obj: speex/resample.c speex/speex_resampler.h \
+                        speex/arch.h speex/stack_alloc.h
+
 kaidemo.exe : kaidemo.obj kai.lib
     $(CC) /Fe$@ $** mmpm2.lib
 
