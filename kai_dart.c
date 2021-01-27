@@ -240,6 +240,12 @@ static APIRET APIENTRY dartStop( HKAI hkai )
         return LOUSHORT( rc );
 
 #if !USE_UNIAUD_WORKAROUND
+    // double check to avoid double-free of pdi->pbuf due to
+    // nested calls of dartStop() call by user and dartStop() call by
+    // MixHandler()
+    if( !pdi->fPlaying )
+        return KAIE_NO_ERROR;
+
     pdi->fPlaying = FALSE;
     pdi->fPaused  = FALSE;
 
