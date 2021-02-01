@@ -197,8 +197,6 @@ static APIRET APIENTRY dartError( APIRET rc )
     return MCIERR_SUCCESS;
 }
 
-#define USE_UNIAUD_WORKAROUND   0
-
 static APIRET APIENTRY dartStop( HKAI hkai )
 {
     PDARTINFO         pdi = ( PDARTINFO )hkai;
@@ -207,20 +205,6 @@ static APIRET APIENTRY dartStop( HKAI hkai )
 
     if( !pdi->fPlaying )
         return KAIE_NO_ERROR;
-
-#if USE_UNIAUD_WORKAROUND
-    // workaround for uniaud
-    // clean up thread before MCI_STOP
-    // otherwise looping sound or dead lock can occur when trying to stop
-    // but assume that MCI_STOP always succeeds
-    pdi->fPlaying = FALSE;
-    pdi->fPaused  = FALSE;
-
-    bufWritePostFill( pdi->pbuf );
-    while( DosWaitThread( &pdi->tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
-
-    bufDestroy( pdi->pbuf );
-#endif
 
     memset( &GenericParms, 0, sizeof( GenericParms ));
 
@@ -239,7 +223,6 @@ static APIRET APIENTRY dartStop( HKAI hkai )
     if( dartError( rc ))
         return LOUSHORT( rc );
 
-#if !USE_UNIAUD_WORKAROUND
     // double check to avoid double-free of pdi->pbuf due to
     // nested calls of dartStop() call by user and dartStop() call by
     // MixHandler()
@@ -253,7 +236,6 @@ static APIRET APIENTRY dartStop( HKAI hkai )
     while( DosWaitThread( &pdi->tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT );
 
     bufDestroy( pdi->pbuf );
-#endif
 
     return KAIE_NO_ERROR;
 }
