@@ -784,6 +784,8 @@ APIRET DLLEXPORT APIENTRY kaiResume( HKAI hkai )
         if( !rc )
             pms->fPaused = FALSE;
 
+        DosReleaseMutexSem( m_hmtx );
+
         return rc;
     }
 
