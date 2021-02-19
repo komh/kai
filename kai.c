@@ -481,6 +481,7 @@ APIRET DLLEXPORT APIENTRY kaiDone( VOID )
             instanceDelAll();
 
             DosCloseMutexSem( m_hmtx );
+            m_hmtx = NULLHANDLE;
         }
     }
 
