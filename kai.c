@@ -1068,6 +1068,9 @@ static void mixerFillThread( void *arg )
     ULONG ulLen = ulSize;
     PCHAR pchBuf = alloca( ulSize );
 
+    if( getenv("KAI_TIMECRITICAL"))
+        DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, 0 );
+
     while( pms->fMoreData )
     {
         ULONG ulPost;
