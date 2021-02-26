@@ -629,11 +629,11 @@ static APIRET APIENTRY dartPlay( HKAI hkai )
     pdi->tidFillThread = _beginthread( dartFillThread, NULL,
                                        THREAD_STACK_SIZE, pdi );
 
-    // prevent initial buffer-underrun and unnecessary latency
-    bufReadWaitDone( pdi->pbuf, INITIAL_TIMEOUT );
-
     for( i = 0; i < DART_MIN_BUFFERS; i++ )
     {
+        // prevent initial buffer-underrun and unnecessary latency
+        bufReadWaitDone( pdi->pbuf, INITIAL_TIMEOUT );
+
         pdi->pMixBuffers[ i ].ulBufferLength = pdi->ulBufferSize;
         pdi->pMixBuffers[ i ].ulFlags = 0;
         pdi->pMixBuffers[ i ].ulUserParm = ( ULONG )pdi;

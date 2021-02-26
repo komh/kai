@@ -653,6 +653,9 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
         pms->tid = _beginthread( mixerFillThread, NULL, THREAD_STACK_SIZE,
                                  pil );
 
+        // prevent initial buffer-underrun and unnecessary latency
+        DosWaitEventSem( pms->hevFillDone, INITIAL_TIMEOUT );
+
         if( instancePlayingStreamCount( pil->hkai ) == 1 )
             rc = m_kai.pfnPlay( pil->hkai );
 
@@ -1096,6 +1099,13 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
     PINSTANCELIST pil;
     ULONG ulMaxLen = 0;
 
+    /* On DART mode, callback is called many times without playing at inital
+       time. This may lead to buffer-underrun.
+       So if only one stream, wait for like initial time. Buffer-underrun will
+       be processed in DART or UNIAUD interface. */
+    ULONG ulTimeout = instancePlayingStreamCount( pilMixer->hkai ) == 1 ?
+                      INITIAL_TIMEOUT : SEM_IMMEDIATE_RETURN;
+
     memset( pBuffer, 0, ulBufSize );
 
     for( pil = instanceStart(); pil; pil = pil->pilNext )
@@ -1126,7 +1136,7 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
 
         if( pms->fEOS || pms->fPaused ||
             ( pms->fMoreData && pms->buf.ulLen < ulBufSize &&
-              DosWaitEventSem( pms->hevFillDone, SEM_IMMEDIATE_RETURN )))
+              DosWaitEventSem( pms->hevFillDone, ulTimeout )))
         {
             if( m_fDebugMode && !pms->fEOS && !pms->fPaused )
                 fprintf(stderr, "MIXER: buffer underrun!\n");
