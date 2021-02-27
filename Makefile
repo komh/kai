@@ -41,13 +41,15 @@ include kaidll.mk
 all : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) \
       kaidemo.exe kaidemo2.exe kaidemo3.exe
 
-kai.a : kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o speex/resample.o
+kai.a : kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o kai_instance.o \
+        speex/resample.o
 	$(AR) rc $@ $^
 
 kai_dll.a : $(KAIDLL)
 	emximp -o $@ $(KAIDLL)
 
-$(KAIDLL): kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o speex/resample.o $(KAIDLLDEF)
+$(KAIDLL): kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o kai_instance.o \
+           speex/resample.o $(KAIDLLDEF)
 	$(CC) -Zdll $(LDFLAGS) -o $@ $^
 	echo $(BLDLEVEL)K Audio Interface >> $@
 
@@ -55,8 +57,11 @@ $(KAIDLLDEF):
 	echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
 	echo DATA MULTIPLE NONSHARED >> $@
 
-kai.o: kai.c kai.h kai_internal.h kai_dart.h kai_uniaud.h \
-       speex/speex_resampler.h
+kai.o: kai.c kai.h kai_internal.h kai_instance.h kai_mixer.h \
+       kai_dart.h kai_uniaud.h speex/speex_resampler.h
+
+kai_instance.o: kai_instance.c kai_instance.h kai.h kai_mixer.h \
+                speex/speex_resampler.h
 
 kai_dart.o : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h
 
@@ -68,7 +73,7 @@ kai_audiobuffer.o: kai_audiobuffer.c kai_audiobuffer.h
 speex/resample.o: speex/resample.c speex/speex_resampler.h \
                   speex/arch.h speex/stack_alloc.h
 
-kai.o speex/resample.o: CFLAGS += $(SPEEX_CFLAGS)
+kai.o kai_instance.o speex/resample.o: CFLAGS += $(SPEEX_CFLAGS)
 
 kaidemo.exe : kaidemo.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
@@ -103,6 +108,7 @@ distclean : clean
 
 KAI_SRCS := kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
             kai_uniaud.h kai_audiobuffer.c kai_audiobuffer.h kaidll.mk \
+            kai_instance.c kai_instance.h kai_mixer.h \
             kaidemo.c kaidemo2.c kaidemo3.c demo1.wav demo2.wav demo3.wav \
             Makefile Makefile.icc Makefile.wat \
             uniaud.h unidef.h unierrno.h

@@ -27,17 +27,12 @@
 
 #include "kai.h"
 #include "kai_internal.h"
+#include "kai_instance.h"
+#include "kai_mixer.h"
 #include "kai_dart.h"
 #include "kai_uniaud.h"
 
 #include "speex/speex_resampler.h"
-
-#ifdef __KLIBC__
-#include <emx/umalloc.h>
-
-#define calloc _lcalloc
-#define malloc _lmalloc
-#endif
 
 #ifdef __WATCOMC__
 #include <alloca.h>
@@ -49,17 +44,11 @@
 #define BYTESTOSAMPLES( b, ks ) (( b ) / (( ks ).ulBitsPerSample >> 3 ) / \
                                  ( ks ).ulChannels )
 
-#define IVF_NORMAL  0x0001
-#define IVF_MIXER   0x0002
-#define IVF_STREAM  0x0004
-#define IVF_ANY     ( IVF_NORMAL | IVF_MIXER | IVF_STREAM )
-
 #define DEFAULT_MIN_SAMPLES 2048
 
 static ULONG    m_ulInitCount = 0;
 static KAIAPIS  m_kai = { NULL, };
 static KAICAPS  m_kaic = { 0, };
-static BOOL     m_fSoftVol = FALSE;
 static ULONG    m_ulMinSamples = DEFAULT_MIN_SAMPLES;
 
 static BOOL      m_fSoftMixer = FALSE;
@@ -84,60 +73,6 @@ static KAISPEC   m_ks = {
 static HMTX m_hmtx = NULLHANDLE;
 
 static BOOL m_fDebugMode = FALSE;
-
-typedef struct tagBUFFER
-{
-    PCHAR pch;
-    ULONG ulSize;
-    ULONG ulLen;
-    ULONG ulPos;
-} BUFFER, *PBUFFER;
-
-typedef struct tagMIXERSTREAM
-{
-    BOOL fPlaying;
-    BOOL fPaused;
-    BOOL fCompleted;
-    BOOL fEOS;
-    LONG lCountDown;
-
-    SpeexResamplerState *srs;
-
-    TID tid;
-    PKAISPEC pksMixer;
-    BUFFER buf;
-    BUFFER bufFill;
-
-    BOOL fMoreData;
-
-    HEV hevFill;
-    HEV hevFillDone;
-} MIXERSTREAM, *PMIXERSTREAM;
-
-typedef struct tagINSTANCELIST INSTANCELIST, *PINSTANCELIST;
-struct tagINSTANCELIST
-{
-    ULONG    id;
-    HKAI     hkai;
-    LONG     lLeftVol;
-    LONG     lRightVol;
-    BOOL     fLeftState;
-    BOOL     fRightState;
-    BOOL     fSoftVol;
-    KAISPEC  ks;
-    PFNKAICB pfnUserCb;
-    PVOID    pUserData;
-
-    PMIXERSTREAM pms;
-
-    PINSTANCELIST    pilNext;
-};
-
-#define ISNORMAL( pil ) (( pil )->pfnUserCb && !( pil )->pms )
-#define ISMIXER( pil )  (!( pil )->pfnUserCb && !( pil )->pms )
-#define ISSTREAM( pil ) (( pil )->pfnUserCb && ( pil )->pms )
-
-static PINSTANCELIST m_pilStart = NULL;
 
 #define APPLY_SOFT_VOLUME( ptype, buf, size, pi )                       \
 do {                                                                    \
@@ -194,178 +129,6 @@ static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
     return ulLen;
 }
 
-static void instanceFree( PINSTANCELIST pil );
-
-static PINSTANCELIST instanceNew( BOOL fStream,
-                                  PKAISPEC pksMixer, PKAISPEC pks )
-{
-    PINSTANCELIST pilNew;
-
-    pilNew = calloc( 1, sizeof( INSTANCELIST ));
-    if( !pilNew )
-        return NULL;
-
-    if( fStream )
-    {
-        ULONG ulBufSize = pksMixer->ulBufferSize * pksMixer->ulSamplingRate /
-                          pks->ulSamplingRate;
-        PMIXERSTREAM pms;
-
-        if( pksMixer->ulSamplingRate % pks->ulSamplingRate )
-            ulBufSize += pksMixer->ulBufferSize;
-
-        pms = pilNew->pms = calloc( 1, sizeof( MIXERSTREAM ));
-        if( pms )
-        {
-            pms->buf.pch = malloc( ulBufSize );
-            pms->bufFill.pch = malloc( ulBufSize );
-        }
-
-        if( !pms || !pms->buf.pch || !pms->bufFill.pch )
-        {
-            instanceFree( pilNew );
-
-            return NULL;
-        }
-
-        pms->pksMixer = pksMixer;
-        pms->buf.ulSize = ulBufSize;
-        pms->bufFill.ulSize = ulBufSize;
-    }
-
-    pilNew->lLeftVol    = 100;
-    pilNew->lRightVol   = 100;
-    pilNew->fLeftState  = TRUE;
-    pilNew->fRightState = TRUE;
-    pilNew->fSoftVol    = m_fSoftVol ||
-                          // Mixer stream always use the soft volume mode
-                          fStream;
-
-    return pilNew;
-}
-
-static void instanceFree( PINSTANCELIST pil )
-{
-    if( pil )
-    {
-        PMIXERSTREAM pms = pil->pms;
-
-        if( pms )
-        {
-            free( pms->buf.pch );
-            free( pms->bufFill.pch );
-
-            free( pms );
-        }
-
-        free( pil );
-    }
-}
-
-static void instanceAdd( ULONG id, HKAI hkai, PINSTANCELIST pil )
-{
-    pil->id      = id;
-    pil->hkai    = hkai;
-    pil->pilNext = m_pilStart;
-
-    m_pilStart = pil;
-}
-
-static VOID instanceDel( ULONG id )
-{
-    PINSTANCELIST pil, pilPrev = NULL;
-
-    for( pil = m_pilStart; pil; pil = pil->pilNext )
-    {
-        if( pil->id == id )
-            break;
-
-        pilPrev = pil;
-    }
-
-    if( !pil )
-        return;
-
-    if( pilPrev )
-        pilPrev->pilNext = pil->pilNext;
-    else
-        m_pilStart = pil->pilNext;
-
-    instanceFree( pil );
-}
-
-static VOID instanceDelAll( VOID )
-{
-    PINSTANCELIST pil, pilNext;
-
-    for( pil = m_pilStart; pil; pil = pilNext )
-    {
-        pilNext = pil->pilNext;
-
-        instanceFree( pil );
-    }
-
-    m_pilStart = NULL;
-}
-
-static PINSTANCELIST instanceStart( VOID )
-{
-    return m_pilStart;
-}
-
-static PINSTANCELIST instanceVerify( ULONG id, ULONG ivf )
-{
-    PINSTANCELIST pil;
-
-    for( pil = m_pilStart; pil; pil = pil->pilNext )
-    {
-        if( pil->id == id)
-        {
-            if(( ivf & IVF_NORMAL ) && ISNORMAL( pil ))
-                break;
-
-            if(( ivf & IVF_MIXER ) && ISMIXER( pil ))
-                break;
-
-            if(( ivf & IVF_STREAM ) && ISSTREAM( pil ))
-                break;
-
-            /* Oooops... not matched! */
-            return NULL;
-        }
-    }
-
-    return pil;
-}
-
-static int instanceStreamCount( HKAIMIXER hkm )
-{
-    PINSTANCELIST pil;
-    int count = 0;
-
-    for( pil = m_pilStart; pil; pil = pil->pilNext )
-    {
-        if( pil->hkai == hkm && ISSTREAM( pil ))
-            count++;
-    }
-
-    return count;
-}
-
-static int instancePlayingStreamCount( HKAIMIXER hkm )
-{
-    PINSTANCELIST pil;
-    int count = 0;
-
-    for( pil = m_pilStart; pil; pil = pil->pilNext )
-    {
-        if( pil->hkai == hkm && ISSTREAM( pil ) && pil->pms->fPlaying )
-            count++;
-    }
-
-    return count;
-}
-
 APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 {
     const char *pszMinSamples;
@@ -393,9 +156,6 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
     }
 
     m_fDebugMode = getenv("KAI_DEBUG") != NULL;
-
-    // Use the soft volume mode unless KAI_NOSOFTVOLUME is specified
-    m_fSoftVol = getenv("KAI_NOSOFTVOLUME") ? FALSE : TRUE;
 
     // Use the soft mixer mode unless KAI_NOSOFTMIXER is specified
     m_fSoftMixer = getenv("KAI_NOSOFTMIXER") ? FALSE : TRUE;
