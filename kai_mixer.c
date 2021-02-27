@@ -364,8 +364,9 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
             if( !pms->fEOS && !pms->fPaused )
                 dprintf("MIXER: buffer underrun!");
 
-            memset( pchBuf, 0, ulBufSize );
-            ulLen = ulBufSize;
+            ulMaxLen = ulBufSize;
+
+            continue;
         }
         else
         {
