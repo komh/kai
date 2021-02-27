@@ -246,6 +246,11 @@ APIRET DLLEXPORT APIENTRY kaiDone( VOID )
     return rc;
 }
 
+APIRET DLLEXPORT APIENTRY kaiGetInitCount( VOID )
+{
+    return m_ulInitCount;
+}
+
 APIRET DLLEXPORT APIENTRY kaiCaps( PKAICAPS pkc )
 {
     if( !m_ulInitCount )

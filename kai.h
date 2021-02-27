@@ -147,6 +147,12 @@ APIRET APIENTRY kaiInit( ULONG ulKaiMode );
 APIRET APIENTRY kaiDone( VOID );
 
 /**
+ * @brief Get initialization count of KAI
+ * @return Initialization count of KAI
+ */
+APIRET APIENTRY kaiGetInitCount( VOID );
+
+/**
  * @brief Query KAI capabilities
  * @param[out] pkc Obtained capabilities
  * @return KAIE_NO_ERROR on success, or error codes
