@@ -32,6 +32,9 @@ BLDLEVEL := @\#$(BLDLEVEL_VENDOR):$(BLDLEVEL_VERSION)\#@\#\#1\#\#$(BLDLEVEL_DATE
 
 include kaidll.mk
 
+OBJS := kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o kai_instance.o \
+        speex/resample.o kai_debug.o
+
 .c.o :
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -41,15 +44,13 @@ include kaidll.mk
 all : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) \
       kaidemo.exe kaidemo2.exe kaidemo3.exe
 
-kai.a : kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o kai_instance.o \
-        speex/resample.o kai_debug.o
+kai.a : $(OBJS)
 	$(AR) rc $@ $^
 
 kai_dll.a : $(KAIDLL)
 	emximp -o $@ $(KAIDLL)
 
-$(KAIDLL): kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o kai_instance.o \
-           speex/resample.o kai_debug.o $(KAIDLLDEF)
+$(KAIDLL): $(OBJS) $(KAIDLLDEF)
 	$(CC) -Zdll $(LDFLAGS) -o $@ $^
 	echo $(BLDLEVEL)K Audio Interface >> $@
 
