@@ -33,10 +33,10 @@ BLDLEVEL := @\#$(BLDLEVEL_VENDOR):$(BLDLEVEL_VERSION)\#@\#\#1\#\#$(BLDLEVEL_DATE
 include kaidll.mk
 
 OBJS := kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o kai_instance.o \
-        speex/resample.o kai_debug.o
+        speex/resample.o kai_debug.o kai_mixer.o
 
 .c.o :
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(SPEEX_CFLAGS) -c -o $@ $<
 
 .a.lib :
 	emxomf -o $@ $<
@@ -77,7 +77,7 @@ speex/resample.o: speex/resample.c speex/speex_resampler.h \
 
 kai_debug.o: kai_debug.c kai_debug.h
 
-kai.o kai_instance.o speex/resample.o: CFLAGS += $(SPEEX_CFLAGS)
+kai_mixer.o: kai_mixer.c kai.h kai_mixer.h
 
 kaidemo.exe : kaidemo.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2

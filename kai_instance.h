@@ -65,6 +65,17 @@ PINSTANCELIST instanceVerify( ULONG id, ULONG ivf );
 LONG instanceStreamCount( HKAIMIXER hkm );
 LONG instancePlayingStreamCount( HKAIMIXER hkm );
 
+APIRET kaiMixerOpenPriv( PKAISPEC pksMixer, PHKAIMIXER phkm,
+                         const PKAISPEC pksWanted, PKAISPEC pksObtained,
+                         PHKAI phkai  );
+APIRET kaiMixerClosePriv( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
+APIRET kaiMixerPlayPriv( PINSTANCELIST pil );
+APIRET kaiMixerStopPriv( PINSTANCELIST pil );
+APIRET kaiMixerPausePriv( PINSTANCELIST pil );
+APIRET kaiMixerResumePriv( PINSTANCELIST pil );
+APIRET kaiMixerClearBufferPriv( PINSTANCELIST pil );
+APIRET kaiMixerStatusPriv( PINSTANCELIST pil );
+
 #ifdef __cplusplus
 }
 #endif
