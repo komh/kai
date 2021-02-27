@@ -181,10 +181,15 @@ APIRET kaiMixerPlayPriv( PINSTANCELIST pil )
     if( pms->fPlaying )
         return KAIE_NO_ERROR;
 
+    /* Set fPaused to TRUE before setting fPlay to TRUE to prevent initial
+       buffer-underrun.
+       If playing multiple streams, callback checks if a buffer is filled
+       as soon as setting fPlaying to TRUE even before launching filling
+       thread. */
+    pms->fPaused = TRUE;
     /* Set fPlaying to TRUE before calling pfnPlay() to prevent
        calling call back function from being stopped */
     pms->fPlaying = TRUE;
-    pms->fPaused = FALSE;
     pms->fCompleted = FALSE;
 
     pms->buf.ulLen = 0;
@@ -199,6 +204,9 @@ APIRET kaiMixerPlayPriv( PINSTANCELIST pil )
 
     // prevent initial buffer-underrun and unnecessary latency
     DosWaitEventSem( pms->hevFillDone, INITIAL_TIMEOUT );
+
+    // now set fPaused to FALSE for callback to read from buffers
+    pms->fPaused = FALSE;
 
     if( instancePlayingStreamCount( pil->hkai ) == 1 )
         rc = kaiGetApiPriv()->pfnPlay( pil->hkai );
