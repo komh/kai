@@ -12,7 +12,7 @@ RM = del
 !include kaidll.mk
 
 STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj kai_audiobuffer.obj \
-                 kai_instance.obj speex/resample.obj
+                 kai_instance.obj speex/resample.obj kai_debug.obj
 DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
 
 .c.obj :
@@ -40,10 +40,10 @@ $(KAIDLLDEF):
     echo DATA MULTIPLE NONSHARED >> $@
 
 kai.obj : kai.c kai.h kai_internal.h kai_instance.h kai_mixer.h \
-          kai_dart.h kai_uniaud.h speex/speex_resampler.h
+          kai_dart.h kai_uniaud.h speex/speex_resampler.h kai_debug.h
 
 kai.dll_obj : kai.c kai.h kai_internal.h kai_instance.h kai_mixer.h \
-              kai_dart.h kai_uniaud.h speex/speex_resampler.h
+              kai_dart.h kai_uniaud.h speex/speex_resampler.h kai_debug.h
 
 kai_instance.obj: kai_instance.c kai_instance.h kai.h kai_mixer.h \
                   speex/speex_resampler.h
@@ -51,19 +51,25 @@ kai_instance.obj: kai_instance.c kai_instance.h kai.h kai_mixer.h \
 kai_instance.dll_obj: kai_instance.c kai_instance.h kai.h kai_mixer.h \
                       speex/speex_resampler.h
 
-kai_dart.obj : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h
+kai_dart.obj : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h \
+               kai_debug.h
 
-kai_dart.dll_obj : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h
+kai_dart.dll_obj : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h \
+                   kai_debug.h
 
 kai_uniaud.obj : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h \
-                 kai_uniaud.h kai_audiobuffer.h
+                 kai_uniaud.h kai_audiobuffer.h kai_debug.h
 
 kai_uniaud.dll_obj : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h \
-                     kai_uniaud.h kai_audiobuffer.h
+                     kai_uniaud.h kai_audiobuffer.h kai_debug.h
 
 kai_audiobuffer.obj: kai_audiobuffer.c kai_audiobuffer.h
 
 kai_audiobuffer.dll_obj: kai_audiobuffer.c kai_audiobuffer.h
+
+kai_debug.obj: kai_debug.c kai_debug.h
+
+kai_debug.dll_obj: kai_debug.c kai_debug.h
 
 speex/resample.obj: speex/resample.c speex/speex_resampler.h \
                     speex/arch.h speex/stack_alloc.h

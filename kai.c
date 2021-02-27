@@ -21,7 +21,6 @@
 #define INCL_DOSERRORS
 #include <os2.h>
 
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -31,6 +30,7 @@
 #include "kai_mixer.h"
 #include "kai_dart.h"
 #include "kai_uniaud.h"
+#include "kai_debug.h"
 
 #include "speex/speex_resampler.h"
 
@@ -71,8 +71,6 @@ static KAISPEC   m_ks = {
 };
 
 static HMTX m_hmtx = NULLHANDLE;
-
-static BOOL m_fDebugMode = FALSE;
 
 #define APPLY_SOFT_VOLUME( ptype, buf, size, pi )                       \
 do {                                                                    \
@@ -154,8 +152,6 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
         return KAIE_NO_ERROR;
     }
-
-    m_fDebugMode = getenv("KAI_DEBUG") != NULL;
 
     // Use the soft mixer mode unless KAI_NOSOFTMIXER is specified
     m_fSoftMixer = getenv("KAI_NOSOFTMIXER") ? FALSE : TRUE;
@@ -900,8 +896,8 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
             ( pms->fMoreData && pms->buf.ulLen < ulBufSize &&
               DosWaitEventSem( pms->hevFillDone, ulTimeout )))
         {
-            if( m_fDebugMode && !pms->fEOS && !pms->fPaused )
-                fprintf(stderr, "MIXER: buffer underrun!\n");
+            if( !pms->fEOS && !pms->fPaused )
+                dprintf("MIXER: buffer underrun!");
 
             memset( pchBuf, 0, ulBufSize );
             ulLen = ulBufSize;

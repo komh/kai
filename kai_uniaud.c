@@ -38,6 +38,7 @@
 #include "kai_internal.h"
 #include "kai_audiobuffer.h"
 #include "kai_uniaud.h"
+#include "kai_debug.h"
 
 #ifdef __KLIBC__
 #include <emx/umalloc.h>
@@ -171,8 +172,6 @@ static DECLARE_PFN( int, _System, _uniaud_pcm_set_sw_params, ( uniaud_pcm *, snd
 static DECLARE_PFN( int, _System, uniaud_mixer_put_spdif_status, ( int, char *, int, int, int, int ));
 
 static HMODULE m_hmodUniaud = NULLHANDLE;
-
-static BOOL m_fDebugMode = FALSE;
 
 static APIRET APIENTRY uniaudDone( VOID );
 static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai );
@@ -384,8 +383,6 @@ APIRET APIENTRY kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
     uniaud_get_card_info( 0, &cardInfo );
     strcpy( pkc->szPDDName, ( char * )cardInfo.name );
 
-    m_fDebugMode = getenv("KAI_DEBUG") != NULL;
-
     return KAIE_NO_ERROR;
 }
 
@@ -489,8 +486,7 @@ static void uniaudPlayThread( void *arg )
         }
         else
         {
-            if( m_fDebugMode )
-                fprintf( stderr, "UNIAUD: buffer underrun!\n");
+            dprintf("UNIAUD: buffer underrun!");
 
             memset( pchBuffer, pui->bSilence, pui->ulBufferSize );
             count = pui->ulBufferSize;
@@ -513,8 +509,7 @@ static void uniaudPlayThread( void *arg )
             if( err == -UNIAUD_EAGAIN )
             {
                 state = uniaud_pcm_state( pui->pcm );
-                if (m_fDebugMode)
-                    fprintf( stderr, "UNIAUD: EAGAIN : written = %i of %i, state = %i\n", written, count, state );
+                dprintf("UNIAUD: EAGAIN : written = %i of %i, state = %i", written, count, state );
 
                 uniaud_pcm_drop( pui->pcm );
 
@@ -528,8 +523,7 @@ static void uniaudPlayThread( void *arg )
             {
                 if( err < -10000 )
                 {
-                    if (m_fDebugMode)
-                        fprintf( stderr, "UNIAUD: part written = %i from %i, err = %i\n", written, count, err );
+                    dprintf("UNIAUD: part written = %i from %i, err = %i", written, count, err );
 
                     break; // internal uniaud error
                 }
@@ -612,8 +606,7 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
 
     if( !pui->pcm || err )
     {
-        if (m_fDebugMode)
-            fprintf( stderr, "UNIAUD: pcm open error %d\n", err );
+        dprintf("UNIAUD: pcm open error %d", err );
 
         free( pui );
 

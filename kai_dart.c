@@ -26,7 +26,6 @@
 #define INCL_OS2MM
 #include <os2me.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,6 +37,7 @@
 #include "kai_internal.h"
 #include "kai_audiobuffer.h"
 #include "kai_dart.h"
+#include "kai_debug.h"
 
 // Currently(Warp4 FixPak #15), MDM.DLL allows only one load per process.
 // Otherwise, DosLoadModule() return ERROR_INIT_ROUTINE_FAILED.
@@ -87,8 +87,6 @@ static HMODULE m_hmodMDM = NULLHANDLE;
 
 static DECLARE_PFN( ULONG, APIENTRY, mciSendCommand, ( USHORT, USHORT, ULONG, PVOID, USHORT ));
 static DECLARE_PFN( ULONG, APIENTRY, mciGetErrorString, ( ULONG, PSZ, USHORT ));
-
-static BOOL m_fDebugMode = FALSE;
 
 static APIRET APIENTRY dartDone( VOID );
 static APIRET APIENTRY dartOpen( PKAISPEC pks, PHKAI phkai );
@@ -163,8 +161,6 @@ APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
     pkc->ulMaxChannels  = dartChNum();
     dartOSLibGetAudioPDDName( &pkc->szPDDName[ 0 ]);
 
-    m_fDebugMode = getenv("KAI_DEBUG") != NULL;
-
     return KAIE_NO_ERROR;
 }
 
@@ -181,16 +177,11 @@ static APIRET APIENTRY dartError( APIRET rc )
 {
     if( LOUSHORT( rc ))
     {
-        if( m_fDebugMode)
-        {
-            CHAR szErrorCode[ 256 ];
+        CHAR szErrorCode[ 256 ];
 
-            mciGetErrorString( rc,
-                               ( PSZ )szErrorCode,
-                               sizeof( szErrorCode ));
+        mciGetErrorString( rc, ( PSZ )szErrorCode, sizeof( szErrorCode ));
 
-            fprintf( stderr, "\nDART error(%lx):%s\n", rc, szErrorCode );
-        }
+        dprintf("DART error(%lx):%s", rc, szErrorCode );
 
         return LOUSHORT( rc );
     }
@@ -304,8 +295,7 @@ static void dartFillMixBuffer( PDARTINFO pdi, PMCI_MIX_BUFFER pMixBuffer )
 
     if( bufReadLock( pdi->pbuf, &pBuffer, &ulLength ) == -1 )
     {
-       if( m_fDebugMode )
-           fprintf( stderr, "DART: buffer underrun!\n");
+        dprintf("DART: buffer underrun!");
 
         /* fill the whole buffer with silence */
         memset(pMixBuffer->pBuffer, pdi->bSilence, pdi->ulBufferSize );
