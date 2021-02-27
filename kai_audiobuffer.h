@@ -24,8 +24,6 @@
 extern "C" {
 #endif
 
-#define INITIAL_TIMEOUT ( 10 * 1000 )
-
 typedef struct KAIAUDIOBUFFER KAIAUDIOBUFFER, *PKAIAUDIOBUFFER;
 
 PKAIAUDIOBUFFER bufCreate( ULONG ulNum, ULONG ulSize );

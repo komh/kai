@@ -36,6 +36,7 @@
 
 #include "kai.h"
 #include "kai_internal.h"
+#include "kai_audiobuffer.h"
 #include "kai_uniaud.h"
 
 #ifdef __KLIBC__

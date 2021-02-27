@@ -22,8 +22,6 @@
 
 #include <float.h>
 
-#include "kai_audiobuffer.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -35,6 +33,10 @@ extern "C" {
 #define DECLARE_PFN( ret, callconv, name, arg ) ret ( callconv * name )arg
 #define DLLEXPORT __declspec(dllexport)
 #endif
+
+#define THREAD_STACK_SIZE   ( 1024 * 1024 )
+
+#define INITIAL_TIMEOUT ( 10 * 1000 )
 
 typedef struct tagKAIAPIS
 {
@@ -69,8 +71,6 @@ APIRET DosLoadModuleCW( PSZ pszName, ULONG cbName, PSZ pszModName,
 }
 
 #define DosLoadModule( a, b, c, d ) DosLoadModuleCW( a, b, c, d )
-
-#define THREAD_STACK_SIZE   ( 1024 * 1024 )
 
 static INLINE
 VOID boostThread( VOID )

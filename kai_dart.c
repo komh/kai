@@ -36,6 +36,7 @@
 
 #include "kai.h"
 #include "kai_internal.h"
+#include "kai_audiobuffer.h"
 #include "kai_dart.h"
 
 // Currently(Warp4 FixPak #15), MDM.DLL allows only one load per process.
