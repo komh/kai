@@ -237,7 +237,7 @@ APIRET APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol );
  *            MCI_STATUS_AUDIO_LEFT for left channel
  *            MCI_STATUS_AUDIO_RIGHT for right channel
  *            MCI_STATUS_AUDIO_ALL for all channel
- * @return KAIE_NO_ERROR on success, or error codes
+ * @return Volume of a requested channel in percent
  */
 APIRET APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh );
 
