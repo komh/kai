@@ -454,8 +454,7 @@ static void uniaudPlayThread( void *arg )
     PVOID       pBuffer;
     ULONG       ulLength;
 
-    if( getenv("KAI_TIMECRITICAL"))
-        DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, 0 );
+    boostThread();
 
     pchBuffer = malloc( pui->ulBufferSize );
     pui->pbuf = bufCreate( pui->ulNumBuffers, pui->ulBufferSize );

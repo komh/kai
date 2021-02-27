@@ -72,6 +72,20 @@ APIRET DosLoadModuleCW( PSZ pszName, ULONG cbName, PSZ pszModName,
 
 #define THREAD_STACK_SIZE   ( 1024 * 1024 )
 
+static INLINE
+VOID boostThread( VOID )
+{
+    if( getenv("KAI_TIMECRITICAL"))
+    {
+        PTIB ptib;
+
+        DosGetInfoBlocks( &ptib, NULL );
+
+        if( ptib->tib_ptib2->tib2_ulpri < 0x3000 )
+            DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, 0 );
+    }
+}
+
 #ifdef __cplusplus
 }
 #endif

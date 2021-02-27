@@ -281,8 +281,7 @@ static void dartFillThread( void *arg )
     ULONG ulSize;
     ULONG ulLength;
 
-    if( getenv("KAI_TIMECRITICAL"))
-        DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, 0 );
+    boostThread();
 
     do
     {
