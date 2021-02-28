@@ -69,25 +69,25 @@ typedef struct tagMIXERSTREAM *PMIXERSTREAM;
 typedef struct tagINSTANCELIST *PINSTANCELIST;
 #endif
 
-APIRET _kaiMixerOpen( PKAISPEC pksMixer, PHKAIMIXER phkm,
-                      const PKAISPEC pksWanted, PKAISPEC pksObtained,
-                      PHKAI phkai  );
-APIRET _kaiMixerClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
-APIRET _kaiMixerPlay( PINSTANCELIST pil );
-APIRET _kaiMixerStop( PINSTANCELIST pil );
-APIRET _kaiMixerPause( PINSTANCELIST pil );
-APIRET _kaiMixerResume( PINSTANCELIST pil );
-APIRET _kaiMixerClearBuffer( PINSTANCELIST pil );
-APIRET _kaiMixerStatus( PINSTANCELIST pil );
+APIRET _kaiStreamOpen( PKAISPEC pksMixer, PHKAIMIXER phkm,
+                       const PKAISPEC pksWanted, PKAISPEC pksObtained,
+                       PHKAI phkai  );
+APIRET _kaiStreamClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
+APIRET _kaiStreamPlay( PINSTANCELIST pil );
+APIRET _kaiStreamStop( PINSTANCELIST pil );
+APIRET _kaiStreamPause( PINSTANCELIST pil );
+APIRET _kaiStreamResume( PINSTANCELIST pil );
+APIRET _kaiStreamClearBuffer( PINSTANCELIST pil );
+APIRET _kaiStreamStatus( PINSTANCELIST pil );
 
-#define mixerOpen           _kaiMixerOpen
-#define mixerClose          _kaiMixerClose
-#define mixerPlay           _kaiMixerPlay
-#define mixerStop           _kaiMixerStop
-#define mixerPause          _kaiMixerPause
-#define mixerResume         _kaiMixerResume
-#define mixerClearBuffer    _kaiMixerClearBuffer
-#define mixerStatus         _kaiMixerStatus
+#define streamOpen          _kaiStreamOpen
+#define streamClose         _kaiStreamClose
+#define streamPlay          _kaiStreamPlay
+#define streamStop          _kaiStreamStop
+#define streamPause         _kaiStreamPause
+#define streamResume        _kaiStreamResume
+#define streamClearBuffer   _kaiStreamClearBuffer
+#define streamStatus        _kaiStreamStatus
 
 #ifdef __cplusplus
 }

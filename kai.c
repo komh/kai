@@ -241,7 +241,7 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     if( m_fSoftMixer )
     {
         /* Soft mixer mode */
-        return mixerOpen( &m_ks, &m_hkm, pksWanted, pksObtained, phkai );
+        return streamOpen( &m_ks, &m_hkm, pksWanted, pksObtained, phkai );
     }
 
     /* Normal mode */
@@ -292,7 +292,7 @@ APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
     if( m_fSoftMixer )
     {
         /* Soft mixer mode */
-        rc = mixerClose( m_hkm, hkai );
+        rc = streamClose( m_hkm, hkai );
         if( !rc )
             m_hkm = NULLHANDLE;
 
@@ -322,7 +322,7 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
     if( ISSTREAM( pil ))
     {
         /* Mixer stream */
-        return mixerPlay( pil );
+        return streamPlay( pil );
     }
 
     /* Normal instance */
@@ -342,7 +342,7 @@ APIRET DLLEXPORT APIENTRY kaiStop( HKAI hkai )
     if( ISSTREAM( pil ))
     {
         /* Mixer stream */
-        return mixerStop( pil );
+        return streamStop( pil );
     }
 
     /* Normal instance */
@@ -362,7 +362,7 @@ APIRET DLLEXPORT APIENTRY kaiPause( HKAI hkai )
     if( ISSTREAM( pil ))
     {
         /* Mixer stream */
-        return mixerPause( pil );
+        return streamPause( pil );
     }
 
     /* Normal instance */
@@ -382,7 +382,7 @@ APIRET DLLEXPORT APIENTRY kaiResume( HKAI hkai )
     if( ISSTREAM( pil ))
     {
         /* Mixer stream */
-        return mixerResume( pil );
+        return streamResume( pil );
     }
 
     /* Normal instance */
@@ -488,7 +488,7 @@ APIRET DLLEXPORT APIENTRY kaiClearBuffer( HKAI hkai )
     if( ISSTREAM( pil ))
     {
         /* Mixer stream */
-        return mixerClearBuffer( pil );
+        return streamClearBuffer( pil );
     }
 
     /* Normal instance */
@@ -508,7 +508,7 @@ APIRET DLLEXPORT APIENTRY kaiStatus( HKAI hkai )
     if( ISSTREAM( pil ))
     {
         /* Mixer stream */
-        return mixerStatus( pil );
+        return streamStatus( pil );
     }
 
     /* Normal instance or mixer instance */

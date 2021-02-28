@@ -143,9 +143,9 @@ static void mixerFillThread( void *arg )
     }
 }
 
-APIRET _kaiMixerOpen( PKAISPEC pksMixer, PHKAIMIXER phkm,
-                      const PKAISPEC pksWanted, PKAISPEC pksObtained,
-                      PHKAI phkai  )
+APIRET _kaiStreamOpen( PKAISPEC pksMixer, PHKAIMIXER phkm,
+                       const PKAISPEC pksWanted, PKAISPEC pksObtained,
+                       PHKAI phkai  )
 {
     ULONG rc = KAIE_NO_ERROR;
 
@@ -164,7 +164,7 @@ APIRET _kaiMixerOpen( PKAISPEC pksMixer, PHKAIMIXER phkm,
     return rc;
 }
 
-APIRET _kaiMixerClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms )
+APIRET _kaiStreamClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms )
 {
     ULONG rc;
 
@@ -175,7 +175,7 @@ APIRET _kaiMixerClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms )
     return rc;
 }
 
-APIRET _kaiMixerPlay( PINSTANCELIST pil )
+APIRET _kaiStreamPlay( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     ULONG ulCount;
@@ -226,7 +226,7 @@ APIRET _kaiMixerPlay( PINSTANCELIST pil )
     return rc;
 }
 
-APIRET _kaiMixerStop( PINSTANCELIST pil )
+APIRET _kaiStreamStop( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     APIRET rc = KAIE_NO_ERROR;
@@ -250,7 +250,7 @@ APIRET _kaiMixerStop( PINSTANCELIST pil )
     return rc;
 }
 
-APIRET _kaiMixerPause( PINSTANCELIST pil )
+APIRET _kaiStreamPause( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     APIRET rc = KAIE_NO_ERROR;
@@ -270,7 +270,7 @@ APIRET _kaiMixerPause( PINSTANCELIST pil )
     return rc;
 }
 
-APIRET _kaiMixerResume( PINSTANCELIST pil )
+APIRET _kaiStreamResume( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     APIRET rc = KAIE_NO_ERROR;
@@ -290,7 +290,7 @@ APIRET _kaiMixerResume( PINSTANCELIST pil )
     return rc;
 }
 
-APIRET _kaiMixerClearBuffer( PINSTANCELIST pil )
+APIRET _kaiStreamClearBuffer( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
 
@@ -299,7 +299,7 @@ APIRET _kaiMixerClearBuffer( PINSTANCELIST pil )
     return KAIE_NO_ERROR;
 }
 
-APIRET _kaiMixerStatus( PINSTANCELIST pil )
+APIRET _kaiStreamStatus( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     ULONG ulStatus = 0;
