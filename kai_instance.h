@@ -21,7 +21,6 @@
 #define __KAI_INSTANCE_H_
 
 #include "kai.h"
-#include "kai_mixer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,7 +31,20 @@ extern "C" {
 #define IVF_STREAM  0x0004
 #define IVF_ANY     ( IVF_NORMAL | IVF_MIXER | IVF_STREAM )
 
-typedef struct tagINSTANCELIST INSTANCELIST, *PINSTANCELIST;
+// VAC++ 3.08 does not like multiple definition of the same type
+#ifndef PMIXERSTREAM_DEFINED
+#define PMIXERSTREAM_DEFINED
+typedef struct tagMIXERSTREAM *PMIXERSTREAM;
+#endif
+
+typedef struct tagINSTANCELIST INSTANCELIST;
+
+// VAC++ 3.08 does not like multiple definition of the same type
+#ifndef PINSTANCELIST_DEFINED
+#define PINSTANCELIST_DEFINED
+typedef struct tagINSTANCELIST *PINSTANCELIST;
+#endif
+
 struct tagINSTANCELIST
 {
     ULONG    id;
@@ -64,17 +76,6 @@ PINSTANCELIST instanceStart( VOID );
 PINSTANCELIST instanceVerify( ULONG id, ULONG ivf );
 LONG instanceStreamCount( HKAIMIXER hkm );
 LONG instancePlayingStreamCount( HKAIMIXER hkm );
-
-APIRET kaiMixerOpenPriv( PKAISPEC pksMixer, PHKAIMIXER phkm,
-                         const PKAISPEC pksWanted, PKAISPEC pksObtained,
-                         PHKAI phkai  );
-APIRET kaiMixerClosePriv( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
-APIRET kaiMixerPlayPriv( PINSTANCELIST pil );
-APIRET kaiMixerStopPriv( PINSTANCELIST pil );
-APIRET kaiMixerPausePriv( PINSTANCELIST pil );
-APIRET kaiMixerResumePriv( PINSTANCELIST pil );
-APIRET kaiMixerClearBufferPriv( PINSTANCELIST pil );
-APIRET kaiMixerStatusPriv( PINSTANCELIST pil );
 
 #ifdef __cplusplus
 }

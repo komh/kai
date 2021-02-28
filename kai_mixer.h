@@ -20,6 +20,8 @@
 #ifndef __KAI_MIXER_H_
 #define __KAI_MIXER_H_
 
+#include "kai.h"
+
 #include "speex/speex_resampler.h"
 
 #ifdef __cplusplus
@@ -53,7 +55,30 @@ typedef struct tagMIXERSTREAM
 
     HEV hevFill;
     HEV hevFillDone;
-} MIXERSTREAM, *PMIXERSTREAM;
+} MIXERSTREAM;
+
+// VAC++ 3.08 does not like multiple definition of the same type
+#ifndef PMIXERSTREAM_DEFINED
+#define PMIXERSTREAM_DEFINED
+typedef struct tagMIXERSTREAM *PMIXERSTREAM;
+#endif
+
+// VAC++ 3.08 does not like multiple definition of the same type
+#ifndef PINSTANCELIST_DEFINED
+#define PINSTANCELIST_DEFINED
+typedef struct tagINSTANCELIST *PINSTANCELIST;
+#endif
+
+APIRET kaiMixerOpenPriv( PKAISPEC pksMixer, PHKAIMIXER phkm,
+                         const PKAISPEC pksWanted, PKAISPEC pksObtained,
+                         PHKAI phkai  );
+APIRET kaiMixerClosePriv( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
+APIRET kaiMixerPlayPriv( PINSTANCELIST pil );
+APIRET kaiMixerStopPriv( PINSTANCELIST pil );
+APIRET kaiMixerPausePriv( PINSTANCELIST pil );
+APIRET kaiMixerResumePriv( PINSTANCELIST pil );
+APIRET kaiMixerClearBufferPriv( PINSTANCELIST pil );
+APIRET kaiMixerStatusPriv( PINSTANCELIST pil );
 
 #ifdef __cplusplus
 }

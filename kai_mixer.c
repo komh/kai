@@ -24,7 +24,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __WATCOMC__
 #include <alloca.h>
+#include <process.h>
+#endif
 
 #include "kai.h"
 #include "kai_internal.h"

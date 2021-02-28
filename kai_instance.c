@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 
+#include "kai_mixer.h"
 #include "kai_instance.h"
 
 static PINSTANCELIST m_pilStart = NULL;

@@ -32,13 +32,6 @@
 #include "kai_uniaud.h"
 #include "kai_debug.h"
 
-#include "speex/speex_resampler.h"
-
-#ifdef __WATCOMC__
-#include <alloca.h>
-#include <process.h>
-#endif
-
 #define DEFAULT_MIN_SAMPLES 2048
 
 static ULONG    m_ulInitCount = 0;
