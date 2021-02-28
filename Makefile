@@ -1,7 +1,7 @@
 # Makefile for kLIBC/GNU Make
 .PHONY : all
 
-.SUFFIXES : .exe .dll .def .a .lib .o .c .h
+.SUFFIXES : .exe .dll .def .a .lib .o .c .h .d
 
 ifeq ($(PREFIX),)
 PREFIX=/usr/local
@@ -32,8 +32,13 @@ BLDLEVEL := @\#$(BLDLEVEL_VENDOR):$(BLDLEVEL_VERSION)\#@\#\#1\#\#$(BLDLEVEL_DATE
 
 include kaidll.mk
 
-OBJS := kai.o kai_dart.o kai_uniaud.o kai_audiobuffer.o kai_instance.o \
-        speex/resample.o kai_debug.o kai_mixer.o
+SRCS := kai.c kai_dart.c kai_uniaud.c speex/resample.c kai_audiobuffer.c \
+        kai_instance.c kai_debug.c kai_mixer.c
+DEPS := $(SRCS:.c=.d)
+OBJS := $(SRCS:.c=.o)
+
+.c.d :
+	$(CC) $(CFLAGS) $(SPEEX_CFLAGS) -MM -MP -MT "$(@:.d=.o) $@" -MF $@ $<
 
 .c.o :
 	$(CC) $(CFLAGS) $(SPEEX_CFLAGS) -c -o $@ $<
@@ -58,50 +63,24 @@ $(KAIDLLDEF):
 	echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
 	echo DATA MULTIPLE NONSHARED >> $@
 
-kai.o: kai.c kai.h kai_internal.h kai_instance.h kai_mixer.h \
-       kai_dart.h kai_uniaud.h speex/speex_resampler.h kai_debug.h
-
-kai_instance.o: kai_instance.c kai_instance.h kai.h kai_mixer.h \
-                speex/speex_resampler.h
-
-kai_dart.o : kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h \
-              kai_debug.h
-
-kai_uniaud.o : kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h \
-               kai_uniaud.h kai_audiobuffer.h  kai_debug.h
-
-kai_audiobuffer.o: kai_audiobuffer.c kai_audiobuffer.h
-
-speex/resample.o: speex/resample.c speex/speex_resampler.h \
-                  speex/arch.h speex/stack_alloc.h
-
-kai_debug.o: kai_debug.c kai_debug.h
-
-kai_mixer.o: kai_mixer.c kai.h kai_mixer.h
-
 kaidemo.exe : kaidemo.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
 	echo $(BLDLEVEL)KAI demo >> $@
-
-kaidemo.o : kaidemo.c kai.h
 
 kaidemo2.exe : kaidemo2.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
 	echo $(BLDLEVEL)KAI demo for multiple instances >> $@
 
-kaidemo2.o : kaidemo2.c kai.h
-
 kaidemo3.exe : kaidemo3.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
 	echo $(BLDLEVEL)KAI demo for mixer streams >> $@
 
-kaidemo3.o : kaidemo3.c kai.h
-
 clean :
 	$(RM) *.bak speex/*.bak
-	$(RM) *.o speex/*.o
+	$(RM) $(DEPS)
+	$(RM) $(OBJS)
 	$(RM) *.a
-	$(RM) *.obj speex/*.obj
+	$(RM) $(OBJS:.o=.obj)
 	$(RM) *.lib
 	$(RM) *.def
 	$(RM) $(KAIDLL)
@@ -146,3 +125,7 @@ uninstall :
 	$(RM) $(DESTDIR)$(LIBDIR)/kai_dll.a $(DESTDIR)$(LIBDIR)/kai_dll.lib
 	$(RM) $(DESTDIR)$(LIBDIR)/$(KAIDLL)
 	$(RM) $(DESTDIR)$(INCDIR)/kai.h
+
+ifeq ($(filter %clean, $(MAKECMDGOALS)),)
+-include $(DEPS)
+endif
