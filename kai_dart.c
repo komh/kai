@@ -139,7 +139,7 @@ exit_error:
     return FALSE;
 }
 
-APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
+APIRET APIENTRY _kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
 {
     if( !loadMDM())
         return KAIE_CANNOT_LOAD_SUB_MODULE;

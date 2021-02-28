@@ -54,9 +54,9 @@ typedef struct tagKAIAPIS
     DECLARE_PFN( APIRET, APIENTRY, pfnStatus, ( HKAI ));
 } KAIAPIS, *PKAIAPIS;
 
-PKAIAPIS kaiGetApiPriv( VOID );
-ULONG    kaiGetMinSamplesPriv( VOID );
-int      kaiGetResamplerQPriv( VOID );
+PKAIAPIS _kaiGetApi( VOID );
+ULONG    _kaiGetMinSamples( VOID );
+int      _kaiGetResamplerQ( VOID );
 
 static INLINE
 APIRET DosLoadModuleCW( PSZ pszName, ULONG cbName, PSZ pszModName,

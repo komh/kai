@@ -357,7 +357,7 @@ exit_error :
     return FALSE;
 }
 
-APIRET APIENTRY kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
+APIRET APIENTRY _kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
 {
     UniaudCardInfo cardInfo;
 

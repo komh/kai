@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-APIRET APIENTRY kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc );
+APIRET APIENTRY _kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc );
 
 #ifdef __cplusplus
 }

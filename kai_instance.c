@@ -26,7 +26,7 @@
 
 static PINSTANCELIST m_pilStart = NULL;
 
-PINSTANCELIST instanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks )
+PINSTANCELIST _kaiInstanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks )
 {
     PINSTANCELIST pilNew;
 
@@ -74,7 +74,7 @@ PINSTANCELIST instanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks )
     return pilNew;
 }
 
-VOID instanceFree( PINSTANCELIST pil )
+VOID _kaiInstanceFree( PINSTANCELIST pil )
 {
     if( pil )
     {
@@ -92,7 +92,7 @@ VOID instanceFree( PINSTANCELIST pil )
     }
 }
 
-VOID instanceAdd( ULONG id, HKAI hkai, PINSTANCELIST pil )
+VOID _kaiInstanceAdd( ULONG id, HKAI hkai, PINSTANCELIST pil )
 {
     pil->id      = id;
     pil->hkai    = hkai;
@@ -101,7 +101,7 @@ VOID instanceAdd( ULONG id, HKAI hkai, PINSTANCELIST pil )
     m_pilStart = pil;
 }
 
-VOID instanceDel( ULONG id )
+VOID _kaiInstanceDel( ULONG id )
 {
     PINSTANCELIST pil, pilPrev = NULL;
 
@@ -124,7 +124,7 @@ VOID instanceDel( ULONG id )
     instanceFree( pil );
 }
 
-VOID instanceDelAll( VOID )
+VOID _kaiInstanceDelAll( VOID )
 {
     PINSTANCELIST pil, pilNext;
 
@@ -138,12 +138,12 @@ VOID instanceDelAll( VOID )
     m_pilStart = NULL;
 }
 
-PINSTANCELIST instanceStart( VOID )
+PINSTANCELIST _kaiInstanceStart( VOID )
 {
     return m_pilStart;
 }
 
-PINSTANCELIST instanceVerify( ULONG id, ULONG ivf )
+PINSTANCELIST _kaiInstanceVerify( ULONG id, ULONG ivf )
 {
     PINSTANCELIST pil;
 
@@ -168,7 +168,7 @@ PINSTANCELIST instanceVerify( ULONG id, ULONG ivf )
     return pil;
 }
 
-LONG instanceStreamCount( HKAIMIXER hkm )
+LONG _kaiInstanceStreamCount( HKAIMIXER hkm )
 {
     PINSTANCELIST pil;
     LONG count = 0;
@@ -182,7 +182,7 @@ LONG instanceStreamCount( HKAIMIXER hkm )
     return count;
 }
 
-LONG instancePlayingStreamCount( HKAIMIXER hkm )
+LONG _kaiInstancePlayingStreamCount( HKAIMIXER hkm )
 {
     PINSTANCELIST pil;
     LONG count = 0;

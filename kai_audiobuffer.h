@@ -26,15 +26,25 @@ extern "C" {
 
 typedef struct KAIAUDIOBUFFER KAIAUDIOBUFFER, *PKAIAUDIOBUFFER;
 
-PKAIAUDIOBUFFER bufCreate( ULONG ulNum, ULONG ulSize );
-VOID bufDestroy( PKAIAUDIOBUFFER pbuf );
-LONG bufReadLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulLength );
-LONG bufReadUnlock( PKAIAUDIOBUFFER pbuf );
-VOID bufReadWaitDone( PKAIAUDIOBUFFER pbuf, ULONG ulTimeout );
-LONG bufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize );
-LONG bufWriteUnlock( PKAIAUDIOBUFFER pbuf, ULONG ulLength );
-VOID bufWritePostFill( PKAIAUDIOBUFFER pbuf );
-VOID bufClear( PKAIAUDIOBUFFER pbuf, UCHAR uch );
+PKAIAUDIOBUFFER _kaiBufCreate( ULONG ulNum, ULONG ulSize );
+VOID _kaiBufDestroy( PKAIAUDIOBUFFER pbuf );
+LONG _kaiBufReadLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulLength );
+LONG _kaiBufReadUnlock( PKAIAUDIOBUFFER pbuf );
+VOID _kaiBufReadWaitDone( PKAIAUDIOBUFFER pbuf, ULONG ulTimeout );
+LONG _kaiBufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize );
+LONG _kaiBufWriteUnlock( PKAIAUDIOBUFFER pbuf, ULONG ulLength );
+VOID _kaiBufWritePostFill( PKAIAUDIOBUFFER pbuf );
+VOID _kaiBufClear( PKAIAUDIOBUFFER pbuf, UCHAR uch );
+
+#define bufCreate           _kaiBufCreate
+#define bufDestroy          _kaiBufDestroy
+#define bufReadLock         _kaiBufReadLock
+#define bufReadUnlock       _kaiBufReadUnlock
+#define bufReadWaitDone     _kaiBufReadWaitDone
+#define bufWriteLock        _kaiBufWriteLock
+#define bufWriteUnlock      _kaiBufWriteUnlock
+#define bufWritePostFill    _kaiBufWritePostFill
+#define bufClear            _kaiBufClear
 
 #ifdef __cplusplus
 }

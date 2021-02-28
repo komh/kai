@@ -143,9 +143,9 @@ static void mixerFillThread( void *arg )
     }
 }
 
-APIRET kaiMixerOpenPriv( PKAISPEC pksMixer, PHKAIMIXER phkm,
-                         const PKAISPEC pksWanted, PKAISPEC pksObtained,
-                         PHKAI phkai  )
+APIRET _kaiMixerOpen( PKAISPEC pksMixer, PHKAIMIXER phkm,
+                      const PKAISPEC pksWanted, PKAISPEC pksObtained,
+                      PHKAI phkai  )
 {
     ULONG rc = KAIE_NO_ERROR;
 
@@ -164,7 +164,7 @@ APIRET kaiMixerOpenPriv( PKAISPEC pksMixer, PHKAIMIXER phkm,
     return rc;
 }
 
-APIRET kaiMixerClosePriv( HKAIMIXER hkm, HKAIMIXERSTREAM hkms )
+APIRET _kaiMixerClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms )
 {
     ULONG rc;
 
@@ -175,7 +175,7 @@ APIRET kaiMixerClosePriv( HKAIMIXER hkm, HKAIMIXERSTREAM hkms )
     return rc;
 }
 
-APIRET kaiMixerPlayPriv( PINSTANCELIST pil )
+APIRET _kaiMixerPlay( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     ULONG ulCount;
@@ -212,10 +212,10 @@ APIRET kaiMixerPlayPriv( PINSTANCELIST pil )
     pms->fPaused = FALSE;
 
     if( instancePlayingStreamCount( pil->hkai ) == 1 )
-        rc = kaiGetApiPriv()->pfnPlay( pil->hkai );
+        rc = _kaiGetApi()->pfnPlay( pil->hkai );
 
     if( !rc && ( kaiStatus( pil->hkai ) & KAIS_PAUSED ))
-        rc = kaiGetApiPriv()->pfnResume( pil->hkai );
+        rc = _kaiGetApi()->pfnResume( pil->hkai );
 
     if( rc )
     {
@@ -226,7 +226,7 @@ APIRET kaiMixerPlayPriv( PINSTANCELIST pil )
     return rc;
 }
 
-APIRET kaiMixerStopPriv( PINSTANCELIST pil )
+APIRET _kaiMixerStop( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     APIRET rc = KAIE_NO_ERROR;
@@ -235,7 +235,7 @@ APIRET kaiMixerStopPriv( PINSTANCELIST pil )
         return KAIE_NO_ERROR;
 
     if( instancePlayingStreamCount( pil->hkai ) == 1 )
-        rc = kaiGetApiPriv()->pfnStop( pil->hkai );
+        rc = _kaiGetApi()->pfnStop( pil->hkai );
 
     if( !rc )
     {
@@ -250,7 +250,7 @@ APIRET kaiMixerStopPriv( PINSTANCELIST pil )
     return rc;
 }
 
-APIRET kaiMixerPausePriv( PINSTANCELIST pil )
+APIRET _kaiMixerPause( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     APIRET rc = KAIE_NO_ERROR;
@@ -262,7 +262,7 @@ APIRET kaiMixerPausePriv( PINSTANCELIST pil )
         return KAIE_NO_ERROR;
 
     if( instancePlayingStreamCount( pil->hkai ) == 1 )
-        rc = kaiGetApiPriv()->pfnPause( pil->hkai );
+        rc = _kaiGetApi()->pfnPause( pil->hkai );
 
     if( !rc )
         pms->fPaused = TRUE;
@@ -270,7 +270,7 @@ APIRET kaiMixerPausePriv( PINSTANCELIST pil )
     return rc;
 }
 
-APIRET kaiMixerResumePriv( PINSTANCELIST pil )
+APIRET _kaiMixerResume( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     APIRET rc = KAIE_NO_ERROR;
@@ -282,7 +282,7 @@ APIRET kaiMixerResumePriv( PINSTANCELIST pil )
         return KAIE_NO_ERROR;
 
     if( instancePlayingStreamCount( pil->hkai ) == 1 )
-        rc = kaiGetApiPriv()->pfnResume( pil->hkai );
+        rc = _kaiGetApi()->pfnResume( pil->hkai );
 
     if( !rc )
         pms->fPaused = FALSE;
@@ -290,7 +290,7 @@ APIRET kaiMixerResumePriv( PINSTANCELIST pil )
     return rc;
 }
 
-APIRET kaiMixerClearBufferPriv( PINSTANCELIST pil )
+APIRET _kaiMixerClearBuffer( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
 
@@ -299,7 +299,7 @@ APIRET kaiMixerClearBufferPriv( PINSTANCELIST pil )
     return KAIE_NO_ERROR;
 }
 
-APIRET kaiMixerStatusPriv( PINSTANCELIST pil )
+APIRET _kaiMixerStatus( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     ULONG ulStatus = 0;
@@ -472,7 +472,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
 
-    ulMinSamples = kaiGetMinSamplesPriv();
+    ulMinSamples = _kaiGetMinSamples();
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
     if( pil->ks.ulBufferSize > 0 &&
         pil->ks.ulBufferSize < SAMPLESTOBYTES( ulMinSamples, pil->ks ))
@@ -482,7 +482,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
     pil->pfnUserCb        = NULL;
     pil->pUserData        = NULL;
 
-    rc = kaiGetApiPriv()->pfnOpen( &pil->ks, phkm );
+    rc = _kaiGetApi()->pfnOpen( &pil->ks, phkm );
     if( rc )
     {
         instanceFree( pil );
@@ -512,7 +512,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerClose( HKAIMIXER hkm )
     if( instanceStreamCount( hkm ) != 0 )
         return KAIE_STREAMS_NOT_CLOSED;
 
-    rc = kaiGetApiPriv()->pfnClose( hkm );
+    rc = _kaiGetApi()->pfnClose( hkm );
     if( rc )
         return rc;
 
@@ -563,7 +563,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
         pil->pms->srs = speex_resampler_init( pilMixer->ks.ulChannels,
                                               pksWanted->ulSamplingRate,
                                               pilMixer->ks.ulSamplingRate,
-                                              kaiGetResamplerQPriv(), &err );
+                                              _kaiGetResamplerQ(), &err );
 
         DosCreateEventSem( NULL, &pil->pms->hevFill, 0, FALSE );
         DosCreateEventSem( NULL, &pil->pms->hevFillDone, 0, FALSE );

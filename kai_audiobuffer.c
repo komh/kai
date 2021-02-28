@@ -43,7 +43,7 @@ struct KAIAUDIOBUFFER {
     KAIAUDIOBUFFERELEMENT abufelm[ 1 ];
 };
 
-PKAIAUDIOBUFFER bufCreate( ULONG ulNum, ULONG ulSize )
+PKAIAUDIOBUFFER _kaiBufCreate( ULONG ulNum, ULONG ulSize )
 {
     PKAIAUDIOBUFFER pbuf;
     int i;
@@ -75,7 +75,7 @@ exit_error:
     return NULL;
 }
 
-VOID bufDestroy( PKAIAUDIOBUFFER pbuf )
+VOID _kaiBufDestroy( PKAIAUDIOBUFFER pbuf )
 {
     int i;
 
@@ -95,7 +95,7 @@ VOID bufDestroy( PKAIAUDIOBUFFER pbuf )
     free( pbuf );
 }
 
-LONG bufReadLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulLength )
+LONG _kaiBufReadLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulLength )
 {
     PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ pbuf->ulReadPos ];
 
@@ -114,7 +114,7 @@ LONG bufReadLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulLength )
     return -1;
 }
 
-LONG bufReadUnlock( PKAIAUDIOBUFFER pbuf )
+LONG _kaiBufReadUnlock( PKAIAUDIOBUFFER pbuf )
 {
     PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ pbuf->ulReadPos ];
 
@@ -125,7 +125,7 @@ LONG bufReadUnlock( PKAIAUDIOBUFFER pbuf )
     return 0;
 }
 
-VOID bufReadWaitDone( PKAIAUDIOBUFFER pbuf, ULONG ulTimeout )
+VOID _kaiBufReadWaitDone( PKAIAUDIOBUFFER pbuf, ULONG ulTimeout )
 {
     PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ pbuf->ulReadPos ];
 

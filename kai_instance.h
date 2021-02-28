@@ -67,15 +67,25 @@ struct tagINSTANCELIST
 #define ISMIXER( pil )  (!( pil )->pfnUserCb && !( pil )->pms )
 #define ISSTREAM( pil ) (( pil )->pfnUserCb && ( pil )->pms )
 
-PINSTANCELIST instanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks );
-VOID instanceFree( PINSTANCELIST pil );
-VOID instanceAdd( ULONG id, HKAI hkai, PINSTANCELIST pil );
-VOID instanceDel( ULONG id );
-VOID instanceDelAll( VOID );
-PINSTANCELIST instanceStart( VOID );
-PINSTANCELIST instanceVerify( ULONG id, ULONG ivf );
-LONG instanceStreamCount( HKAIMIXER hkm );
-LONG instancePlayingStreamCount( HKAIMIXER hkm );
+PINSTANCELIST _kaiInstanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks );
+VOID _kaiInstanceFree( PINSTANCELIST pil );
+VOID _kaiInstanceAdd( ULONG id, HKAI hkai, PINSTANCELIST pil );
+VOID _kaiInstanceDel( ULONG id );
+VOID _kaiInstanceDelAll( VOID );
+PINSTANCELIST _kaiInstanceStart( VOID );
+PINSTANCELIST _kaiInstanceVerify( ULONG id, ULONG ivf );
+LONG _kaiInstanceStreamCount( HKAIMIXER hkm );
+LONG _kaiInstancePlayingStreamCount( HKAIMIXER hkm );
+
+#define instanceNew                 _kaiInstanceNew
+#define instanceFree                _kaiInstanceFree
+#define instanceAdd                 _kaiInstanceAdd
+#define instanceDel                 _kaiInstanceDel
+#define instanceDelAll              _kaiInstanceDelAll
+#define instanceStart               _kaiInstanceStart
+#define instanceVerify              _kaiInstanceVerify
+#define instanceStreamCount         _kaiInstanceStreamCount
+#define instancePlayingStreamCount  _kaiInstancePlayingStreamCount
 
 #ifdef __cplusplus
 }

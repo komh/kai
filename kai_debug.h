@@ -24,7 +24,9 @@
 extern "C" {
 #endif
 
-void dprintf( const char *format, ... );
+void _kaiDprintf( const char *format, ... );
+
+#define dprintf _kaiDprintf
 
 #ifdef __cplusplus
 }

@@ -26,7 +26,7 @@
 
 static int m_fDebug = -1;
 
-void dprintf( const char *format, ... )
+void _kaiDprintf( const char *format, ... )
 {
     va_list args;
     char msg[ 256 ];
