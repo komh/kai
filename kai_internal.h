@@ -20,7 +20,12 @@
 #ifndef __KAI_INTERNAL_H__
 #define __KAI_INTERNAL_H__
 
+#define INCL_DOS
+#include <os2.h>
+
 #include <float.h>
+
+#include "kai.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,6 +60,8 @@ typedef struct tagKAIAPIS
 } KAIAPIS, *PKAIAPIS;
 
 PKAIAPIS _kaiGetApi( VOID );
+BOOL     _kaiIsDebugMode( VOID );
+BOOL     _kaiIsSoftVolume( VOID );
 ULONG    _kaiGetMinSamples( VOID );
 int      _kaiGetResamplerQ( VOID );
 

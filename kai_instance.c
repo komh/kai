@@ -17,10 +17,9 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <os2.h>
-
 #include <stdlib.h>
 
+#include "kai_internal.h"
 #include "kai_mixer.h"
 #include "kai_instance.h"
 
@@ -66,8 +65,7 @@ PINSTANCELIST _kaiInstanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks )
     pilNew->lRightVol   = 100;
     pilNew->fLeftState  = TRUE;
     pilNew->fRightState = TRUE;
-    // Use the soft volume mode unless KAI_NOSOFTVOLUME is specified
-    pilNew->fSoftVol    = ( getenv("KAI_NOSOFTVOLUME") ? FALSE : TRUE ) ||
+    pilNew->fSoftVol    = _kaiIsSoftVolume() ||
                           // Mixer stream always use the soft volume mode
                           fStream;
 

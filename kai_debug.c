@@ -22,19 +22,15 @@
 #include <stdarg.h>
 #include <time.h>
 
+#include "kai_internal.h"
 #include "kai_debug.h"
-
-static int m_fDebug = -1;
 
 void _kaiDprintf( const char *format, ... )
 {
     va_list args;
     char msg[ 256 ];
 
-    if( m_fDebug == -1 )
-        m_fDebug = getenv("KAI_DEBUG") ? 1 : 0;
-
-    if( !m_fDebug )
+    if( !_kaiIsDebugMode())
         return;
 
     va_start( args, format );

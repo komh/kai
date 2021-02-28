@@ -37,10 +37,13 @@
 static ULONG    m_ulInitCount = 0;
 static KAIAPIS  m_kai = { NULL, };
 static KAICAPS  m_kaic = { 0, };
-static ULONG    m_ulMinSamples = DEFAULT_MIN_SAMPLES;
 
-static BOOL      m_fSoftMixer = FALSE;
-static int       m_iResamplerQ = 0;
+static BOOL     m_fDebugMode = FALSE;
+static BOOL     m_fSoftVol = FALSE;
+static BOOL     m_fSoftMixer = FALSE;
+static ULONG    m_ulMinSamples = DEFAULT_MIN_SAMPLES;
+static int      m_iResamplerQ = 0;
+
 static HKAIMIXER m_hkm = NULLHANDLE;
 static KAISPEC   m_ks = {
     0,                                      /* usDeviceIndex */
@@ -106,6 +109,12 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
         return KAIE_NO_ERROR;
     }
+
+    // Enable debug mode if KAI_DEBUG is set
+    m_fDebugMode = getenv("KAI_DEBUG") != NULL;
+
+    // Use the soft volume mode unless KAI_NOSOFTVOLUME is specified
+    m_fSoftVol = getenv("KAI_NOSOFTVOLUME") ? FALSE : TRUE;
 
     // Use the soft mixer mode unless KAI_NOSOFTMIXER is specified
     m_fSoftMixer = getenv("KAI_NOSOFTMIXER") ? FALSE : TRUE;
@@ -568,6 +577,16 @@ APIRET DLLEXPORT APIENTRY kaiEnableSoftMixer( BOOL fEnable,
 PKAIAPIS _kaiGetApi( VOID )
 {
     return &m_kai;
+}
+
+BOOL _kaiIsDebugMode( VOID )
+{
+    return m_fDebugMode;
+}
+
+BOOL _kaiIsSoftVolume( VOID )
+{
+    return m_fSoftVol;
 }
 
 ULONG _kaiGetMinSamples( VOID )
