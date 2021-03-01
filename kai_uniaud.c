@@ -52,16 +52,6 @@
 #define UNIAUD_EAGAIN   11
 
 #pragma pack( 1 )
-typedef struct ReSampleContext1
-{
-    void   *resample_context;
-    short  *temp[2];
-    int     temp_len;
-    float   ratio;
-    /* channel convert */
-    int     input_channels, output_channels, filter_channels;
-} ReSampleContext1;
-
 typedef struct tagUNIAUDINFO
 {
     uniaud_pcm      *pcm;
@@ -72,7 +62,6 @@ typedef struct tagUNIAUDINFO
     ULONG            ulNumBuffers;
     PKAIAUDIOBUFFER  pbuf;
     TID              tidPlayThread;
-    ULONG   volatile ulCount;
     BOOL    volatile fPlaying;
     BOOL    volatile fPaused;
     BOOL    volatile fCompleted;
