@@ -1,5 +1,5 @@
 /*
-    Debug for K Audio Interface
+    Recursive Spinlock for K Audio Interface
     Copyright (C) 2021 by KO Myung-Hun <komh@chollian.net>
 
     This library is free software; you can redistribute it and/or
@@ -17,36 +17,31 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <time.h>
+#ifndef __KAI_SPINLOCK_H__
+#define __KAI_SPINLOCK_H__
 
-#include "kai_internal.h"
-#include "kai_spinlock.h"
-#include "kai_debug.h"
-
-static SPINLOCK m_lock = SPINLOCK_INIT;
-
-void _kaiDprintf( const char *format, ... )
-{
-    va_list args;
-    char msg[ 256 ];
-
-    if( !_kaiIsDebugMode())
-        return;
-
-    spinLock( &m_lock );
-
-    va_start( args, format );
-#ifndef __IBMC__
-    vsnprintf( msg, sizeof( msg ), format, args );
-#else
-    vsprintf( msg, format, args );
+#ifdef __cplusplus
+extern "C" {
 #endif
-    va_end( args );
 
-    fprintf( stderr, "%08ld %s\n", clock() * 1000 / CLOCKS_PER_SEC, msg );
+#define SPINLOCK_INIT { 0, 0 }
 
-    spinUnlock( &m_lock );
+typedef struct SPINLOCK
+{
+    int owner;
+    int count;
+} SPINLOCK, *PSPINLOCK;
+
+VOID _kaiSpinLockInit( PSPINLOCK pLock );
+VOID _kaiSpinLock( PSPINLOCK pLock );
+VOID _kaiSpinUnlock( PSPINLOCK pLock );
+
+#define spinLockInit _kaiSpinLockInit
+#define spinLock     _kaiSpinLock
+#define spinUnlock   _kaiSpinUnlock
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif

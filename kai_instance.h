@@ -21,6 +21,7 @@
 #define __KAI_INSTANCE_H_
 
 #include "kai.h"
+#include "kai_spinlock.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,6 +55,7 @@ struct tagINSTANCELIST
     BOOL     fLeftState;
     BOOL     fRightState;
     BOOL     fSoftVol;
+    SPINLOCK lock;
     KAISPEC  ks;
     PFNKAICB pfnUserCb;
     PVOID    pUserData;
@@ -72,7 +74,8 @@ VOID _kaiInstanceFree( PINSTANCELIST pil );
 VOID _kaiInstanceAdd( ULONG id, HKAI hkai, PINSTANCELIST pil );
 VOID _kaiInstanceDel( ULONG id );
 VOID _kaiInstanceDelAll( VOID );
-PINSTANCELIST _kaiInstanceStart( VOID );
+VOID _kaiInstanceLoop( VOID ( *callback )( PINSTANCELIST, VOID * ),
+                       VOID *arg );
 PINSTANCELIST _kaiInstanceVerify( ULONG id, ULONG ivf );
 LONG _kaiInstanceStreamCount( HKAIMIXER hkm );
 LONG _kaiInstancePlayingStreamCount( HKAIMIXER hkm );
@@ -82,10 +85,12 @@ LONG _kaiInstancePlayingStreamCount( HKAIMIXER hkm );
 #define instanceAdd                 _kaiInstanceAdd
 #define instanceDel                 _kaiInstanceDel
 #define instanceDelAll              _kaiInstanceDelAll
-#define instanceStart               _kaiInstanceStart
+#define instanceLoop                _kaiInstanceLoop
 #define instanceVerify              _kaiInstanceVerify
 #define instanceStreamCount         _kaiInstanceStreamCount
 #define instancePlayingStreamCount  _kaiInstancePlayingStreamCount
+#define instanceLock( pil )         spinLock( &( pil )->lock )
+#define instanceUnlock( pil )       spinUnlock( &( pil )->lock )
 
 #ifdef __cplusplus
 }

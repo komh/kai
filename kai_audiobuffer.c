@@ -37,8 +37,8 @@ typedef struct KAIAUDIOBUFFERELEMENT {
 
 struct KAIAUDIOBUFFER {
     ULONG ulNumBuffers;
-    ULONG volatile ulReadPos;
-    ULONG volatile ulWritePos;
+    ULONG ulReadPos;
+    ULONG ulWritePos;
 
     KAIAUDIOBUFFERELEMENT abufelm[ 1 ];
 };

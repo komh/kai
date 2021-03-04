@@ -2,7 +2,10 @@
 .ERASE
 
 .SUFFIXES :
-.SUFFIXES : .exe .dll .def .lib .dll_obj .obj .c .h
+.SUFFIXES : .exe .dll .def .lib .dll_obj .obj .c .h .asm
+
+AS = nasm
+ASFLAGS = -f obj
 
 CC = wcc386
 CFLAGS = -zq -bt=os2 -wx -bm -d0 -oaxt -DINLINE=inline
@@ -17,8 +20,14 @@ RM = rm -f
 
 STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj kai_audiobuffer.obj &
                  kai_instance.obj speex/resample.obj kai_debug.obj &
-                 kai_mixer.obj
+                 kai_mixer.obj kai_atomic.obj kai_spinlock.obj
 DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
+
+.asm.obj: .AUTODEPEND
+	$(AS) $(ASFLAGS) -o $@ $<
+
+.asm.dll_obj: .AUTODEPEND
+	$(AS) $(ASFLAGS) -o $@ $<
 
 .c: speex   # find .c in speex, too
 

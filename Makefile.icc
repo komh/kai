@@ -1,7 +1,10 @@
 # Makefile for ICC/NMAKE
 .PHONY : all
 
-.SUFFIXES : .exe .dll .def .lib .dll_obj .obj .c .h
+.SUFFIXES : .exe .dll .def .lib .dll_obj .obj .c .h .asm
+
+AS = nasm
+ASFLAGS = -f obj
 
 CC = icc
 CFLAGS = /W3 /Ss /Gm /q /DNO_LONGLONG /DINLINE=
@@ -13,8 +16,14 @@ RM = del
 
 STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj kai_audiobuffer.obj \
                  kai_instance.obj speex/resample.obj kai_debug.obj \
-                 kai_mixer.obj
+                 kai_mixer.obj kai_atomic.obj kai_spinlock.obj
 DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
+
+.asm.obj:
+	$(AS) $(ASFLAGS) -o $@ $<
+
+.asm.dll_obj:
+	$(AS) $(ASFLAGS) -o $@ $<
 
 .c.obj :
     $(CC) $(CFLAGS) $(SPEEX_CFLAGS) /c /Fo$@ $<
@@ -42,34 +51,41 @@ $(KAIDLLDEF):
 
 kai.obj \
 kai.dll_obj: kai.c kai.h kai_internal.h kai_instance.h kai_mixer.h \
-             kai_dart.h kai_uniaud.h speex/speex_resampler.h \
+             speex/speex_resampler.h kai_dart.h kai_uniaud.h kai_spinlock.h \
              kai_debug.h
 
 kai_instance.obj \
-kai_instance.dll_obj: kai_instance.c kai_instance.h kai.h kai_mixer.h \
-                      speex/speex_resampler.h
+kai_instance.dll_obj: kai_instance.c kai_internal.h kai.h kai_mixer.h \
+                      speex/speex_resampler.h kai_spinlock.h kai_instance.h
 
 kai_dart.obj \
-kai.dart.dll_obj: kai_dart.c kai.h kai_internal.h kai_dart.h kai_audiobuffer.h \
-                  kai_debug.h
+kai.dart.dll_obj: kai_dart.c kai_internal.h kai_audiobuffer.h kai_atomic.h \
+                  kai_spinlock.h kai_dart.h kai_debug.h
 
 kai_uniaud.obj \
 kai_uniaud.dll_obj: kai_uniaud.c uniaud.h unidef.h kai.h kai_internal.h \
-                    kai_uniaud.h kai_audiobuffer.h kai_debug.h
+                    kai_audiobuffer.h kai_atomic.h kai_uniaud.h kai_debug.h
 
 kai_audiobuffer.obj \
 kai_audiobuffer.dll_obj: kai_audiobuffer.c kai_audiobuffer.h
 
 kai_debug.obj \
-kai_debug.dll_obj: kai_debug.c kai_debug.h
+kai_debug.dll_obj: kai_debug.c kai_internal.h kai.h kai_debug.h
 
 kai_mixer.obj \
-kai_mixer.dll_obj: kai_mixer.c kai_mixer.h kai.h kai_internal.h \
-                   kai_instance.h kai_debug.h
+kai_mixer.dll_obj: kai_mixer.c kai.h kai_internal.h kai_mixer.h \
+                   speex/speex_resampler.h kai_instance.h kai_debug.h \
+                   kai_atomic.h
 
 speex/resample.obj \
 speex/resample.dll_obj: speex/resample.c speex/speex_resampler.h \
                         speex/arch.h speex/stack_alloc.h
+
+kai_atomic.obj \
+kai_atomic.dll_obj: kai_atomic.asm os2section.inc
+
+kai_spinlock.obj \
+kai_spinlock.dll_obj: kai_spinlock.c kai_atomic.h kai_spinlock.h
 
 kaidemo.exe : kaidemo.obj kai.lib
     $(CC) /Fe$@ $** mmpm2.lib

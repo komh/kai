@@ -30,8 +30,8 @@
 
 #define BUF_SIZE    1024
 
-static volatile BOOL m_fQuit;
-static volatile int  m_nThreads;
+static BOOL m_fQuit;
+static int  m_nThreads;
 
 typedef struct tagCBDATA
 {

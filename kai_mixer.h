@@ -52,6 +52,7 @@ typedef struct tagMIXERSTREAM
     BUFFER bufFill;
 
     BOOL fMoreData;
+    BOOL fFilling;
 
     HEV hevFill;
     HEV hevFillDone;
@@ -72,7 +73,7 @@ typedef struct tagINSTANCELIST *PINSTANCELIST;
 APIRET _kaiStreamOpen( PKAISPEC pksMixer, PHKAIMIXER phkm,
                        const PKAISPEC pksWanted, PKAISPEC pksObtained,
                        PHKAI phkai  );
-APIRET _kaiStreamClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
+APIRET _kaiStreamClose( PHKAIMIXER phkm, HKAIMIXERSTREAM hkms );
 APIRET _kaiStreamPlay( PINSTANCELIST pil );
 APIRET _kaiStreamStop( PINSTANCELIST pil );
 APIRET _kaiStreamPause( PINSTANCELIST pil );

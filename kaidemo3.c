@@ -30,7 +30,7 @@
 
 #define BUF_SIZE    1024
 
-static volatile BOOL m_fQuit;
+static BOOL m_fQuit;
 
 static HKAIMIXER m_hkm;
 

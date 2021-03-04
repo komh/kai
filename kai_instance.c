@@ -21,9 +21,11 @@
 
 #include "kai_internal.h"
 #include "kai_mixer.h"
+#include "kai_spinlock.h"
 #include "kai_instance.h"
 
 static PINSTANCELIST m_pilStart = NULL;
+static SPINLOCK m_lock = SPINLOCK_INIT;
 
 PINSTANCELIST _kaiInstanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks )
 {
@@ -68,6 +70,7 @@ PINSTANCELIST _kaiInstanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks )
     pilNew->fSoftVol    = _kaiIsSoftVolume() ||
                           // Mixer stream always use the soft volume mode
                           fStream;
+    spinLockInit( &pilNew->lock );
 
     return pilNew;
 }
@@ -92,16 +95,22 @@ VOID _kaiInstanceFree( PINSTANCELIST pil )
 
 VOID _kaiInstanceAdd( ULONG id, HKAI hkai, PINSTANCELIST pil )
 {
+    spinLock( &m_lock );
+
     pil->id      = id;
     pil->hkai    = hkai;
     pil->pilNext = m_pilStart;
 
     m_pilStart = pil;
+
+    spinUnlock( &m_lock );
 }
 
 VOID _kaiInstanceDel( ULONG id )
 {
     PINSTANCELIST pil, pilPrev = NULL;
+
+    spinLock( &m_lock );
 
     for( pil = m_pilStart; pil; pil = pil->pilNext )
     {
@@ -111,20 +120,24 @@ VOID _kaiInstanceDel( ULONG id )
         pilPrev = pil;
     }
 
-    if( !pil )
-        return;
+    if( pil )
+    {
+        if( pilPrev )
+            pilPrev->pilNext = pil->pilNext;
+        else
+            m_pilStart = pil->pilNext;
 
-    if( pilPrev )
-        pilPrev->pilNext = pil->pilNext;
-    else
-        m_pilStart = pil->pilNext;
+        instanceFree( pil );
+    }
 
-    instanceFree( pil );
+    spinUnlock( &m_lock );
 }
 
 VOID _kaiInstanceDelAll( VOID )
 {
     PINSTANCELIST pil, pilNext;
+
+    spinLock( &m_lock );
 
     for( pil = m_pilStart; pil; pil = pilNext )
     {
@@ -134,16 +147,28 @@ VOID _kaiInstanceDelAll( VOID )
     }
 
     m_pilStart = NULL;
+
+    spinUnlock( &m_lock );
 }
 
-PINSTANCELIST _kaiInstanceStart( VOID )
+VOID _kaiInstanceLoop( void ( *callback )( PINSTANCELIST, void * ),
+                       void *arg )
 {
-    return m_pilStart;
+    PINSTANCELIST pil;
+
+    spinLock( &m_lock );
+
+    for( pil = m_pilStart; pil; pil = pil->pilNext )
+        callback( pil, arg );
+
+    spinUnlock( &m_lock );
 }
 
 PINSTANCELIST _kaiInstanceVerify( ULONG id, ULONG ivf )
 {
     PINSTANCELIST pil;
+
+    spinLock( &m_lock );
 
     for( pil = m_pilStart; pil; pil = pil->pilNext )
     {
@@ -159,9 +184,12 @@ PINSTANCELIST _kaiInstanceVerify( ULONG id, ULONG ivf )
                 break;
 
             /* Oooops... not matched! */
-            return NULL;
+            pil = NULL;
+            break;
         }
     }
+
+    spinUnlock( &m_lock );
 
     return pil;
 }
@@ -171,11 +199,15 @@ LONG _kaiInstanceStreamCount( HKAIMIXER hkm )
     PINSTANCELIST pil;
     LONG count = 0;
 
+    spinLock( &m_lock );
+
     for( pil = m_pilStart; pil; pil = pil->pilNext )
     {
         if( pil->hkai == hkm && ISSTREAM( pil ))
             count++;
     }
+
+    spinUnlock( &m_lock );
 
     return count;
 }
@@ -185,11 +217,15 @@ LONG _kaiInstancePlayingStreamCount( HKAIMIXER hkm )
     PINSTANCELIST pil;
     LONG count = 0;
 
+    spinLock( &m_lock );
+
     for( pil = m_pilStart; pil; pil = pil->pilNext )
     {
         if( pil->hkai == hkm && ISSTREAM( pil ) && pil->pms->fPlaying )
             count++;
     }
+
+    spinUnlock( &m_lock );
 
     return count;
 }

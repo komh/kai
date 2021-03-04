@@ -32,7 +32,7 @@ static int  m_iBufLen = 0;
 
 static HMMIO m_hmmio;
 
-static volatile ULONG m_ulStatus = 0;
+static ULONG m_ulStatus = 0;
 
 ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
 {

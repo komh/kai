@@ -1,7 +1,7 @@
 # Makefile for kLIBC/GNU Make
 .PHONY : all
 
-.SUFFIXES : .exe .dll .def .a .lib .o .c .h .d
+.SUFFIXES : .exe .dll .def .a .lib .o .c .h .d .asm
 
 ifeq ($(PREFIX),)
 PREFIX=/usr/local
@@ -12,6 +12,9 @@ INCDIR=$(PREFIX)/include
 ifeq ($(INSTALL),)
 INSTALL=ginstall
 endif
+
+AS = nasm
+ASFLAGS = -f aout
 
 CC = gcc
 CFLAGS = -Wall -O3 -DINLINE=inline -DOS2EMX_PLAIN_CHAR -funsigned-char
@@ -33,9 +36,15 @@ BLDLEVEL := @\#$(BLDLEVEL_VENDOR):$(BLDLEVEL_VERSION)\#@\#\#1\#\#$(BLDLEVEL_DATE
 include kaidll.mk
 
 SRCS := kai.c kai_dart.c kai_uniaud.c speex/resample.c kai_audiobuffer.c \
-        kai_instance.c kai_debug.c kai_mixer.c
-DEPS := $(SRCS:.c=.d)
-OBJS := $(SRCS:.c=.o)
+        kai_instance.c kai_debug.c kai_mixer.c kai_atomic.asm kai_spinlock.c
+DEPS := $(foreach s,$(SRCS),$(s:$(suffix $(s))=.d))
+OBJS := $(DEPS:.d=.o)
+
+.asm.d :
+	$(AS) $(ASFLAGS) -M -MP -MT "$(@:.d=.o) $@" -MF $@ $<
+
+.asm.o:
+	$(AS) $(ASFLAGS) -o $@ $<
 
 .c.d :
 	$(CC) $(CFLAGS) $(SPEEX_CFLAGS) -MM -MP -MT "$(@:.d=.o) $@" -MF $@ $<
