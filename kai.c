@@ -95,9 +95,7 @@ static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
 
 APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 {
-    const char *pszMinSamples;
-    const char *pszResamplerQ;
-    const char *pszAutoMode;
+    const char *pszEnv;
     APIRET rc = KAIE_INVALID_PARAMETER;
 
     DosEnterCritSec();
@@ -119,11 +117,21 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
     // Use the soft mixer mode unless KAI_NOSOFTMIXER is specified
     m_fSoftMixer = getenv("KAI_NOSOFTMIXER") ? FALSE : TRUE;
 
-    // Use the minimum samples of KAI_MINSAMPLES if specified
-    pszMinSamples = getenv("KAI_MINSAMPLES");
-    if( pszMinSamples )
+    // User the sampling rate of KAI_MIXERRATE if specified
+    pszEnv = getenv("KAI_MIXERRATE");
+    if( pszEnv )
     {
-        ULONG ulMinSamples = atoi( pszMinSamples );
+        ULONG ulRate = atoi( pszEnv );
+
+        if( ulRate != 0 )
+            m_ks.ulSamplingRate = ulRate;
+    }
+
+    // Use the minimum samples of KAI_MINSAMPLES if specified
+    pszEnv = getenv("KAI_MINSAMPLES");
+    if( pszEnv )
+    {
+        ULONG ulMinSamples = atoi( pszEnv );
 
         if( ulMinSamples != 0 )
         {
@@ -133,10 +141,10 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
     }
 
     // User the resampler quality of KAI_RESAMPLERQ if specified
-    pszResamplerQ = getenv("KAI_RESAMPLERQ");
-    if( pszResamplerQ )
+    pszEnv = getenv("KAI_RESAMPLERQ");
+    if( pszEnv )
     {
-        int q = atoi( pszResamplerQ );
+        int q = atoi( pszEnv );
 
         if( q < 0 )
             q = 0;
@@ -147,12 +155,12 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
     }
 
     // Use the specified mode by KAI_AUTOMODE if auto mode
-    pszAutoMode = getenv("KAI_AUTOMODE");
-    if( ulMode == KAIM_AUTO && pszAutoMode )
+    pszEnv = getenv("KAI_AUTOMODE");
+    if( ulMode == KAIM_AUTO && pszEnv )
     {
-        if( !stricmp(pszAutoMode, "UNIAUD"))
+        if( !stricmp(pszEnv, "UNIAUD"))
             ulMode = KAIM_UNIAUD;
-        else if( !stricmp(pszAutoMode, "DART"))
+        else if( !stricmp(pszEnv, "DART"))
             ulMode = KAIM_DART;
     }
 
