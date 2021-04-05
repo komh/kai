@@ -92,7 +92,7 @@ VOID boostThread( VOID )
 
         DosGetInfoBlocks( &ptib, NULL );
 
-        if( ptib->tib_ptib2->tib2_ulpri < 0x3000 )
+        if( HIBYTE( ptib->tib_ptib2->tib2_ulpri ) != 0x03 )
             DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, 0 );
     }
 }
