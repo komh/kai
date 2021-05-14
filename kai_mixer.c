@@ -127,7 +127,7 @@ static void mixerFillThread( void *arg )
 
         while( DosWaitEventSem( pms->hevFill, SEM_INDEFINITE_WAIT ) ==
                     ERROR_INTERRUPT )
-            /* nothgin */;
+            /* nothing */;
 
         DosResetEventSem( pms->hevFill, &ulPost );
 
