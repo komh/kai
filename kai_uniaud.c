@@ -653,6 +653,10 @@ static APIRET APIENTRY uniaudPlay( HKAI hkai )
     if( pui->fPlaying )
         return KAIE_NO_ERROR;
 
+    /* Workaround for uniaud which does not produce any sounds when trying to
+       play right after completed */
+    DosSleep( 100 );
+
     uniaud_pcm_prepare( pui->pcm );
 
     pui->tidPlayThread = _beginthread( uniaudPlayThread, NULL,
