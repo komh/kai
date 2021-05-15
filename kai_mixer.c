@@ -226,6 +226,12 @@ APIRET _kaiStreamPlay( PINSTANCELIST pil )
 
     if( instancePlayingStreamCount( pil->hkai ) == 1 )
     {
+        /* Ensure to stop playing in sub-system before trying to play in
+           sub-system because sub-system plays a little more even if playing
+           a mixer stream is completed. Otherwise sub-system does not start
+           to play because it thinks it is already playing */
+        _kaiGetApi()->pfnStop( pil->hkai );
+
         rc = _kaiGetApi()->pfnPlay( pil->hkai );
         if( rc )
             streamStop( pil );  // clean up
