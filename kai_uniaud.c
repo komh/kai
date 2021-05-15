@@ -450,8 +450,6 @@ static void uniaudPlayThread( void *arg )
 
     boostThread();
 
-    STORE( &pui->fPlaying, FALSE );
-
     pchBuffer = malloc( pui->ulBufferSize );
     pui->pbuf = bufCreate( pui->ulNumBuffers, pui->ulBufferSize );
     if( !pchBuffer || !pui->pbuf )
