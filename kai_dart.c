@@ -630,6 +630,10 @@ static APIRET APIENTRY dartPlay( HKAI hkai )
     if( !isReady( hkai ))
         return KAIE_NOT_READY;
 
+    /* Workaround for dart which does not progress when trying to play
+       right after completed */
+    DosSleep( 100 );
+
     pdi->pbuf = bufCreate( pdi->ulNumBuffers, pdi->ulBufferSize );
     if( !pdi->pbuf )
         return KAIE_NOT_ENOUGH_MEMORY;
