@@ -621,6 +621,7 @@ static BOOL isReady( HKAI hkai )
 static APIRET APIENTRY dartPlay( HKAI hkai )
 {
     PDARTINFO pdi = ( PDARTINFO )hkai;
+    ULONG     ulLatency;
     int       i;
     ULONG     rc;
 
@@ -632,7 +633,9 @@ static APIRET APIENTRY dartPlay( HKAI hkai )
 
     /* Workaround for dart which does not progress when trying to play
        right after completed */
-    DosSleep( 100 );
+    ulLatency = _kaiGetPlayLatency();
+    if( ulLatency )
+        DosSleep( ulLatency );
 
     pdi->pbuf = bufCreate( pdi->ulNumBuffers, pdi->ulBufferSize );
     if( !pdi->pbuf )

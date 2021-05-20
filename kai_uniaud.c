@@ -649,13 +649,16 @@ static APIRET APIENTRY uniaudClose( HKAI hkai )
 static APIRET APIENTRY uniaudPlay( HKAI hkai )
 {
     PUNIAUDINFO pui = ( PUNIAUDINFO )hkai;
+    ULONG       ulLatency;
 
     if( pui->fPlaying )
         return KAIE_NO_ERROR;
 
     /* Workaround for uniaud which does not produce any sounds when trying to
        play right after completed */
-    DosSleep( 100 );
+    ulLatency = _kaiGetPlayLatency();
+    if( ulLatency )
+        DosSleep( ulLatency );
 
     uniaud_pcm_prepare( pui->pcm );
 

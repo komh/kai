@@ -46,6 +46,7 @@ static BOOL     m_fSoftVol = FALSE;
 static BOOL     m_fSoftMixer = FALSE;
 static ULONG    m_ulMinSamples = DEFAULT_MIN_SAMPLES;
 static int      m_iResamplerQ = 0;
+static ULONG    m_ulPlayLatency = 100;
 
 static SPINLOCK  m_lockMixer = SPINLOCK_INIT;
 static HKAIMIXER m_hkm = NULLHANDLE;
@@ -157,6 +158,17 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
             q = 10;
 
         m_iResamplerQ = q;
+    }
+
+    // Use the latency of KAI_PLAYLATENCY if specified
+    pszEnv = getenv("KAI_PLAYLATENCY");
+    if( pszEnv )
+    {
+        int latency = atoi( pszEnv );
+        if( latency < 0 )
+            latency = 0;
+
+        m_ulPlayLatency = latency;
     }
 
     // Use the specified mode by KAI_AUTOMODE if auto mode
@@ -703,3 +715,7 @@ int _kaiGetResamplerQ( VOID )
     return m_iResamplerQ;
 }
 
+ULONG _kaiGetPlayLatency( VOID )
+{
+    return m_ulPlayLatency;
+}

@@ -64,6 +64,7 @@ BOOL     _kaiIsDebugMode( VOID );
 BOOL     _kaiIsSoftVolume( VOID );
 ULONG    _kaiGetMinSamples( VOID );
 int      _kaiGetResamplerQ( VOID );
+ULONG    _kaiGetPlayLatency( VOID );
 
 static INLINE
 APIRET DosLoadModuleCW( PSZ pszName, ULONG cbName, PSZ pszModName,
