@@ -83,6 +83,12 @@ VOID _kaiInstanceFree( PINSTANCELIST pil )
 
         if( pms )
         {
+            DosCloseEventSem( pms->hevFill );
+            DosCloseEventSem( pms->hevFillDone );
+
+            if( pms->srs )
+                speex_resampler_destroy( pms->srs );
+
             free( pms->buf.pch );
             free( pms->bufFill.pch );
 

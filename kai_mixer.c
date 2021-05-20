@@ -663,11 +663,6 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamClose( HKAIMIXER hkm,
 
     _kaiStreamStop( pilStream );
 
-    DosCloseEventSem( pilStream->pms->hevFill );
-    DosCloseEventSem( pilStream->pms->hevFillDone );
-
-    speex_resampler_destroy( pilStream->pms->srs );
-
     instanceDel( hkms );
 
     return KAIE_NO_ERROR;
