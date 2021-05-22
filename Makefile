@@ -100,7 +100,10 @@ distclean : clean
 
 KAI_SRCS := kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
             kai_uniaud.h kai_audiobuffer.c kai_audiobuffer.h kaidll.mk \
-            kai_instance.c kai_instance.h kai_mixer.h kai_debug.c kai_debug.h \
+            kai_instance.c kai_instance.h kai_mixer.c kai_mixer.h \
+            kai_debug.c kai_debug.h \
+            kai_atomic.asm kai_atomic.h os2section.inc \
+            kai_spinlock.c kai_spinlock.h \
             kaidemo.c kaidemo2.c kaidemo3.c demo1.wav demo2.wav demo3.wav \
             Makefile Makefile.icc Makefile.wat \
             uniaud.h unidef.h unierrno.h
