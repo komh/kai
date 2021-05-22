@@ -11,7 +11,6 @@ v2.0.0:
         - now use a soft mixer by default
         - set KAI_NOSOFTMIXER to any value if you want to disable a soft mixer
           by default
-        - kaiMixer* APIS
         - added kaiMixer*() APIs
             kaiMixerOpen(), kaiMixerClose(),
             kaiMixerStreamOpen(), kaiMixerStreamClose(),
