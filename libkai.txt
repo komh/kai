@@ -6,6 +6,27 @@
         Long Description: K Audio Interface v@VER@.
                           DART/UNIAUD implementation library.
 
+v2.1.0:
+    * Added actual support of multiple buffers more than 2
+    * Added KAI_TIMECRITICAL for playing thread boost
+      - default is to inherit a priority of a current tread
+      - if set to any value, a playing thread runs in a time critical priority
+
+    * Added kaiGetInitCount() to get initialization count of libkai
+    * Added KAI_MIXERRATE to override sampling rate of a default soft mixer
+      - default is 48000 Hz
+      - if using SB16, set KAI_MIXERRATE to 44100 Hz
+
+    * Added KAI_PLAYLATENCY to workaround the problem that trying to play
+      right after completed leads to pause on DART(#8) or silence on UNIAUD(#9)
+      - default is 100 ms
+      - If set to 0, workaround is disabled
+
+    * Improved compilation for Open Watcom. PR #4, #5, #6 from sezero
+    * Improved debug message
+    * Improved thread safety(#10)
+    * Fixed buffer-underrun at very initial time
+
 v2.0.0:
     * Added a soft mixer
         - now use a soft mixer by default
