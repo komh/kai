@@ -27,10 +27,12 @@
 extern "C" {
 #endif
 
-#define IVF_NORMAL  0x0001
-#define IVF_MIXER   0x0002
-#define IVF_STREAM  0x0004
-#define IVF_ANY     ( IVF_NORMAL | IVF_MIXER | IVF_STREAM )
+#define IVF_NORMAL      0x0001
+#define IVF_MIXER       0x0002
+#define IVF_STREAM      0x0004
+#define IVF_SERVER      0x0008
+#define IVF_PLAYABLE    ( IVF_NORMAL | IVF_STREAM | IVF_SERVER )
+#define IVF_ANY         ( IVF_NORMAL | IVF_MIXER | IVF_STREAM | IVF_SERVER )
 
 // VAC++ 3.08 does not like multiple definition of the same type
 #ifndef PMIXERSTREAM_DEFINED
@@ -62,12 +64,18 @@ struct tagINSTANCELIST
 
     PMIXERSTREAM pms;
 
+    CHAR  szPipeCbName[ CCHMAXPATH ];
+    HPIPE hpipeCb;
+    TID   tidCb;
+
     PINSTANCELIST    pilNext;
 };
 
-#define ISNORMAL( pil ) (( pil )->pfnUserCb && !( pil )->pms )
+#define ISNORMAL( pil ) \
+    (!ISMIXER( pil ) && !ISSTREAM( pil ) && !ISSERVER( pil ))
 #define ISMIXER( pil )  (!( pil )->pfnUserCb && !( pil )->pms )
 #define ISSTREAM( pil ) (( pil )->pfnUserCb && ( pil )->pms )
+#define ISSERVER( pil ) (( pil )->hpipeCb != -1 )
 
 PINSTANCELIST _kaiInstanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks );
 VOID _kaiInstanceFree( PINSTANCELIST pil );

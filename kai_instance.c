@@ -72,6 +72,8 @@ PINSTANCELIST _kaiInstanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks )
                           fStream;
     spinLockInit( &pilNew->lock );
 
+    pilNew->hpipeCb = -1;
+
     return pilNew;
 }
 
@@ -187,6 +189,9 @@ PINSTANCELIST _kaiInstanceVerify( ULONG id, ULONG ivf )
                 break;
 
             if(( ivf & IVF_STREAM ) && ISSTREAM( pil ))
+                break;
+
+            if(( ivf & IVF_SERVER ) && ISSERVER( pil ))
                 break;
 
             /* Oooops... not matched! */

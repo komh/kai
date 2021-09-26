@@ -28,6 +28,7 @@
 #include "kai_internal.h"
 #include "kai_instance.h"
 #include "kai_mixer.h"
+#include "kai_server.h"
 #include "kai_dart.h"
 #include "kai_uniaud.h"
 #include "kai_spinlock.h"
@@ -44,6 +45,7 @@ static KAICAPS  m_kaic = { 0, };
 static BOOL     m_fDebugMode = FALSE;
 static BOOL     m_fSoftVol = FALSE;
 static BOOL     m_fSoftMixer = FALSE;
+static BOOL     m_fServer = FALSE;
 static ULONG    m_ulMinSamples = DEFAULT_MIN_SAMPLES;
 static int      m_iResamplerQ = 0;
 static ULONG    m_ulPlayLatency = 100;
@@ -122,6 +124,10 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
     // Use the soft mixer mode unless KAI_NOSOFTMIXER is specified
     m_fSoftMixer = getenv("KAI_NOSOFTMIXER") ? FALSE : TRUE;
+
+    // Use the server mode if KAI_NOSERVER is unset and a server is running
+    m_fServer = ( getenv("KAI_NOSERVER") ? FALSE : TRUE ) &&
+                serverCheck() == 0;
 
     // User the sampling rate of KAI_MIXERRATE if specified
     pszEnv = getenv("KAI_MIXERRATE");
@@ -242,6 +248,9 @@ APIRET DLLEXPORT APIENTRY kaiCaps( PKAICAPS pkc )
     if( !pkc )
         return KAIE_INVALID_PARAMETER;
 
+    if( m_fServer )
+        return serverCaps( pkc );
+
     memcpy( pkc, &m_kaic, sizeof( KAICAPS ));
 
     return KAIE_NO_ERROR;
@@ -262,6 +271,12 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
 
     if( !pksWanted->pfnCallBack )
         return KAIE_INVALID_PARAMETER;
+
+    if( m_fServer )
+    {
+        /* Server mode */
+        return serverOpen( pksWanted, pksObtained, phkai );
+    }
 
     if( m_fSoftMixer )
     {
@@ -314,8 +329,14 @@ APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
+    if( !( pil = instanceVerify( hkai, IVF_PLAYABLE )))
         return KAIE_INVALID_HANDLE;
+
+    if( ISSERVER( pil ))
+    {
+        /* Server instance */
+        return serverClose( pil );
+    }
 
     if( ISSTREAM( pil ) && pil->hkai != m_hkm )
         return KAIE_INVALID_HANDLE;
@@ -350,12 +371,17 @@ APIRET DLLEXPORT APIENTRY kaiPlay( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
+    if( !( pil = instanceVerify( hkai, IVF_PLAYABLE )))
         return KAIE_INVALID_HANDLE;
 
     instanceLock( pil );
 
-    if( ISSTREAM( pil ))
+    if( ISSERVER( pil ))
+    {
+        /* Server instance */
+        rc = serverPlay( pil );
+    }
+    else if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         rc = streamPlay( pil );
@@ -379,12 +405,17 @@ APIRET DLLEXPORT APIENTRY kaiStop( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
+    if( !( pil = instanceVerify( hkai, IVF_PLAYABLE )))
         return KAIE_INVALID_HANDLE;
 
     instanceLock( pil );
 
-    if( ISSTREAM( pil ))
+    if( ISSERVER( pil ))
+    {
+        /* Server instance */
+        rc = serverStop( pil );
+    }
+    else if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         rc = streamStop( pil );
@@ -408,12 +439,17 @@ APIRET DLLEXPORT APIENTRY kaiPause( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
+    if( !( pil = instanceVerify( hkai, IVF_PLAYABLE )))
         return KAIE_INVALID_HANDLE;
 
     instanceLock( pil );
 
-    if( ISSTREAM( pil ))
+    if( ISSERVER( pil ))
+    {
+        /* Server instance */
+        rc = serverPause( pil );
+    }
+    else if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         rc = streamPause( pil );
@@ -437,12 +473,17 @@ APIRET DLLEXPORT APIENTRY kaiResume( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
+    if( !( pil = instanceVerify( hkai, IVF_PLAYABLE )))
         return KAIE_INVALID_HANDLE;
 
     instanceLock( pil );
 
-    if( ISSTREAM( pil ))
+    if( ISSERVER( pil ))
+    {
+        /* Server instance */
+        rc = serverResume( pil );
+    }
+    else if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         rc = streamResume( pil );
@@ -467,13 +508,19 @@ APIRET DLLEXPORT APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh,
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
+    if( !( pil = instanceVerify( hkai, IVF_PLAYABLE )))
         return KAIE_INVALID_HANDLE;
 
     instanceLock( pil );
 
-    if( pil->fSoftVol )
+    if( ISSERVER( pil ))
     {
+        /* Server instance */
+        rc = serverSetSoundState( pil, ulCh, fState );
+    }
+    else if( pil->fSoftVol )
+    {
+        /* Normal instance with soft volume control or mixer stream */
         if( pil->ks.ulChannels == 1 ||
             ulCh == MCI_SET_AUDIO_LEFT || ulCh == MCI_SET_AUDIO_ALL )
             pil->fLeftState = fState;
@@ -485,7 +532,10 @@ APIRET DLLEXPORT APIENTRY kaiSetSoundState( HKAI hkai, ULONG ulCh,
         rc = KAIE_NO_ERROR;
     }
     else
+    {
+        /* Normal instance without soft volume mode */
         rc = m_kai.pfnSetSoundState( hkai, ulCh, fState );
+    }
 
     instanceUnlock( pil );
 
@@ -500,7 +550,7 @@ APIRET DLLEXPORT APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
+    if( !( pil = instanceVerify( hkai, IVF_PLAYABLE )))
         return KAIE_INVALID_HANDLE;
 
     instanceLock( pil );
@@ -508,8 +558,14 @@ APIRET DLLEXPORT APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
     if( usVol > 100 )
         usVol = 100;
 
-    if( pil->fSoftVol )
+    if( ISSERVER( pil ))
     {
+        /* Server instance */
+        rc = serverSetVolume( pil, ulCh, usVol );
+    }
+    else if( pil->fSoftVol )
+    {
+        /* Normal instance with soft volume control or mixer stream */
         if( pil->ks.ulChannels == 1 ||
             ulCh == MCI_SET_AUDIO_LEFT || ulCh == MCI_SET_AUDIO_ALL )
             pil->lLeftVol = usVol;
@@ -521,7 +577,10 @@ APIRET DLLEXPORT APIENTRY kaiSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol )
         rc = KAIE_NO_ERROR;
     }
     else
+    {
+        /* Normal instance without soft volume control */
         rc = m_kai.pfnSetVolume( hkai, ulCh, usVol );
+    }
 
     instanceUnlock( pil );
 
@@ -536,13 +595,19 @@ APIRET DLLEXPORT APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
+    if( !( pil = instanceVerify( hkai, IVF_PLAYABLE )))
         return KAIE_INVALID_HANDLE;
 
     instanceLock( pil );
 
-    if( pil->fSoftVol )
+    if( ISSERVER( pil ))
     {
+        /* Server instance */
+        rc = serverGetVolume( pil, ulCh );
+    }
+    else if( pil->fSoftVol )
+    {
+        /* Normal instance with soft volume control or mixer stream */
         LONG lLeftVol, lRightVol;
 
         lLeftVol = pil->lLeftVol;
@@ -558,7 +623,10 @@ APIRET DLLEXPORT APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
         rc = ( lLeftVol + lRightVol ) / 2;
     }
     else
+    {
+        /* Normal instance without soft volume control */
         rc = m_kai.pfnGetVolume( hkai, ulCh );
+    }
 
     instanceUnlock( pil );
 
@@ -573,12 +641,17 @@ APIRET DLLEXPORT APIENTRY kaiClearBuffer( HKAI hkai )
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_STREAM )))
+    if( !( pil = instanceVerify( hkai, IVF_PLAYABLE )))
         return KAIE_INVALID_HANDLE;
 
     instanceLock( pil );
 
-    if( ISSTREAM( pil ))
+    if( ISSERVER( pil ))
+    {
+        /* Server instance */
+        rc = serverClearBuffer( pil );
+    }
+    else if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         rc = streamClearBuffer( pil );
@@ -607,7 +680,12 @@ APIRET DLLEXPORT APIENTRY kaiStatus( HKAI hkai )
 
     instanceLock( pil );
 
-    if( ISSTREAM( pil ))
+    if( ISSERVER( pil ))
+    {
+        /* Server instance */
+        rc = serverStatus( pil );
+    }
+    else if( ISSTREAM( pil ))
     {
         /* Mixer stream */
         rc = streamStatus( pil );
@@ -626,20 +704,32 @@ APIRET DLLEXPORT APIENTRY kaiStatus( HKAI hkai )
 APIRET DLLEXPORT APIENTRY kaiEnableSoftVolume( HKAI hkai, BOOL fEnable )
 {
     PINSTANCELIST pil;
+    ULONG rc;
 
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pil = instanceVerify( hkai, IVF_NORMAL )))
+    if( !( pil = instanceVerify( hkai, IVF_NORMAL | IVF_SERVER )))
         return KAIE_INVALID_HANDLE;
 
     instanceLock( pil );
 
-    pil->fSoftVol = fEnable;
+    if( ISSERVER( pil ))
+    {
+        /* Server instance */
+        rc = serverEnableSoftVolume( pil, fEnable );
+    }
+    else
+    {
+        /* Normal instance */
+        pil->fSoftVol = fEnable;
+
+        rc = KAIE_NO_ERROR;
+    }
 
     instanceUnlock( pil );
 
-    return KAIE_NO_ERROR;
+    return rc;
 }
 
 APIRET DLLEXPORT APIENTRY kaiFloatToS16( short *dst, int dstLen,
@@ -676,18 +766,27 @@ APIRET DLLEXPORT APIENTRY kaiFloatToS16( short *dst, int dstLen,
 APIRET DLLEXPORT APIENTRY kaiEnableSoftMixer( BOOL fEnable,
                                               const PKAISPEC pks )
 {
+    ULONG rc;
+
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
 
     spinLock( &m_lockMixer );
 
-    m_fSoftMixer = fEnable;
-    if( fEnable && pks )
-        memcpy( &m_ks, pks, sizeof( KAISPEC ));
+    if( m_fServer )
+        rc = serverEnableSoftMixer( fEnable, pks );
+    else
+    {
+        m_fSoftMixer = fEnable;
+        if( fEnable && pks )
+            memcpy( &m_ks, pks, sizeof( KAISPEC ));
+
+        rc = KAIE_NO_ERROR;
+    }
 
     spinUnlock( &m_lockMixer );
 
-    return KAIE_NO_ERROR;
+    return rc;
 }
 
 PKAIAPIS _kaiGetApi( VOID )
@@ -703,6 +802,11 @@ BOOL _kaiIsDebugMode( VOID )
 BOOL _kaiIsSoftVolume( VOID )
 {
     return m_fSoftVol;
+}
+
+BOOL _kaiIsServer( VOID )
+{
+    return m_fServer;
 }
 
 ULONG _kaiGetMinSamples( VOID )

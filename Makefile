@@ -36,7 +36,8 @@ BLDLEVEL := @\#$(BLDLEVEL_VENDOR):$(BLDLEVEL_VERSION)\#@\#\#1\#\#$(BLDLEVEL_DATE
 include kaidll.mk
 
 SRCS := kai.c kai_dart.c kai_uniaud.c speex/resample.c kai_audiobuffer.c \
-        kai_instance.c kai_debug.c kai_mixer.c kai_atomic.asm kai_spinlock.c
+        kai_instance.c kai_debug.c kai_mixer.c kai_atomic.asm kai_spinlock.c \
+        kai_server.c
 DEPS := $(foreach s,$(SRCS),$(s:$(suffix $(s))=.d))
 OBJS := $(DEPS:.d=.o)
 
@@ -56,7 +57,7 @@ OBJS := $(DEPS:.d=.o)
 	emxomf -o $@ $<
 
 all : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) \
-      kaidemo.exe kaidemo2.exe kaidemo3.exe
+      kaisrv.exe kaidemo.exe kaidemo2.exe kaidemo3.exe
 
 kai.a : $(OBJS)
 	$(AR) rc $@ $^
@@ -71,6 +72,10 @@ $(KAIDLL): $(OBJS) $(KAIDLLDEF)
 $(KAIDLLDEF):
 	echo LIBRARY $(KAIDLLNAME) INITINSTANCE TERMINSTANCE > $@
 	echo DATA MULTIPLE NONSHARED >> $@
+
+kaisrv.exe : kaisrv.o kai.lib
+	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
+	echo $(BLDLEVEL)KAI Server >> $@
 
 kaidemo.exe : kaidemo.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2

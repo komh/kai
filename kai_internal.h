@@ -62,6 +62,7 @@ typedef struct tagKAIAPIS
 PKAIAPIS _kaiGetApi( VOID );
 BOOL     _kaiIsDebugMode( VOID );
 BOOL     _kaiIsSoftVolume( VOID );
+BOOL     _kaiIsServer( VOID );
 ULONG    _kaiGetMinSamples( VOID );
 int      _kaiGetResamplerQ( VOID );
 ULONG    _kaiGetPlayLatency( VOID );

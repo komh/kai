@@ -31,6 +31,7 @@
 
 #include "kai.h"
 #include "kai_internal.h"
+#include "kai_server.h"
 #include "kai_mixer.h"
 #include "kai_instance.h"
 #include "kai_debug.h"
@@ -513,6 +514,9 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
     if( pksWanted->ulBitsPerSample != 16 || pksWanted->ulChannels != 2 )
         return KAIE_INVALID_PARAMETER;
 
+    if( _kaiIsServer())
+        return serverMixerOpen( pksWanted, pksObtained, phkm );
+
     pil = instanceNew( FALSE, NULL, NULL );
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
@@ -546,10 +550,14 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
 
 APIRET DLLEXPORT APIENTRY kaiMixerClose( HKAIMIXER hkm )
 {
+    PINSTANCELIST pil;
     APIRET rc = KAIE_NO_ERROR;
 
     if( !kaiGetInitCount())
         return KAIE_NOT_INITIALIZED;
+
+    if(( pil = instanceVerify( hkm, IVF_SERVER )) != NULL )
+        return serverMixerClose( pil );
 
     if( !instanceVerify( hkm, IVF_MIXER ))
         return KAIE_INVALID_HANDLE;
@@ -578,14 +586,17 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
     if( !kaiGetInitCount())
         return KAIE_NOT_INITIALIZED;
 
-    if( !( pilMixer = instanceVerify( hkm, IVF_MIXER )))
-        return KAIE_INVALID_HANDLE;
-
     if( !pksWanted || !pksObtained || !phkms )
         return KAIE_INVALID_PARAMETER;
 
     if( !pksWanted->pfnCallBack )
         return KAIE_INVALID_PARAMETER;
+
+    if(( pilMixer = instanceVerify( hkm, IVF_SERVER )) != NULL )
+        return serverMixerStreamOpen( pilMixer, pksWanted, pksObtained, phkms );
+
+    if( !( pilMixer = instanceVerify( hkm, IVF_MIXER )))
+        return KAIE_INVALID_HANDLE;
 
     if( pksWanted->ulType != pilMixer->ks.ulType )
         return KAIE_INVALID_PARAMETER;
@@ -653,6 +664,10 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamClose( HKAIMIXER hkm,
 
     if( !kaiGetInitCount())
         return KAIE_NOT_INITIALIZED;
+
+    if(( pilMixer = instanceVerify( hkm, IVF_SERVER )) != NULL &&
+       ( pilStream = instanceVerify( hkms, IVF_SERVER )) != NULL )
+        return serverMixerStreamClose( pilMixer, pilStream );
 
     if( !( pilMixer = instanceVerify( hkm, IVF_MIXER )))
         return KAIE_INVALID_HANDLE;
