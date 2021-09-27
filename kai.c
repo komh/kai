@@ -338,12 +338,12 @@ APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
         return serverClose( pil );
     }
 
-    if( ISSTREAM( pil ) && pil->hkai != m_hkm )
-        return KAIE_INVALID_HANDLE;
-
-    if( m_fSoftMixer )
+    if( ISSTREAM( pil ))
     {
-        /* Soft mixer mode */
+        /* Mixer stream */
+        if( pil->hkai != m_hkm )
+            return KAIE_INVALID_HANDLE;
+
         spinLock( &m_lockMixer );
 
         rc = streamClose( &m_hkm, hkai );
@@ -353,7 +353,7 @@ APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
         return rc;
     }
 
-    /* Normal mode */
+    /* Normal instance */
     rc = m_kai.pfnClose( hkai );
     if( rc )
         return rc;
