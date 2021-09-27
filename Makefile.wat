@@ -20,7 +20,7 @@ RM = rm -f
 
 STATIC_OBJECTS = kai.obj kai_dart.obj kai_uniaud.obj kai_audiobuffer.obj &
                  kai_instance.obj speex/resample.obj kai_debug.obj &
-                 kai_mixer.obj kai_atomic.obj kai_spinlock.obj
+                 kai_mixer.obj kai_atomic.obj kai_spinlock.obj kai_server.obj
 DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
 
 .asm.obj: .AUTODEPEND
@@ -38,7 +38,7 @@ DLL_OBJECTS = $(STATIC_OBJECTS:.obj=.dll_obj)
     $(CC) $(CFLAGS) $(SPEEX_CFLAGS) -bd -fo=$@ $[@
 
 all : .SYMBOLIC kai.lib kai_dll.lib $(KAIDLL) &
-      kaidemo.exe kaidemo2.exe kaidemo3.exe
+      kaisrv.exe kaidemo.exe kaidemo2.exe kaidemo3.exe
 
 kai.lib : $(STATIC_OBJECTS)
     -$(RM) $@
@@ -56,6 +56,9 @@ $(KAIDLLDEF):
     %append $@ system os2v2_dll initinstance terminstance
     %append $@ name $(KAIDLLNAME)
     %append $@ option manyautodata
+
+kaisrv.exe : kaisrv.obj kai.lib
+    $(LINK) $(LFLAGS) system os2v2 name $@ file { $< } library mmpm2
 
 kaidemo.exe : kaidemo.obj kai.lib
     $(LINK) $(LFLAGS) system os2v2 name $@ file { $< } library mmpm2
