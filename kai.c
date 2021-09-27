@@ -177,28 +177,39 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         m_ulPlayLatency = latency;
     }
 
-    // Use the specified mode by KAI_AUTOMODE if auto mode
-    pszEnv = getenv("KAI_AUTOMODE");
-    if( ulMode == KAIM_AUTO && pszEnv )
+    if( m_fServer )
     {
-        if( !stricmp(pszEnv, "UNIAUD"))
-            ulMode = KAIM_UNIAUD;
-        else if( !stricmp(pszEnv, "DART"))
-            ulMode = KAIM_DART;
+        // If server mode, no need to initialize sub-system.
+        // And this fixes hiccup when kaiInit() is called in another process.
+        // Especially, dartChNum() being called in _kaiDartInit() causes
+        // hiccup.
+        rc = KAIE_NO_ERROR;
     }
-
-    if( ulMode == KAIM_UNIAUD || ulMode == KAIM_AUTO )
+    else
     {
-        rc = _kaiUniaudInit( &m_kai, &m_kaic );
-        if( !rc )
-            ulMode = KAIM_UNIAUD;
-    }
+        // Use the specified mode by KAI_AUTOMODE if auto mode
+        pszEnv = getenv("KAI_AUTOMODE");
+        if( ulMode == KAIM_AUTO && pszEnv )
+        {
+           if( !stricmp(pszEnv, "UNIAUD"))
+                ulMode = KAIM_UNIAUD;
+            else if( !stricmp(pszEnv, "DART"))
+                ulMode = KAIM_DART;
+        }
 
-    if( ulMode == KAIM_DART || ulMode == KAIM_AUTO )
-    {
-        rc = _kaiDartInit( &m_kai, &m_kaic );
-        if( !rc )
-            ulMode = KAIM_DART;
+        if( ulMode == KAIM_UNIAUD || ulMode == KAIM_AUTO )
+        {
+            rc = _kaiUniaudInit( &m_kai, &m_kaic );
+            if( !rc )
+                ulMode = KAIM_UNIAUD;
+        }
+
+        if( ulMode == KAIM_DART || ulMode == KAIM_AUTO )
+        {
+            rc = _kaiDartInit( &m_kai, &m_kaic );
+            if( !rc )
+                ulMode = KAIM_DART;
+        }
     }
 
     if( !rc )
@@ -217,7 +228,7 @@ APIRET DLLEXPORT APIENTRY kaiDone( VOID )
 
     if( !m_ulInitCount )
         rc = KAIE_NOT_INITIALIZED;
-    else if( m_ulInitCount == 1)
+    else if( !m_fServer && m_ulInitCount == 1)
         rc = m_kai.pfnDone();
     else
         rc = KAIE_NO_ERROR;
