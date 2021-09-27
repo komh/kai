@@ -41,6 +41,9 @@ SRCS := kai.c kai_dart.c kai_uniaud.c speex/resample.c kai_audiobuffer.c \
 DEPS := $(foreach s,$(SRCS),$(s:$(suffix $(s))=.d))
 OBJS := $(DEPS:.d=.o)
 
+EXE_SRCS := kaisrv.c kaidemo.c kaidemo2.c kaidemo3.c
+EXE_DEPS := $(foreach s,$(EXE_SRCS),$(s:$(suffix $(s))=.d))
+
 .asm.d :
 	$(AS) $(ASFLAGS) -M -MP -MT "$(@:.d=.o) $@" -MF $@ $<
 
@@ -92,6 +95,7 @@ kaidemo3.exe : kaidemo3.o kai.lib
 clean :
 	$(RM) *.bak speex/*.bak
 	$(RM) $(DEPS)
+	$(RM) $(EXE_DEPS)
 	$(RM) $(OBJS)
 	$(RM) *.a
 	$(RM) $(OBJS:.o=.obj)
@@ -145,4 +149,5 @@ uninstall :
 
 ifeq ($(filter %clean, $(MAKECMDGOALS)),)
 -include $(DEPS)
+-include $(EXE_DEPS)
 endif
