@@ -451,8 +451,13 @@ APIRET _kaiServerMixerStreamOpen( const PINSTANCELIST pilMixer,
 
     spinLock( &lock );
 
+#ifndef __IBMC__
     snprintf( szPipeName, sizeof( szPipeName ), "%s\\%x\\%x",
               KAISRV_PIPE_CB_BASE, getpid(), count++ );
+#else
+    sprintf( szPipeName, "%s\\%x\\%x",
+             KAISRV_PIPE_CB_BASE, getpid(), count++ );
+#endif
 
     spinUnlock( &lock );
 
