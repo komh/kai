@@ -57,6 +57,7 @@ typedef struct tagKAIAPIS
     DECLARE_PFN( APIRET, APIENTRY, pfnGetVolume, ( HKAI, ULONG ));
     DECLARE_PFN( APIRET, APIENTRY, pfnClearBuffer, ( HKAI ));
     DECLARE_PFN( APIRET, APIENTRY, pfnStatus, ( HKAI ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnGetDefaultIndex, ( VOID ));
 } KAIAPIS, *PKAIAPIS;
 
 PKAIAPIS _kaiGetApi( VOID );
@@ -66,6 +67,7 @@ BOOL     _kaiIsServer( VOID );
 ULONG    _kaiGetMinSamples( VOID );
 int      _kaiGetResamplerQ( VOID );
 ULONG    _kaiGetPlayLatency( VOID );
+APIRET   _kaiGetDefaultIndex( VOID );
 
 static INLINE
 APIRET DosLoadModuleCW( PSZ pszName, ULONG cbName, PSZ pszModName,

@@ -177,6 +177,7 @@ static APIRET APIENTRY uniaudGetVolume( HKAI hkai, ULONG ulCh );
 static APIRET APIENTRY uniaudChNum( VOID );
 static APIRET APIENTRY uniaudClearBuffer( HKAI hkai );
 static APIRET APIENTRY uniaudStatus( HKAI hkai );
+static APIRET APIENTRY uniaudGetDefaultIndex( VOID );
 
 static VOID freeUniaud( VOID )
 {
@@ -367,6 +368,8 @@ APIRET APIENTRY _kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
     pkai->pfnGetVolume     = uniaudGetVolume;
     pkai->pfnClearBuffer   = uniaudClearBuffer;
     pkai->pfnStatus        = uniaudStatus;
+
+    pkai->pfnGetDefaultIndex = uniaudGetDefaultIndex;
 
     pkc->ulMode         = KAIM_UNIAUD;
     pkc->ulMaxChannels  = uniaudChNum();
@@ -896,4 +899,10 @@ static APIRET APIENTRY uniaudStatus( HKAI hkai )
         ulStatus |= KAIS_COMPLETED;
 
     return ulStatus;
+}
+
+static APIRET APIENTRY uniaudGetDefaultIndex( VOID )
+{
+    // Default index of UNIAUD is always 1
+    return 1;
 }

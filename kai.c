@@ -834,3 +834,8 @@ ULONG _kaiGetPlayLatency( VOID )
 {
     return m_ulPlayLatency;
 }
+
+APIRET _kaiGetDefaultIndex( VOID )
+{
+    return m_kai.pfnGetDefaultIndex();
+}

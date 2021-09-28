@@ -109,6 +109,7 @@ static APIRET APIENTRY dartGetVolume( HKAI hkai, ULONG ulCh );
 static APIRET APIENTRY dartChNum( VOID );
 static APIRET APIENTRY dartClearBuffer( HKAI hkai );
 static APIRET APIENTRY dartStatus( HKAI hkai );
+static APIRET APIENTRY dartGetDefaultIndex( VOID );
 static APIRET APIENTRY dartOSLibGetAudioPDDName( PSZ pszPDDName );
 
 static VOID freeMDM( VOID )
@@ -159,6 +160,8 @@ APIRET APIENTRY _kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
     pkai->pfnGetVolume     = dartGetVolume;
     pkai->pfnClearBuffer   = dartClearBuffer;
     pkai->pfnStatus        = dartStatus;
+
+    pkai->pfnGetDefaultIndex = dartGetDefaultIndex;
 
     pkc->ulMode         = KAIM_DART;
     pkc->ulMaxChannels  = dartChNum();
@@ -873,6 +876,49 @@ static APIRET APIENTRY dartStatus( HKAI hkai )
         ulStatus |= KAIS_COMPLETED;
 
     return ulStatus;
+}
+
+static APIRET APIENTRY dartGetDefaultIndex( VOID )
+{
+    MCI_SYSINFO_PARMS         sysInfo;
+    MCI_SYSINFO_DEFAULTDEVICE defaultDevice;
+    MCI_SYSINFO_QUERY_NAME    queryName;
+
+    ULONG rc;
+
+    memset( &sysInfo, 0, sizeof( sysInfo ));
+    sysInfo.ulItem       = MCI_SYSINFO_QUERY_DEFAULT;
+    sysInfo.pSysInfoParm = &defaultDevice;
+
+    memset( &defaultDevice, 0, sizeof( defaultDevice ));
+    defaultDevice.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
+
+    /* Get the install name of the default device */
+    rc = mciSendCommand( 0,
+                         MCI_SYSINFO,
+                         MCI_WAIT | MCI_SYSINFO_ITEM,
+                         &sysInfo,
+                         0 );
+
+    if( dartError( rc ))
+        return 0;
+
+    sysInfo.ulItem = MCI_SYSINFO_QUERY_NAMES;
+    sysInfo.pSysInfoParm = &queryName;
+
+    strcpy( queryName.szInstallName, defaultDevice.szInstallName );
+
+    /* Get the device index of the default device */
+    rc = mciSendCommand( 0,
+                         MCI_SYSINFO,
+                         MCI_WAIT | MCI_SYSINFO_ITEM,
+                         &sysInfo,
+                         0 );
+
+    if( dartError( rc ))
+        return 0;
+
+    return queryName.usDeviceOrd;
 }
 
 /******************************************************************************/
