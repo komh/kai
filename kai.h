@@ -341,6 +341,12 @@ APIRET APIENTRY kaiMixerStreamClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
  */
 APIRET APIENTRY kaiEnableSoftMixer( BOOL fEnable, const PKAISPEC pks );
 
+/**
+ * @brief Get the number of cards
+ * @return The number of installed cards
+ */
+APIRET APIENTRY kaiGetCardCount( VOID );
+
 #ifdef __cplusplus
 }
 #endif

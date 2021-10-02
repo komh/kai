@@ -800,6 +800,17 @@ APIRET DLLEXPORT APIENTRY kaiEnableSoftMixer( BOOL fEnable,
     return rc;
 }
 
+APIRET DLLEXPORT APIENTRY kaiGetCardCount( VOID )
+{
+    if( !m_ulInitCount )
+        return KAIE_NOT_INITIALIZED;
+
+    if( m_fServer )
+        return serverGetCardCount();
+
+    return m_kai.pfnGetCardCount();
+}
+
 PKAIAPIS _kaiGetApi( VOID )
 {
     return &m_kai;

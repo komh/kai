@@ -44,6 +44,7 @@
 #define KAISRV_MIXERSTREAMOPEN      16
 #define KAISRV_MIXERSTREAMCLOSE     17
 #define KAISRV_ENABLESOFTMIXER      18
+#define KAISRV_GETCARDCOUNT         19
 #define KAISRV_QUIT                 99
 
 #define REINTR( expr, rc ) \
@@ -109,6 +110,7 @@ APIRET _kaiServerMixerStreamOpen( const PINSTANCELIST pilMixer,
 APIRET _kaiServerMixerStreamClose( const PINSTANCELIST pilMixer,
                                    const PINSTANCELIST pil );
 APIRET _kaiServerEnableSoftMixer( BOOL fEnable, const PKAISPEC pks );
+APIRET _kaiServerGetCardCount( VOID );
 
 #define serverCheck             _kaiServerCheck
 #define serverCaps              _kaiServerCaps
@@ -129,5 +131,6 @@ APIRET _kaiServerEnableSoftMixer( BOOL fEnable, const PKAISPEC pks );
 #define serverMixerStreamOpen   _kaiServerMixerStreamOpen
 #define serverMixerStreamClose  _kaiServerMixerStreamClose
 #define serverEnableSoftMixer   _kaiServerEnableSoftMixer
+#define serverGetCardCount      _kaiServerGetCardCount
 
 #endif

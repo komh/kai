@@ -58,6 +58,7 @@ typedef struct tagKAIAPIS
     DECLARE_PFN( APIRET, APIENTRY, pfnClearBuffer, ( HKAI ));
     DECLARE_PFN( APIRET, APIENTRY, pfnStatus, ( HKAI ));
     DECLARE_PFN( APIRET, APIENTRY, pfnGetDefaultIndex, ( VOID ));
+    DECLARE_PFN( APIRET, APIENTRY, pfnGetCardCount, ( VOID ));
 } KAIAPIS, *PKAIAPIS;
 
 PKAIAPIS _kaiGetApi( VOID );

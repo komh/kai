@@ -210,6 +210,8 @@ int main( int argc, char *argv[])
         return 1;
     }
 
+    printf("Installed audio cards = %ld\n", kaiGetCardCount());
+
     kaiCaps( &kaic );
 
     printf("Mode = %s, Available channels = %ld, PDD Name = %s\n",

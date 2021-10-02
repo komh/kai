@@ -601,3 +601,22 @@ APIRET _kaiServerEnableSoftMixer( BOOL fEnable, const PKAISPEC pks )
 
     return rc;
 }
+
+APIRET _kaiServerGetCardCount( VOID )
+{
+    HPIPE hpipe;
+    ULONG ulCmd = KAISRV_GETCARDCOUNT;
+    ULONG ulActual;
+    ULONG rc;
+
+    if( pipeOpen( KAISRV_PIPE_CMD, &hpipe ))
+        return KAIE_NOT_OPENED;
+
+    DosWrite( hpipe, &ulCmd, sizeof( ulCmd ), &ulActual );
+
+    DosRead( hpipe, &rc, sizeof( rc ), &ulActual );
+
+    pipeClose( hpipe );
+
+    return rc;
+}

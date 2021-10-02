@@ -369,6 +369,16 @@ static void kaisrvEnableSoftMixer( HPIPE hpipe )
     DosWrite( hpipe, &rc, sizeof( rc ), &ulActual );
 }
 
+static void kaisrvGetCardCount( HPIPE hpipe )
+{
+    ULONG ulActual;
+    ULONG rc;
+
+    rc = kaiGetCardCount();
+
+    DosWrite( hpipe, &rc, sizeof( rc ), &ulActual );
+}
+
 int main( int argc, char *argv[])
 {
     HPIPE hpipe;
@@ -506,6 +516,10 @@ int main( int argc, char *argv[])
 
             case KAISRV_ENABLESOFTMIXER:
                 kaisrvEnableSoftMixer( hpipe );
+                break;
+
+            case KAISRV_GETCARDCOUNT:
+                kaisrvGetCardCount( hpipe );
                 break;
 
             case KAISRV_QUIT:

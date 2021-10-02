@@ -178,6 +178,7 @@ static APIRET APIENTRY uniaudChNum( VOID );
 static APIRET APIENTRY uniaudClearBuffer( HKAI hkai );
 static APIRET APIENTRY uniaudStatus( HKAI hkai );
 static APIRET APIENTRY uniaudGetDefaultIndex( VOID );
+static APIRET APIENTRY uniaudGetCardCount( VOID );
 
 static VOID freeUniaud( VOID )
 {
@@ -370,6 +371,7 @@ APIRET APIENTRY _kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
     pkai->pfnStatus        = uniaudStatus;
 
     pkai->pfnGetDefaultIndex = uniaudGetDefaultIndex;
+    pkai->pfnGetCardCount    = uniaudGetCardCount;
 
     pkc->ulMode         = KAIM_UNIAUD;
     pkc->ulMaxChannels  = uniaudChNum();
@@ -905,4 +907,9 @@ static APIRET APIENTRY uniaudGetDefaultIndex( VOID )
 {
     // Default index of UNIAUD is always 1
     return 1;
+}
+
+static APIRET APIENTRY uniaudGetCardCount( VOID )
+{
+    return uniaud_get_cards();
 }

@@ -110,6 +110,7 @@ static APIRET APIENTRY dartChNum( VOID );
 static APIRET APIENTRY dartClearBuffer( HKAI hkai );
 static APIRET APIENTRY dartStatus( HKAI hkai );
 static APIRET APIENTRY dartGetDefaultIndex( VOID );
+static APIRET APIENTRY dartGetCardCount( VOID );
 static APIRET APIENTRY dartOSLibGetAudioPDDName( PSZ pszPDDName );
 
 static VOID freeMDM( VOID )
@@ -162,6 +163,7 @@ APIRET APIENTRY _kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
     pkai->pfnStatus        = dartStatus;
 
     pkai->pfnGetDefaultIndex = dartGetDefaultIndex;
+    pkai->pfnGetCardCount    = dartGetCardCount;
 
     pkc->ulMode         = KAIM_DART;
     pkc->ulMaxChannels  = dartChNum();
@@ -919,6 +921,31 @@ static APIRET APIENTRY dartGetDefaultIndex( VOID )
         return 0;
 
     return queryName.usDeviceOrd;
+}
+
+static APIRET APIENTRY dartGetCardCount( VOID )
+{
+    MCI_SYSINFO_PARMS sysInfo;
+
+    CHAR  szCardCount[ 3 ]; /* 2 digits */
+    ULONG rc;
+
+    memset( &sysInfo, 0, sizeof( sysInfo ));
+
+    sysInfo.ulItem       = MCI_SYSINFO_QUANTITY;
+    sysInfo.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
+    sysInfo.pszReturn    = szCardCount;
+    sysInfo.ulRetSize    = sizeof( szCardCount );
+
+    /* Get the number of installed cards */
+    rc = mciSendCommand( 0,
+                         MCI_SYSINFO, MCI_WAIT | MCI_SYSINFO_QUANTITY,
+                         &sysInfo, 0 );
+
+    if( dartError( rc ))
+        return 0;
+
+    return atol( szCardCount );
 }
 
 /******************************************************************************/
