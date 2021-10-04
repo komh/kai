@@ -153,11 +153,19 @@ APIRET APIENTRY kaiDone( VOID );
 APIRET APIENTRY kaiGetInitCount( VOID );
 
 /**
- * @brief Query KAI capabilities
+ * @brief Query KAI capabilities of the default device at init time
  * @param[out] pkc Obtained capabilities
  * @return KAIE_NO_ERROR on success, or error codes
  */
 APIRET APIENTRY kaiCaps( PKAICAPS pkc );
+
+/**
+ * @brief Query KAI capabilities
+ * @param[in] ulDeviceIndex Device index to query, 0 = default, 1 = 1st, ...
+ * @param[out] pkc Obtained capabilities
+ * @return KAIE_NO_ERROR on success, or error codes
+ */
+APIRET APIENTRY kaiCapsEx( ULONG ulDeviceIndex, PKAICAPS pkc );
 
 /**
  * @brief Open KAI instance

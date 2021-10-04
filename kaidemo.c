@@ -91,6 +91,23 @@ const char *getStatusName( ULONG m_ulStatus )
     return "STOPPED";
 }
 
+static void showCardInfo( void )
+{
+    KAICAPS caps;
+    int     cards = kaiGetCardCount();
+    int     i;
+
+    printf("Installed audio cards = %d\n", cards );
+
+    for( i = 1; i <= cards; i++ )
+    {
+        kaiCapsEx( i, &caps );
+
+        printf("Audio card %d: Channles = %ld, Card name = %s\n",
+               i, caps.ulMaxChannels, caps.szPDDName );
+    }
+}
+
 int main( int argc, char *argv[])
 {
     MMIOINFO        mmioInfo;
@@ -119,7 +136,7 @@ int main( int argc, char *argv[])
         return 1;
     }
 
-    printf("Installed audio cards = %ld\n", kaiGetCardCount());
+    showCardInfo();
 
     kaiCaps( &kaic );
 

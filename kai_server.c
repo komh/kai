@@ -620,3 +620,24 @@ APIRET _kaiServerGetCardCount( VOID )
 
     return rc;
 }
+
+APIRET _kaiServerCapsEx( ULONG ulDeviceIndex, PKAICAPS pkaic )
+{
+    HPIPE hpipe;
+    ULONG ulCmd = KAISRV_CAPSEX;
+    ULONG ulActual;
+    ULONG rc;
+
+    if( pipeOpen( KAISRV_PIPE_CMD, &hpipe ))
+        return KAIE_NOT_OPENED;
+
+    DosWrite( hpipe, &ulCmd, sizeof( ulCmd ), &ulActual );
+    DosWrite( hpipe, &ulDeviceIndex, sizeof( ulDeviceIndex ), &ulActual );
+
+    DosRead( hpipe, &rc, sizeof( rc ), &ulActual );
+    DosRead( hpipe, pkaic, sizeof( *pkaic ), &ulActual );
+
+    pipeClose( hpipe );
+
+    return rc;
+}

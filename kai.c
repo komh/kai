@@ -41,7 +41,7 @@ static ULONG    m_ulInitCount = 0;
 static SPINLOCK m_lockInitCount = SPINLOCK_INIT;
 
 static KAIAPIS  m_kai = { NULL, };
-static KAICAPS  m_kaic = { 0, };
+static KAICAPS  m_kaic0 = { 0, };
 
 static BOOL     m_fDebugMode = FALSE;
 static BOOL     m_fSoftVol = FALSE;
@@ -232,14 +232,14 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
         if( ulMode == KAIM_UNIAUD || ulMode == KAIM_AUTO )
         {
-            rc = _kaiUniaudInit( &m_kai, &m_kaic );
+            rc = _kaiUniaudInit( &m_kai, &m_kaic0 );
             if( !rc )
                 ulMode = KAIM_UNIAUD;
         }
 
         if( ulMode == KAIM_DART || ulMode == KAIM_AUTO )
         {
-            rc = _kaiDartInit( &m_kai, &m_kaic );
+            rc = _kaiDartInit( &m_kai, &m_kaic0 );
             if( !rc )
                 ulMode = KAIM_DART;
         }
@@ -295,9 +295,23 @@ APIRET DLLEXPORT APIENTRY kaiCaps( PKAICAPS pkc )
     if( m_fServer )
         return serverCaps( pkc );
 
-    memcpy( pkc, &m_kaic, sizeof( KAICAPS ));
+    memcpy( pkc, &m_kaic0, sizeof( KAICAPS ));
 
     return KAIE_NO_ERROR;
+}
+
+APIRET DLLEXPORT APIENTRY kaiCapsEx( ULONG ulDeviceIndex, PKAICAPS pkc )
+{
+    if( !m_ulInitCount )
+        return KAIE_NOT_INITIALIZED;
+
+    if( !pkc )
+        return KAIE_INVALID_PARAMETER;
+
+    if( m_fServer )
+        return serverCapsEx( ulDeviceIndex, pkc );
+
+    return m_kai.pfnCapsEx( ulDeviceIndex, pkc );
 }
 
 APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,

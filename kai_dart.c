@@ -113,6 +113,7 @@ static APIRET APIENTRY dartGetDefaultIndex( VOID );
 static APIRET APIENTRY dartGetCardCount( VOID );
 static APIRET APIENTRY dartOSLibGetAudioPDDName( ULONG ulDeviceIndex,
                                                  PSZ pszName, ULONG cbName );
+static APIRET APIENTRY dartCapsEx( ULONG ulDeviceIndex, PKAICAPS pkc );
 
 static VOID freeMDM( VOID )
 {
@@ -165,12 +166,9 @@ APIRET APIENTRY _kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
 
     pkai->pfnGetDefaultIndex = dartGetDefaultIndex;
     pkai->pfnGetCardCount    = dartGetCardCount;
+    pkai->pfnCapsEx          = dartCapsEx;
 
-    pkc->ulMode         = KAIM_DART;
-    pkc->ulMaxChannels  = dartChNum( 0 );
-
-    dartOSLibGetAudioPDDName( 0,
-                              &pkc->szPDDName[ 0 ], sizeof( pkc->szPDDName ));
+    dartCapsEx( 0, pkc );
 
     return KAIE_NO_ERROR;
 }
@@ -949,6 +947,19 @@ static APIRET APIENTRY dartGetCardCount( VOID )
         return 0;
 
     return atol( szCardCount );
+}
+
+static APIRET APIENTRY dartCapsEx( ULONG ulDeviceIndex, PKAICAPS pkc )
+{
+    memset( pkc, 0, sizeof( *pkc ));
+
+    pkc->ulMode        = KAIM_DART;
+    pkc->ulMaxChannels = dartChNum( ulDeviceIndex );
+
+    dartOSLibGetAudioPDDName( ulDeviceIndex,
+                              pkc->szPDDName, sizeof( pkc->szPDDName ));
+
+    return KAIE_NO_ERROR;
 }
 
 /******************************************************************************/

@@ -379,6 +379,20 @@ static void kaisrvGetCardCount( HPIPE hpipe )
     DosWrite( hpipe, &rc, sizeof( rc ), &ulActual );
 }
 
+static void kaisrvCapsEx( HPIPE hpipe )
+{
+    ULONG ulDeviceIndex;
+    KAICAPS caps;
+    ULONG ulActual;
+    ULONG rc;
+
+    DosRead( hpipe, &ulDeviceIndex, sizeof( ulDeviceIndex ), &ulActual );
+    rc = kaiCapsEx( ulDeviceIndex, &caps );
+
+    DosWrite( hpipe, &rc, sizeof( rc ), &ulActual );
+    DosWrite( hpipe, &caps, sizeof( caps ), &ulActual );
+}
+
 int main( int argc, char *argv[])
 {
     HPIPE hpipe;
@@ -520,6 +534,10 @@ int main( int argc, char *argv[])
 
             case KAISRV_GETCARDCOUNT:
                 kaisrvGetCardCount( hpipe );
+                break;
+
+            case KAISRV_CAPSEX:
+                kaisrvCapsEx( hpipe );
                 break;
 
             case KAISRV_QUIT:

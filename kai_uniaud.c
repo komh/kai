@@ -181,6 +181,7 @@ static APIRET APIENTRY uniaudGetDefaultIndex( VOID );
 static APIRET APIENTRY uniaudGetCardCount( VOID );
 static APIRET APIENTRY uniaudGetCardName( ULONG ulDeviceIndex,
                                           PSZ pszName, ULONG cbName );
+static APIRET APIENTRY uniaudCapsEx( ULONG ulDeviceIndex, PKAICAPS pkc );
 
 static VOID freeUniaud( VOID )
 {
@@ -372,11 +373,9 @@ APIRET APIENTRY _kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
 
     pkai->pfnGetDefaultIndex = uniaudGetDefaultIndex;
     pkai->pfnGetCardCount    = uniaudGetCardCount;
+    pkai->pfnCapsEx          = uniaudCapsEx;
 
-    pkc->ulMode         = KAIM_UNIAUD;
-    pkc->ulMaxChannels  = uniaudChNum( 0 );
-
-    uniaudGetCardName( 0, pkc->szPDDName, sizeof( pkc->szPDDName ));
+    uniaudCapsEx( 0, pkc );
 
     return KAIE_NO_ERROR;
 }
@@ -927,6 +926,19 @@ static APIRET APIENTRY uniaudGetCardName( ULONG ulDeviceIndex,
     uniaud_get_card_info( ulDeviceIndex, &cardInfo );
     strncpy( pszName, ( char * )cardInfo.name, cbName - 1 );
     pszName[ cbName - 1 ] = '\0';
+
+    return KAIE_NO_ERROR;
+}
+
+static APIRET APIENTRY uniaudCapsEx( ULONG ulDeviceIndex, PKAICAPS pkc )
+{
+    memset( pkc, 0, sizeof( *pkc ));
+
+    pkc->ulMode        = KAIM_UNIAUD;
+    pkc->ulMaxChannels = uniaudChNum( ulDeviceIndex );
+
+    uniaudGetCardName( ulDeviceIndex,
+                       pkc->szPDDName, sizeof( pkc->szPDDName ));
 
     return KAIE_NO_ERROR;
 }

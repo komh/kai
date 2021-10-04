@@ -195,6 +195,23 @@ static int play( const char *name )
     return _beginthread( playThread, NULL, 256 * 1024, ( void * )name );
 }
 
+static void showCardInfo( void )
+{
+    KAICAPS caps;
+    int     cards = kaiGetCardCount();
+    int     i;
+
+    printf("Installed audio cards = %d\n", cards );
+
+    for( i = 1; i <= cards; i++ )
+    {
+        kaiCapsEx( i, &caps );
+
+        printf("Audio card %d: Channles = %ld, Card name = %s\n",
+               i, caps.ulMaxChannels, caps.szPDDName );
+    }
+}
+
 int main( int argc, char *argv[])
 {
     int             key;
@@ -212,7 +229,7 @@ int main( int argc, char *argv[])
         return 1;
     }
 
-    printf("Installed audio cards = %ld\n", kaiGetCardCount());
+    showCardInfo();
 
     kaiCaps( &kaic );
 
