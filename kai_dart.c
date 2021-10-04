@@ -111,7 +111,8 @@ static APIRET APIENTRY dartClearBuffer( HKAI hkai );
 static APIRET APIENTRY dartStatus( HKAI hkai );
 static APIRET APIENTRY dartGetDefaultIndex( VOID );
 static APIRET APIENTRY dartGetCardCount( VOID );
-static APIRET APIENTRY dartOSLibGetAudioPDDName( PSZ pszPDDName );
+static APIRET APIENTRY dartOSLibGetAudioPDDName( ULONG ulDeviceIndex,
+                                                 PSZ pszName, ULONG cbName );
 
 static VOID freeMDM( VOID )
 {
@@ -167,7 +168,9 @@ APIRET APIENTRY _kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
 
     pkc->ulMode         = KAIM_DART;
     pkc->ulMaxChannels  = dartChNum( 0 );
-    dartOSLibGetAudioPDDName( &pkc->szPDDName[ 0 ]);
+
+    dartOSLibGetAudioPDDName( 0,
+                              &pkc->szPDDName[ 0 ], sizeof( pkc->szPDDName ));
 
     return KAIE_NO_ERROR;
 }
@@ -952,10 +955,10 @@ static APIRET APIENTRY dartGetCardCount( VOID )
 // OS/2 32-bit program to query the Physical Device Driver name
 // for the default MMPM/2 WaveAudio device.  Joe Nord 10-Mar-1999
 /******************************************************************************/
-static APIRET APIENTRY dartOSLibGetAudioPDDName( PSZ pszPDDName )
+static APIRET APIENTRY dartOSLibGetAudioPDDName( ULONG ulDeviceIndex,
+                                                 PSZ pszName, ULONG cbName )
 {
     ULONG                   ulRC;
-    CHAR                    szAmpMix[9] = "AMPMIX01";
 
     MCI_SYSINFO_PARMS       SysInfo;
     MCI_SYSINFO_LOGDEVICE   SysInfoParm;
@@ -964,15 +967,20 @@ static APIRET APIENTRY dartOSLibGetAudioPDDName( PSZ pszPDDName )
     if( !loadMDM())
         return KAIE_CANNOT_LOAD_SUB_MODULE;
 
+    /* 0 means the first device not the default device in
+       MCI_SYSINFO_QUERY_NAMES, so convert 0 to the default index by manual */
+    if( ulDeviceIndex == 0 )
+        ulDeviceIndex = dartGetDefaultIndex();
+
     memset( &SysInfo, '\0', sizeof( SysInfo ));
     memset( &SysInfoParm, '\0', sizeof( SysInfoParm ));
     memset( &QueryNameParm, '\0', sizeof( QueryNameParm ));
 
     SysInfo.ulItem       = MCI_SYSINFO_QUERY_NAMES;
-    SysInfo.usDeviceType = MCI_DEVTYPE_WAVEFORM_AUDIO;
     SysInfo.pSysInfoParm = &QueryNameParm;
 
-    strcpy( QueryNameParm.szLogicalName, szAmpMix );
+    QueryNameParm.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
+    QueryNameParm.usDeviceOrd  = ulDeviceIndex;
 
     ulRC = mciSendCommand( 0,
                            MCI_SYSINFO,
@@ -992,7 +1000,6 @@ static APIRET APIENTRY dartOSLibGetAudioPDDName( PSZ pszPDDName )
     // Get PDD associated with our AmpMixer
     // Device name is in pSysInfoParm->szPDDName
     SysInfo.ulItem       = MCI_SYSINFO_QUERY_DRIVER;
-    SysInfo.usDeviceType = MCI_DEVTYPE_WAVEFORM_AUDIO;
     SysInfo.pSysInfoParm = &SysInfoParm;
 
     strcpy( SysInfoParm.szInstallName, QueryNameParm.szInstallName );
@@ -1005,8 +1012,10 @@ static APIRET APIENTRY dartOSLibGetAudioPDDName( PSZ pszPDDName )
     if( dartError( ulRC ))
         goto exit;
 
-//    strcpy( pszPDDName, SysInfoParm.szPDDName );
-    strcpy( pszPDDName, SysInfoParm.szProductInfo );
+//    strncpy( pszName, SysInfoParm.szPDDName, cbName - 1 );
+    strncpy( pszName, SysInfoParm.szProductInfo, cbName - 1 );
+    pszName[ cbName - 1 ] = '\0';
+
 //    printf("Audio:\n product info [%s]\n\n",SysInfoParm.szProductInfo);
 //    printf("Audio:\n inst name [%s]\n version [%s]\n MCD drv [%s]\n VSD drv [%s]\n res name: [%s]\n",
 //           SysInfoParm.szInstallName,
