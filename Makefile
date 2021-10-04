@@ -114,6 +114,7 @@ KAI_SRCS := kai.c kai.h kai_internal.h kai_dart.c kai_dart.h kai_uniaud.c \
             kai_debug.c kai_debug.h \
             kai_atomic.asm kai_atomic.h os2section.inc \
             kai_spinlock.c kai_spinlock.h \
+            kai_server.c kai_server.h kaisrv.c \
             kaidemo.c kaidemo2.c kaidemo3.c demo1.wav demo2.wav demo3.wav \
             Makefile Makefile.icc Makefile.wat \
             uniaud.h unidef.h unierrno.h
