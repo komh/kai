@@ -106,7 +106,7 @@ static APIRET APIENTRY dartError( APIRET rc );
 static APIRET APIENTRY dartSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState );
 static APIRET APIENTRY dartSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol );
 static APIRET APIENTRY dartGetVolume( HKAI hkai, ULONG ulCh );
-static APIRET APIENTRY dartChNum( VOID );
+static APIRET APIENTRY dartChNum( ULONG ulDeviceIndex );
 static APIRET APIENTRY dartClearBuffer( HKAI hkai );
 static APIRET APIENTRY dartStatus( HKAI hkai );
 static APIRET APIENTRY dartGetDefaultIndex( VOID );
@@ -166,7 +166,7 @@ APIRET APIENTRY _kaiDartInit( PKAIAPIS pkai, PKAICAPS pkc )
     pkai->pfnGetCardCount    = dartGetCardCount;
 
     pkc->ulMode         = KAIM_DART;
-    pkc->ulMaxChannels  = dartChNum();
+    pkc->ulMaxChannels  = dartChNum( 0 );
     dartOSLibGetAudioPDDName( &pkc->szPDDName[ 0 ]);
 
     return KAIE_NO_ERROR;
@@ -373,7 +373,7 @@ static LONG APIENTRY MixHandler( ULONG ulStatus, PMCI_MIX_BUFFER pBuffer, ULONG 
     return TRUE;
 }
 
-static APIRET APIENTRY dartChNum( VOID )
+static APIRET APIENTRY dartChNum( ULONG ulDeviceIndex )
 {
     ULONG               ulDartFlags;
     ULONG               ulChannels;
@@ -385,7 +385,7 @@ static APIRET APIENTRY dartChNum( VOID )
     ulDartFlags = MCI_WAIT | MCI_OPEN_TYPE_ID | MCI_OPEN_SHAREABLE;
     AmpOpenParms.usDeviceID = 0;
     AmpOpenParms.pszDeviceType = (PSZ)( MCI_DEVTYPE_AUDIO_AMPMIX |
-                                        ( 0 << 16 ));
+                                        ( ulDeviceIndex << 16 ));
     if( mciSendCommand( 0, MCI_OPEN, ulDartFlags, ( PVOID )&AmpOpenParms, 0 ))
         return 0;
 

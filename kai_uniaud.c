@@ -174,7 +174,7 @@ static APIRET APIENTRY uniaudResume( HKAI hkai );
 static APIRET APIENTRY uniaudSetSoundState( HKAI hkai, ULONG ulCh, BOOL fState );
 static APIRET APIENTRY uniaudSetVolume( HKAI hkai, ULONG ulCh, USHORT usVol );
 static APIRET APIENTRY uniaudGetVolume( HKAI hkai, ULONG ulCh );
-static APIRET APIENTRY uniaudChNum( VOID );
+static APIRET APIENTRY uniaudChNum( ULONG ulDeviceIndex );
 static APIRET APIENTRY uniaudClearBuffer( HKAI hkai );
 static APIRET APIENTRY uniaudStatus( HKAI hkai );
 static APIRET APIENTRY uniaudGetDefaultIndex( VOID );
@@ -374,7 +374,7 @@ APIRET APIENTRY _kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
     pkai->pfnGetCardCount    = uniaudGetCardCount;
 
     pkc->ulMode         = KAIM_UNIAUD;
-    pkc->ulMaxChannels  = uniaudChNum();
+    pkc->ulMaxChannels  = uniaudChNum( 0 );
 
     uniaud_get_card_info( 0, &cardInfo );
     strcpy( pkc->szPDDName, ( char * )cardInfo.name );
@@ -573,9 +573,12 @@ static void uniaudPlayThread( void *arg )
     STORE( &pui->fCompleted, fCompleted );
 }
 
-static APIRET APIENTRY uniaudChNum( VOID )
+static APIRET APIENTRY uniaudChNum( ULONG ulDeviceIndex )
 {
-    return uniaud_get_max_channels( 0 );
+    if( ulDeviceIndex > 0 )
+        ulDeviceIndex--;
+
+    return uniaud_get_max_channels( ulDeviceIndex );
 }
 
 static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
