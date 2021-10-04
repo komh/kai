@@ -33,6 +33,7 @@
 #include "kai_uniaud.h"
 #include "kai_spinlock.h"
 #include "kai_debug.h"
+#include "kai_atomic.h"
 
 #define DEFAULT_MIN_SAMPLES 2048
 
@@ -50,9 +51,18 @@ static ULONG    m_ulMinSamples = DEFAULT_MIN_SAMPLES;
 static int      m_iResamplerQ = 0;
 static ULONG    m_ulPlayLatency = 100;
 
-static SPINLOCK  m_lockMixer = SPINLOCK_INIT;
-static HKAIMIXER m_hkm = NULLHANDLE;
-static KAISPEC   m_ks = {
+typedef struct MIXERDEVICE
+{
+    SPINLOCK  lock;
+    HKAIMIXER hkm;
+    KAISPEC   spec;
+} MIXERDEVICE, *PMIXERDEVICE;
+
+#define MAX_MIXER_DEVICES   16  /* Up to 16 audio cards */
+
+MIXERDEVICE m_aDevices[ MAX_MIXER_DEVICES + 1 /* for default device */ ];
+
+static KAISPEC m_spec0 = {
     0,                                      /* usDeviceIndex */
     KAIT_PLAY,                              /* ulType */
     16,                                     /* ulBitsPerSample */
@@ -100,9 +110,22 @@ static ULONG APIENTRY kaiCallBack( PVOID pCBData, PVOID pBuffer,
     return ulLen;
 }
 
+static PMIXERDEVICE getMixerDevice( ULONG ulDeviceIndex )
+{
+    if( ulDeviceIndex > kaiGetCardCount())
+        return NULL;
+
+    /* Default index ? */
+    if( ulDeviceIndex == 0 )
+        ulDeviceIndex = _kaiGetDefaultIndex(); /* Use real index */
+
+    return &m_aDevices[ ulDeviceIndex ];
+}
+
 APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 {
     const char *pszEnv;
+    int i;
     APIRET rc = KAIE_INVALID_PARAMETER;
 
     spinLock( &m_lockInitCount );
@@ -136,7 +159,7 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         ULONG ulRate = atoi( pszEnv );
 
         if( ulRate != 0 )
-            m_ks.ulSamplingRate = ulRate;
+            m_spec0.ulSamplingRate = ulRate;
     }
 
     // Use the minimum samples of KAI_MINSAMPLES if specified
@@ -148,7 +171,7 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         if( ulMinSamples != 0 )
         {
             m_ulMinSamples = ulMinSamples;
-            m_ks.ulBufferSize = SAMPLESTOBYTES( m_ulMinSamples, m_ks );
+            m_spec0.ulBufferSize = SAMPLESTOBYTES( m_ulMinSamples, m_spec0 );
         }
     }
 
@@ -175,6 +198,16 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
             latency = 0;
 
         m_ulPlayLatency = latency;
+    }
+
+    for( i = 0; i <= MAX_MIXER_DEVICES; i++ )
+    {
+        spinLockInit( &m_aDevices[ i ].lock );
+
+        m_aDevices[ i ].hkm  = NULLHANDLE;
+        m_aDevices[ i ].spec = m_spec0;
+
+        m_aDevices[ i ].spec.usDeviceIndex = i;
     }
 
     if( m_fServer )
@@ -292,11 +325,17 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     if( m_fSoftMixer )
     {
         /* Soft mixer mode */
-        spinLock( &m_lockMixer );
+        PMIXERDEVICE pDevice = getMixerDevice( pksWanted->usDeviceIndex );
 
-        rc = streamOpen( &m_ks, &m_hkm, pksWanted, pksObtained, phkai );
+        if( !pDevice )
+            return KAIE_INVALID_PARAMETER;
 
-        spinUnlock( &m_lockMixer );
+        spinLock( &pDevice->lock );
+
+        rc = streamOpen( &pDevice->spec, &pDevice->hkm,
+                         pksWanted, pksObtained, phkai );
+
+        spinUnlock( &pDevice->lock);
 
         return rc;
     }
@@ -352,14 +391,19 @@ APIRET DLLEXPORT APIENTRY kaiClose( HKAI hkai )
     if( ISSTREAM( pil ))
     {
         /* Mixer stream */
-        if( pil->hkai != m_hkm )
+        PMIXERDEVICE pDevice = getMixerDevice( pil->ks.usDeviceIndex );
+
+        if( !pDevice )
             return KAIE_INVALID_HANDLE;
 
-        spinLock( &m_lockMixer );
+        if( pil->hkai != pDevice->hkm )
+            return KAIE_INVALID_HANDLE;
 
-        rc = streamClose( &m_hkm, hkai );
+        spinLock( &pDevice->lock );
 
-        spinUnlock( &m_lockMixer );
+        rc = streamClose( &pDevice->hkm, hkai );
+
+        spinUnlock( &pDevice->lock );
 
         return rc;
     }
@@ -777,25 +821,32 @@ APIRET DLLEXPORT APIENTRY kaiFloatToS16( short *dst, int dstLen,
 APIRET DLLEXPORT APIENTRY kaiEnableSoftMixer( BOOL fEnable,
                                               const PKAISPEC pks )
 {
-    ULONG rc;
+    ULONG rc = KAIE_NO_ERROR;
 
     if( !m_ulInitCount )
         return KAIE_NOT_INITIALIZED;
-
-    spinLock( &m_lockMixer );
 
     if( m_fServer )
         rc = serverEnableSoftMixer( fEnable, pks );
     else
     {
-        m_fSoftMixer = fEnable;
         if( fEnable && pks )
-            memcpy( &m_ks, pks, sizeof( KAISPEC ));
+        {
+            PMIXERDEVICE pDevice = getMixerDevice( pks->usDeviceIndex );
 
-        rc = KAIE_NO_ERROR;
+            if( pDevice )
+            {
+                spinLock( &pDevice->lock );
+                memcpy( &pDevice->spec, pks, sizeof( KAISPEC ));
+                spinUnlock( &pDevice->lock );
+            }
+            else
+                rc = KAIE_INVALID_PARAMETER;
+        }
+
+        if( !rc )
+            STORE( &m_fSoftMixer, fEnable );
     }
-
-    spinUnlock( &m_lockMixer );
 
     return rc;
 }

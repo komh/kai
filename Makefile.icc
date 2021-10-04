@@ -52,7 +52,7 @@ $(KAIDLLDEF):
 kai.obj \
 kai.dll_obj: kai.c kai.h kai_internal.h kai_instance.h kai_mixer.h \
              speex/speex_resampler.h kai_dart.h kai_uniaud.h kai_spinlock.h \
-             kai_debug.h kai_server.h
+             kai_debug.h kai_server.h kai_atomic.h
 
 kai_instance.obj \
 kai_instance.dll_obj: kai_instance.c kai_internal.h kai.h kai_mixer.h \
