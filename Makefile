@@ -6,6 +6,7 @@
 ifeq ($(PREFIX),)
 PREFIX=/usr/local
 endif
+BINDIR=$(PREFIX)/bin
 LIBDIR=$(PREFIX)/lib
 INCDIR=$(PREFIX)/include
 
@@ -131,7 +132,8 @@ src : $(KAI_SRCS) $(SPEEX_SRCS)
 	cp $(SPEEX_SRCS) libkai-$(VER)/speex
 	zip -rpSm libkai-$(VER)-src.zip libkai-$(VER)
 
-install : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) kai.h
+install : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) kai.h kaisrv.exe
+	$(INSTALL) -d $(DESTDIR)$(BINDIR)
 	$(INSTALL) -d $(DESTDIR)$(LIBDIR)
 	$(INSTALL) -d $(DESTDIR)$(INCDIR)
 	$(INSTALL) kai.a $(DESTDIR)$(LIBDIR)
@@ -140,12 +142,14 @@ install : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) kai.h
 	$(INSTALL) kai_dll.lib $(DESTDIR)$(LIBDIR)
 	$(INSTALL) $(KAIDLL) $(DESTDIR)$(LIBDIR)
 	$(INSTALL) kai.h $(DESTDIR)$(INCDIR)
+	$(INSTALL) kaisrv.exe $(DESTDIR)$(BINDIR)
 
 uninstall :
 	$(RM) $(DESTDIR)$(LIBDIR)/kai.a $(DESTDIR)$(LIBDIR)/kai.lib
 	$(RM) $(DESTDIR)$(LIBDIR)/kai_dll.a $(DESTDIR)$(LIBDIR)/kai_dll.lib
 	$(RM) $(DESTDIR)$(LIBDIR)/$(KAIDLL)
 	$(RM) $(DESTDIR)$(INCDIR)/kai.h
+	$(RM) $(DESTDIR)$(BINDIR)/kaisrv.exe
 
 ifeq ($(filter %clean, $(MAKECMDGOALS)),)
 -include $(DEPS)
