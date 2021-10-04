@@ -392,7 +392,7 @@ static APIRET APIENTRY dartChNum( VOID )
     ulChannels = 6; // first, try 6 channels
     memset( &MixSetupParms, 0, sizeof( MCI_MIXSETUP_PARMS ));
     MixSetupParms.ulBitsPerSample = 16;
-    MixSetupParms.ulSamplesPerSec = 48000;
+    MixSetupParms.ulSamplesPerSec = 44100;
     MixSetupParms.ulFormatTag = MCI_WAVE_FORMAT_PCM;
     MixSetupParms.ulChannels = ulChannels;
     MixSetupParms.ulFormatMode = MCI_PLAY;
