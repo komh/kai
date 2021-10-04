@@ -34,6 +34,7 @@ static HMMIO m_hmmio;
 
 static ULONG m_ulStatus = 0;
 
+static
 ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
 {
     PBYTE   pbBuffer = Buffer;
@@ -65,7 +66,7 @@ ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
     return pbBuffer - ( PBYTE )Buffer;
 }
 
-int read_key( void )
+static int read_key( void )
 {
     KBDKEYINFO Char;
 
@@ -77,7 +78,7 @@ int read_key( void )
     return 0;
 }
 
-const char *getStatusName( ULONG m_ulStatus )
+static const char *getStatusName( ULONG m_ulStatus )
 {
     if( m_ulStatus & KAIS_COMPLETED )
         return "COMPLETED";

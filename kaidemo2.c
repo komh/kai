@@ -41,6 +41,7 @@ typedef struct tagCBDATA
     HMMIO          hmmio;
 } CBDATA, *PCBDATA;
 
+static
 ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
 {
     PCBDATA pcd = pCBData;
@@ -70,7 +71,7 @@ ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
     return pbBuffer - ( PBYTE )Buffer;
 }
 
-int read_key( void )
+static int read_key( void )
 {
     KBDKEYINFO Char;
 
@@ -82,7 +83,7 @@ int read_key( void )
     return 0;
 }
 
-void playThread( void *arg )
+static void playThread( void *arg )
 {
     char           *name = arg;
     HMMIO           hmmio;
