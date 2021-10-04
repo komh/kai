@@ -66,7 +66,7 @@ PKAIAPIS _kaiGetApi( VOID );
 BOOL     _kaiIsDebugMode( VOID );
 BOOL     _kaiIsSoftVolume( VOID );
 BOOL     _kaiIsServer( VOID );
-ULONG    _kaiGetMinSamples( VOID );
+ULONG    _kaiGetMinSamples( ULONG );
 int      _kaiGetResamplerQ( VOID );
 ULONG    _kaiGetPlayLatency( VOID );
 APIRET   _kaiGetDefaultIndex( VOID );

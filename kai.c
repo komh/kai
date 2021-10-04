@@ -52,7 +52,7 @@ static BOOL     m_fDebugMode = FALSE;
 static BOOL     m_fSoftVol = FALSE;
 static BOOL     m_fSoftMixer = FALSE;
 static BOOL     m_fServer = FALSE;
-static ULONG    m_ulMinSamples = DEFAULT_MIN_SAMPLES;
+static ULONG    m_aulMinSamples[ MAX_AUDIO_CARDS + 1 /* for default device */];
 static int      m_iResamplerQ = 0;
 static ULONG    m_ulPlayLatency = 100;
 
@@ -128,6 +128,7 @@ static PMIXERDEVICE getMixerDevice( ULONG ulDeviceIndex )
 APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 {
     const char *pszEnv;
+    ULONG ulMinSamples0;
     int i;
     APIRET rc = KAIE_INVALID_PARAMETER;
 
@@ -165,6 +166,8 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
             m_spec0.ulSamplingRate = ulRate;
     }
 
+    ulMinSamples0 = DEFAULT_MIN_SAMPLES;
+
     // Use the minimum samples of KAI_MINSAMPLES if specified
     pszEnv = getenv("KAI_MINSAMPLES");
     if( pszEnv )
@@ -173,8 +176,8 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
         if( ulMinSamples != 0 )
         {
-            m_ulMinSamples = ulMinSamples;
-            m_spec0.ulBufferSize = SAMPLESTOBYTES( m_ulMinSamples, m_spec0 );
+            ulMinSamples0 = ulMinSamples;
+            m_spec0.ulBufferSize = SAMPLESTOBYTES( ulMinSamples, m_spec0 );
         }
     }
 
@@ -205,15 +208,33 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
     for( i = 0; i <= MAX_AUDIO_CARDS; i++ )
     {
+        PULONG pulMinSamples = &m_aulMinSamples[ i ];
         PMIXERDEVICE pDevice = &m_aDevices[ i ];
         char szEnvName[ 30 ];
 
+        // Init minimum samples for devices
+        *pulMinSamples = ulMinSamples0;
+
+        // Override the minimum samples if a device-specific one is given
+        sprintf( szEnvName, "KAI_MINSAMPLES%d", i );
+        pszEnv = getenv( szEnvName );
+        if( pszEnv )
+        {
+            ULONG ulMinSamples = atoi( pszEnv );
+
+            if( ulMinSamples != 0 )
+                *pulMinSamples = ulMinSamples;
+        }
+
+        // Init mixer devices
         spinLockInit( &pDevice->lock );
 
         pDevice->hkm  = NULLHANDLE;
         pDevice->spec = m_spec0;
 
         pDevice->spec.usDeviceIndex = i;
+        pDevice->spec.ulBufferSize =
+            SAMPLESTOBYTES( *pulMinSamples, pDevice->spec );
 
         // Override a sampling rate if a device-specific one is given
         sprintf( szEnvName, "KAI_MIXERRATE%d", i );
@@ -349,7 +370,7 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
                                    PKAISPEC pksObtained, PHKAI phkai )
 {
     PINSTANCELIST pil;
-
+    ULONG ulMinBufferSize;
     APIRET rc = KAIE_NO_ERROR;
 
     if( !m_ulInitCount )
@@ -390,10 +411,12 @@ APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
 
+    ulMinBufferSize =
+           SAMPLESTOBYTES( _kaiGetMinSamples( pksWanted->usDeviceIndex ),
+                           *pksWanted );
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
-    if( pil->ks.ulBufferSize > 0 &&
-        pil->ks.ulBufferSize < SAMPLESTOBYTES( m_ulMinSamples, pil->ks ))
-        pil->ks.ulBufferSize = SAMPLESTOBYTES( m_ulMinSamples, pil->ks );
+    if( pil->ks.ulBufferSize != 0  && pil->ks.ulBufferSize < ulMinBufferSize )
+        pil->ks.ulBufferSize = ulMinBufferSize;
     pil->ks.pfnCallBack   = kaiCallBack;
     pil->ks.pCallBackData = pil;
     pil->pfnUserCb        = pksWanted->pfnCallBack;
@@ -927,9 +950,16 @@ BOOL _kaiIsServer( VOID )
     return m_fServer;
 }
 
-ULONG _kaiGetMinSamples( VOID )
+ULONG _kaiGetMinSamples( ULONG ulIndex )
 {
-    return m_ulMinSamples;
+    if( ulIndex > kaiGetCardCount())
+        return DEFAULT_MIN_SAMPLES;
+
+    /* Default index ? */
+    if( ulIndex == 0 )
+        ulIndex = _kaiGetDefaultIndex(); /* Use real index */
+
+    return m_aulMinSamples[ ulIndex ];
 }
 
 int _kaiGetResamplerQ( VOID )

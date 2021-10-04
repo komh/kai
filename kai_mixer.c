@@ -501,7 +501,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
                                         PHKAIMIXER phkm )
 {
     PINSTANCELIST pil;
-    ULONG ulMinSamples;
+    ULONG ulMinBufferSize;
     APIRET rc;
 
     if( !kaiGetInitCount())
@@ -521,11 +521,12 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
     if( !pil )
         return KAIE_NOT_ENOUGH_MEMORY;
 
-    ulMinSamples = _kaiGetMinSamples();
+    ulMinBufferSize =
+        SAMPLESTOBYTES( _kaiGetMinSamples( pksWanted->usDeviceIndex ),
+                        *pksWanted );
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
-    if( pil->ks.ulBufferSize > 0 &&
-        pil->ks.ulBufferSize < SAMPLESTOBYTES( ulMinSamples, pil->ks ))
-        pil->ks.ulBufferSize = SAMPLESTOBYTES( ulMinSamples, pil->ks );
+    if( pil->ks.ulBufferSize > 0 && pil->ks.ulBufferSize < ulMinBufferSize )
+        pil->ks.ulBufferSize = ulMinBufferSize;
     pil->ks.pfnCallBack   = kaiMixerCallBack;
     pil->ks.pCallBackData = pil;
     pil->pfnUserCb        = NULL;
