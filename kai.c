@@ -35,13 +35,17 @@
 #include "kai_debug.h"
 #include "kai_atomic.h"
 
+#define MAX_AUDIO_CARDS 16  /* Up to 16 audio cards */
+
 #define DEFAULT_MIN_SAMPLES 2048
 
 static ULONG    m_ulInitCount = 0;
 static SPINLOCK m_lockInitCount = SPINLOCK_INIT;
 
 static KAIAPIS  m_kai = { NULL, };
-static KAICAPS  m_kaic0 = { 0, };
+static LONG     m_lDefaultIndex = 0;
+static LONG     m_lCardCount = 0;
+static KAICAPS  m_aCaps[ MAX_AUDIO_CARDS + 1 /* for default device */];
 
 static BOOL     m_fDebugMode = FALSE;
 static BOOL     m_fSoftVol = FALSE;
@@ -58,9 +62,7 @@ typedef struct MIXERDEVICE
     KAISPEC   spec;
 } MIXERDEVICE, *PMIXERDEVICE;
 
-#define MAX_MIXER_DEVICES   16  /* Up to 16 audio cards */
-
-MIXERDEVICE m_aDevices[ MAX_MIXER_DEVICES + 1 /* for default device */ ];
+MIXERDEVICE m_aDevices[ MAX_AUDIO_CARDS + 1 /* for default device */ ];
 
 static KAISPEC m_spec0 = {
     0,                                      /* usDeviceIndex */
@@ -200,7 +202,7 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         m_ulPlayLatency = latency;
     }
 
-    for( i = 0; i <= MAX_MIXER_DEVICES; i++ )
+    for( i = 0; i <= MAX_AUDIO_CARDS; i++ )
     {
         spinLockInit( &m_aDevices[ i ].lock );
 
@@ -232,16 +234,28 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
         if( ulMode == KAIM_UNIAUD || ulMode == KAIM_AUTO )
         {
-            rc = _kaiUniaudInit( &m_kai, &m_kaic0 );
+            rc = _kaiUniaudInit( &m_kai, &m_aCaps[ 0 ]);
             if( !rc )
                 ulMode = KAIM_UNIAUD;
         }
 
         if( ulMode == KAIM_DART || ulMode == KAIM_AUTO )
         {
-            rc = _kaiDartInit( &m_kai, &m_kaic0 );
+            rc = _kaiDartInit( &m_kai, &m_aCaps[ 0 ]);
             if( !rc )
                 ulMode = KAIM_DART;
+        }
+
+        // Initialize system-wide information
+        if( !rc )
+        {
+            int i;
+
+            m_lDefaultIndex = m_kai.pfnGetDefaultIndex();
+
+            m_lCardCount = m_kai.pfnGetCardCount();
+            for( i = 1; i <= m_lCardCount; i++ )
+                m_kai.pfnCapsEx( i, &m_aCaps[ i ]);
         }
     }
 
@@ -295,7 +309,7 @@ APIRET DLLEXPORT APIENTRY kaiCaps( PKAICAPS pkc )
     if( m_fServer )
         return serverCaps( pkc );
 
-    memcpy( pkc, &m_kaic0, sizeof( KAICAPS ));
+    memcpy( pkc, &m_aCaps[ 0 ], sizeof( KAICAPS ));
 
     return KAIE_NO_ERROR;
 }
@@ -311,7 +325,9 @@ APIRET DLLEXPORT APIENTRY kaiCapsEx( ULONG ulDeviceIndex, PKAICAPS pkc )
     if( m_fServer )
         return serverCapsEx( ulDeviceIndex, pkc );
 
-    return m_kai.pfnCapsEx( ulDeviceIndex, pkc );
+    memcpy( pkc, &m_aCaps[ ulDeviceIndex ], sizeof( *pkc ));
+
+    return KAIE_NO_ERROR;
 }
 
 APIRET DLLEXPORT APIENTRY kaiOpen( const PKAISPEC pksWanted,
@@ -873,7 +889,7 @@ APIRET DLLEXPORT APIENTRY kaiGetCardCount( VOID )
     if( m_fServer )
         return serverGetCardCount();
 
-    return m_kai.pfnGetCardCount();
+    return m_lCardCount;
 }
 
 PKAIAPIS _kaiGetApi( VOID )
@@ -913,5 +929,5 @@ ULONG _kaiGetPlayLatency( VOID )
 
 APIRET _kaiGetDefaultIndex( VOID )
 {
-    return m_kai.pfnGetDefaultIndex();
+    return m_lDefaultIndex;
 }
