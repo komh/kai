@@ -21,6 +21,7 @@
 #define INCL_DOSERRORS
 #include <os2.h>
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -204,12 +205,26 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
     for( i = 0; i <= MAX_AUDIO_CARDS; i++ )
     {
-        spinLockInit( &m_aDevices[ i ].lock );
+        PMIXERDEVICE pDevice = &m_aDevices[ i ];
+        char szEnvName[ 30 ];
 
-        m_aDevices[ i ].hkm  = NULLHANDLE;
-        m_aDevices[ i ].spec = m_spec0;
+        spinLockInit( &pDevice->lock );
 
-        m_aDevices[ i ].spec.usDeviceIndex = i;
+        pDevice->hkm  = NULLHANDLE;
+        pDevice->spec = m_spec0;
+
+        pDevice->spec.usDeviceIndex = i;
+
+        // Override a sampling rate if a device-specific one is given
+        sprintf( szEnvName, "KAI_MIXERRATE%d", i );
+        pszEnv = getenv( szEnvName );
+        if( pszEnv )
+        {
+            ULONG ulRate = atoi( pszEnv );
+
+            if( ulRate != 0 )
+                pDevice->spec.ulSamplingRate = ulRate;
+        }
     }
 
     if( m_fServer )
