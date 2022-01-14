@@ -419,7 +419,7 @@ int main( int argc, char *argv[])
     }
 
     // Disable server mode
-    putenv("KAI_NOSERVERMODE=1");
+    putenv("KAI_NOSERVER=1");
 
     // Enable soft mixer mode
     putenv("KAI_NOSOFTMIXER");
