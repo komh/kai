@@ -6,6 +6,26 @@
         Long Description: K Audio Interface v@VER@.
                           DART/UNIAUD implementation library.
 
+v2.2.0:
+    * Added a server mode
+      - now, audio devices can be shared among all the programs using
+        libkai v2.2.0+
+      - kaisrv.exe should be running
+          + you can add RUN=x:\path\to\kaisrv.exe to your config.sys
+          + use -q option to quit kaisrv.exe
+      - kaiMixer*() APIs do not share audio devices even in a server mode
+      - set KAI_NOSERVER to any value to disable a server mode
+
+    * Added kaiGetCardCount() to query the number of installed audio cards
+    * Added a device index support in soft mixer mode
+    * Added kaiCapsEx() to query the capability of the given device index
+    * Added KAI_MIXERRATE#, # is a device index, for a device-specific sampling
+      rate. For example, KAI_MIXERRATE3 is a sampling rate for the 3rd audio
+      device
+    * Added KAI_MINSAMPLES#, # is a device index, for device-specific minimum
+      samples. For example, KAI_MINSAMPLES3 is minimum samples for the 3rd
+      audio device
+
 v2.1.0:
     * Added actual support of multiple buffers more than 2
     * Added KAI_TIMECRITICAL for playing thread boost
