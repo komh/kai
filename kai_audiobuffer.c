@@ -132,7 +132,7 @@ VOID _kaiBufReadWaitDone( PKAIAUDIOBUFFER pbuf, ULONG ulTimeout )
     DosWaitEventSem( pbufelm->hevDone, ulTimeout );
 }
 
-LONG bufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize )
+LONG _kaiBufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize )
 {
     PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ pbuf->ulWritePos ];
     ULONG ulPost;
@@ -149,7 +149,7 @@ LONG bufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize )
     return 0;
 }
 
-LONG bufWriteUnlock( PKAIAUDIOBUFFER pbuf, ULONG ulLength )
+LONG _kaiBufWriteUnlock( PKAIAUDIOBUFFER pbuf, ULONG ulLength )
 {
     PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ pbuf->ulWritePos ];
 
@@ -162,12 +162,12 @@ LONG bufWriteUnlock( PKAIAUDIOBUFFER pbuf, ULONG ulLength )
     return 0;
 }
 
-VOID bufWritePostFill( PKAIAUDIOBUFFER pbuf )
+VOID _kaiBufWritePostFill( PKAIAUDIOBUFFER pbuf )
 {
     DosPostEventSem( pbuf->abufelm[ pbuf->ulWritePos ].hevFill );
 }
 
-VOID bufClear( PKAIAUDIOBUFFER pbuf, UCHAR uch )
+VOID _kaiBufClear( PKAIAUDIOBUFFER pbuf, UCHAR uch )
 {
     int i;
 
