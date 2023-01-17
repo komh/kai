@@ -909,6 +909,7 @@ static APIRET APIENTRY dartGetDefaultIndex( VOID )
     sysInfo.ulItem = MCI_SYSINFO_QUERY_NAMES;
     sysInfo.pSysInfoParm = &queryName;
 
+    memset( &queryName, 0, sizeof( queryName ));
     strcpy( queryName.szInstallName, defaultDevice.szInstallName );
 
     /* Get the device index of the default device */
