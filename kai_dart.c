@@ -355,7 +355,8 @@ static LONG APIENTRY MixHandler( ULONG ulStatus, PMCI_MIX_BUFFER pBuffer, ULONG 
                 /* In order to flush buffers of DART sub-system correctly,
                    prevent pmixWrite() from being called while issuing
                    MCI_STOP */
-                spinLock( &pdi->lockStop );
+                if( spinTryLock( &pdi->lockStop ) == -1 )
+                    break;
 
                 if( pdi->fPlaying && !pdi->fWaitStreamEnd )
                 {

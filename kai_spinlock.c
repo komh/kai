@@ -43,6 +43,18 @@ VOID _kaiSpinLock( PSPINLOCK pLock )
     pLock->count++;
 }
 
+INT _kaiSpinTryLock( PSPINLOCK pLock )
+{
+    int tid = *_threadid;
+
+    if( !CMPXCHG( &pLock->owner, tid, 0 ) && pLock->owner != tid )
+        return -1;
+
+    pLock->count++;
+
+    return 0;
+}
+
 VOID _kaiSpinUnlock( PSPINLOCK pLock )
 {
     if( pLock->owner == *_threadid )

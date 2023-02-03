@@ -34,10 +34,12 @@ typedef struct SPINLOCK
 
 VOID _kaiSpinLockInit( PSPINLOCK pLock );
 VOID _kaiSpinLock( PSPINLOCK pLock );
+INT  _kaiSpinTryLock( PSPINLOCK pLock );
 VOID _kaiSpinUnlock( PSPINLOCK pLock );
 
 #define spinLockInit _kaiSpinLockInit
 #define spinLock     _kaiSpinLock
+#define spinTryLock  _kaiSpinTryLock
 #define spinUnlock   _kaiSpinUnlock
 
 #ifdef __cplusplus
