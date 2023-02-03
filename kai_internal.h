@@ -21,11 +21,20 @@
 #define __KAI_INTERNAL_H__
 
 #define INCL_DOS
+#define INCL_DOSERRORS
 #include <os2.h>
 
-#include <float.h>
+#define INCL_OS2MM
+#include <os2me.h>
 
 #include "kai.h"
+#include "kai_atomic.h"
+#include "kai_spinlock.h"
+#include "kai_instance.h"
+#include "kai_debug.h"
+
+#include <stdlib.h>
+#include <float.h>
 
 #ifdef __cplusplus
 extern "C" {

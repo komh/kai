@@ -20,8 +20,6 @@
 #ifndef KAI_SERVER_H
 #define KAI_SERVER_H
 
-#include "kai_instance.h"
-
 #define KAISRV_PIPE_CMD     "\\PIPE\\KAISRV\\CMD"
 #define KAISRV_PIPE_CB_BASE "\\PIPE\\KAISRV\\CALLBACK"
 

@@ -17,14 +17,11 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#include "kai_internal.h"
+
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
-
-#include "kai_internal.h"
-#include "kai_spinlock.h"
-#include "kai_debug.h"
 
 static SPINLOCK m_lock = SPINLOCK_INIT;
 

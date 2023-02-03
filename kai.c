@@ -17,24 +17,14 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#define INCL_DOS
-#define INCL_DOSERRORS
-#include <os2.h>
+#include "kai_internal.h"
+#include "kai_dart.h"
+#include "kai_uniaud.h"
+#include "kai_mixer.h"
+#include "kai_server.h"
 
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-
-#include "kai.h"
-#include "kai_internal.h"
-#include "kai_instance.h"
-#include "kai_mixer.h"
-#include "kai_server.h"
-#include "kai_dart.h"
-#include "kai_uniaud.h"
-#include "kai_spinlock.h"
-#include "kai_debug.h"
-#include "kai_atomic.h"
 
 #define MAX_AUDIO_CARDS 16  /* Up to 16 audio cards */
 

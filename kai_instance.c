@@ -17,12 +17,8 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <stdlib.h>
-
 #include "kai_internal.h"
 #include "kai_mixer.h"
-#include "kai_spinlock.h"
-#include "kai_instance.h"
 
 static PINSTANCELIST m_pilStart = NULL;
 static SPINLOCK m_lock = SPINLOCK_INIT;

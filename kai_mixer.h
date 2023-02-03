@@ -20,8 +20,6 @@
 #ifndef __KAI_MIXER_H_
 #define __KAI_MIXER_H_
 
-#include "kai.h"
-
 #include "speex/speex_resampler.h"
 
 #ifdef __cplusplus

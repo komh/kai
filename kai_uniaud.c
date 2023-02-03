@@ -17,29 +17,17 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#define INCL_DOS
-#define INCL_DOSERRORS
-#include <os2.h>
+#include "kai_internal.h"
+#include "kai_audiobuffer.h"
 
-#define INCL_OS2MM
-#include <os2me.h>
+#include "kai_uniaud.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #ifdef __WATCOMC__
 #include <process.h>
 #endif
-
-#include "uniaud.h"
-
-#include "kai.h"
-#include "kai_internal.h"
-#include "kai_audiobuffer.h"
-#include "kai_atomic.h"
-#include "kai_uniaud.h"
-#include "kai_debug.h"
 
 #ifdef __KLIBC__
 #include <emx/umalloc.h>
@@ -47,6 +35,8 @@
 #define calloc _lcalloc
 #define malloc _lmalloc
 #endif
+
+#include "uniaud.h"
 
 // EAGAIN is different in according to a compiler
 // So define macro for UNIAUD

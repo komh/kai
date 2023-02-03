@@ -22,8 +22,6 @@
 #ifndef __KAI_DART_H__
 #define __KAI_DART_H__
 
-#include <os2.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -20,9 +20,6 @@
 #ifndef __KAI_INSTANCE_H_
 #define __KAI_INSTANCE_H_
 
-#include "kai.h"
-#include "kai_spinlock.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

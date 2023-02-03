@@ -17,14 +17,11 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#define INCL_DOS
-#define INCL_DOSERRORS
-#include <os2.h>
-
-#include <stdlib.h>
-#include <string.h>
+#include "kai_internal.h"
 
 #include "kai_audiobuffer.h"
+
+#include <string.h>
 
 typedef struct KAIAUDIOBUFFERELEMENT {
     PVOID pBuffer;

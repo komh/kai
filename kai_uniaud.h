@@ -20,8 +20,6 @@
 #ifndef __KAI_UNIAUD_H__
 #define __KAI_UNIAUD_H__
 
-#include <os2.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif

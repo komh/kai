@@ -17,14 +17,9 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#define INCL_DOS
-#include <os2.h>
+#include "kai_internal.h"
 
 #include <stddef.h>
-
-#include "kai_atomic.h"
-
-#include "kai_spinlock.h"
 
 VOID _kaiSpinLockInit( PSPINLOCK pLock )
 {

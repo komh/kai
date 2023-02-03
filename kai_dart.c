@@ -19,27 +19,16 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#define INCL_DOS
-#define INCL_DOSERRORS
-#include <os2.h>
+#include "kai_internal.h"
+#include "kai_audiobuffer.h"
 
-#define INCL_OS2MM
-#include <os2me.h>
+#include "kai_dart.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 #ifdef __WATCOMC__
 #include <process.h>
 #endif
-
-#include "kai.h"
-#include "kai_internal.h"
-#include "kai_audiobuffer.h"
-#include "kai_atomic.h"
-#include "kai_spinlock.h"
-#include "kai_dart.h"
-#include "kai_debug.h"
 
 // Currently(Warp4 FixPak #15), MDM.DLL allows only one load per process.
 // Otherwise, DosLoadModule() return ERROR_INIT_ROUTINE_FAILED.

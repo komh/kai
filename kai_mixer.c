@@ -17,25 +17,17 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#define INCL_DOS
-#define INCL_DOSERRORS
-#include <os2.h>
+#include "kai_internal.h"
+#include "kai_server.h"
 
-#include <stdlib.h>
+#include "kai_mixer.h"
+
 #include <string.h>
 
 #ifdef __WATCOMC__
 #include <alloca.h>
 #include <process.h>
 #endif
-
-#include "kai.h"
-#include "kai_internal.h"
-#include "kai_server.h"
-#include "kai_mixer.h"
-#include "kai_instance.h"
-#include "kai_debug.h"
-#include "kai_atomic.h"
 
 static void normalize( PVOID pBuffer, ULONG ulLen, PINSTANCELIST pil )
 {
