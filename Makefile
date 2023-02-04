@@ -1,4 +1,6 @@
 # Makefile for kLIBC/GNU Make
+.DELETE_ON_ERROR :
+
 .PHONY : all
 
 .SUFFIXES : .exe .dll .def .a .lib .o .c .h .d .asm
@@ -61,7 +63,8 @@ EXE_DEPS := $(foreach s,$(EXE_SRCS),$(s:$(suffix $(s))=.d))
 	emxomf -o $@ $<
 
 all : kai.a kai.lib kai_dll.a kai_dll.lib $(KAIDLL) \
-      kaisrv.exe kaidemo.exe kaidemo2.exe kaidemo3.exe
+      kaisrv.exe kaidemo.exe kaidemo2.exe kaidemo3.exe \
+      kaidep.mk
 
 kai.a : $(OBJS)
 	$(AR) rc $@ $^
@@ -92,6 +95,15 @@ kaidemo2.exe : kaidemo2.o kai.lib
 kaidemo3.exe : kaidemo3.o kai.lib
 	$(CC) $(LDFLAGS) -o $@ $^ -lmmpm2
 	echo $(BLDLEVEL)KAI demo for mixer streams >> $@
+
+kaidep.mk: $(SRCS) $(EXE_SRCS)
+	$(CC) $(CFLAGS) $(SPEEX_CFLAGS) -MM $(filter-out %.asm,$(SRCS)) | \
+        sed 's/^\(.*\).o:/\1.obj \1.dll_obj:/g' > $@
+	for s in $(filter %.asm,$(SRCS)); do \
+      $(AS) $(ASFLAGS) -M -MT "$${s%.asm}.obj $${s%.asm}.dll_obj" $$s >> $@; \
+    done
+	$(CC) $(CFLAGS) $(SPEEX_CFLAGS) -MM $(EXE_SRCS) | \
+        sed 's/^\(.*\).o:/\1.obj:/g' >> $@
 
 clean :
 	$(RM) *.bak speex/*.bak
