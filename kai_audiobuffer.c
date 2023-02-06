@@ -46,7 +46,7 @@ PKAIAUDIOBUFFER _kaiBufCreate( ULONG ulNum, ULONG ulSize )
     int i;
 
     pbuf = calloc( 1, sizeof( *pbuf ) +
-                      ( ulSize - 1 ) * sizeof( KAIAUDIOBUFFERELEMENT ));
+                      ( ulNum - 1 ) * sizeof( KAIAUDIOBUFFERELEMENT ));
     if( !pbuf )
         return NULL;
 
