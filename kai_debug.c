@@ -28,20 +28,32 @@ static SPINLOCK m_lock = SPINLOCK_INIT;
 void _kaiDprintf( const char *format, ... )
 {
     static int detached = -1;
+    static char logname[] = "?:\\mmos2\\kai_debug.log";
 
+    DATETIME dt;
     va_list args;
     char msg[ 256 ];
+    char tmsg[ sizeof( msg ) + 32/* to make gcc happy, at least 20 */];
+    FILE *fp;
 
     if( !_kaiIsDebugMode())
         return;
 
     spinLock( &m_lock );
 
+    DosGetDateTime( &dt );
+
     va_start( args, format );
 #ifndef __IBMC__
     vsnprintf( msg, sizeof( msg ), format, args );
+    snprintf( tmsg, sizeof( tmsg ), "%02d%02d%02d%02d%02d%02d %s\n",
+              dt.month, dt.day,
+              dt.hours, dt.minutes, dt.seconds, dt.hundredths, msg );
 #else
     vsprintf( msg, format, args );
+    sprintf( tmsg, "%02d%02d%02d%02d%02d%02d %s\n",
+             dt.month, dt.day,
+             dt.hours, dt.minutes, dt.seconds, dt.hundredths, msg );
 #endif
     va_end( args );
 
@@ -55,7 +67,27 @@ void _kaiDprintf( const char *format, ... )
     }
 
     if( !detached )
-        fprintf( stderr, "%08ld %s\n", clock() * 1000 / CLOCKS_PER_SEC, msg );
+        fputs( tmsg, stderr );
+
+    if( _kaiIsDebugFileMode())
+    {
+        if( logname[ 0 ] == '?' )
+        {
+            ULONG ulBootDrive;
+
+            DosQuerySysInfo( QSV_BOOT_DRIVE, QSV_BOOT_DRIVE,
+                             &ulBootDrive, sizeof( ulBootDrive ));
+
+            logname[ 0 ] = 'A' + ulBootDrive - 1;
+        }
+
+        fp = fopen( logname, "ab");
+        if( fp != NULL )
+        {
+            fputs( tmsg, fp );
+            fclose( fp );
+        }
+    }
 
     spinUnlock( &m_lock );
 }

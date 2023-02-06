@@ -39,6 +39,7 @@ static LONG     m_lCardCount = 0;
 static KAICAPS  m_aCaps[ MAX_AUDIO_CARDS + 1 /* for default device */];
 
 static BOOL     m_fDebugMode = FALSE;
+static BOOL     m_fDebugFileMode = FALSE;
 static BOOL     m_fSoftVol = FALSE;
 static BOOL     m_fSoftMixer = FALSE;
 static BOOL     m_fServer = FALSE;
@@ -135,6 +136,9 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 
     // Enable debug mode if KAI_DEBUG is set
     m_fDebugMode = getenv("KAI_DEBUG") != NULL;
+
+    // Enable debug mode if KAI_DEBUG_FILE is set
+    m_fDebugFileMode = getenv("KAI_DEBUG_FILE") != NULL;
 
     // Use the soft volume mode unless KAI_NOSOFTVOLUME is specified
     m_fSoftVol = getenv("KAI_NOSOFTVOLUME") ? FALSE : TRUE;
@@ -928,6 +932,11 @@ PKAIAPIS _kaiGetApi( VOID )
 BOOL _kaiIsDebugMode( VOID )
 {
     return m_fDebugMode;
+}
+
+BOOL _kaiIsDebugFileMode( VOID )
+{
+    return m_fDebugFileMode;
 }
 
 BOOL _kaiIsSoftVolume( VOID )
