@@ -31,6 +31,58 @@
 // to dead-lock.
 #define WAIT_CLOSE_RC   0
 
+APIRET _kaiPipeTimedOpen( const char *name, PHPIPE phpipe, ULONG ms )
+{
+    HPIPE hpipe;
+    ULONG ulAction;
+    ULONG rc;
+
+    rc = DosOpen( name, &hpipe, &ulAction, 0, 0,
+                  OPEN_ACTION_OPEN_IF_EXISTS,
+                  OPEN_ACCESS_READWRITE | OPEN_SHARE_DENYREADWRITE |
+                  OPEN_FLAGS_FAIL_ON_ERROR,
+                  NULL );
+
+    if( rc == ERROR_PIPE_BUSY && ms != 0 )
+    {
+        ULONG rc2;
+
+        // FIXME: recalculate ms when iterating if DosWaitNpipe() fails due to
+        // ERROR_INTERRUPT
+        REINTR( DosWaitNPipe( name, ms ), rc2 );
+        if( !rc2 )
+        {
+            rc = DosOpen( name, &hpipe, &ulAction, 0, 0,
+                          OPEN_ACTION_OPEN_IF_EXISTS,
+                          OPEN_ACCESS_READWRITE | OPEN_SHARE_DENYREADWRITE |
+                          OPEN_FLAGS_FAIL_ON_ERROR,
+                          NULL );
+        }
+    }
+
+    if( !rc )
+        *phpipe = hpipe;
+
+    return rc;
+}
+
+APIRET _kaiPipeOpen( const char *name, PHPIPE phpipe )
+{
+    return _kaiPipeTimedOpen( name, phpipe, -1 );
+}
+
+APIRET _kaiPipeClose( HPIPE hpipe )
+{
+    ULONG ulAck = 0;
+
+    // Send ack before closing a pipe
+    DosWrite( hpipe, &ulAck, sizeof( ulAck ), &ulAck );
+
+    DosClose( hpipe );
+
+    return 0;
+}
+
 typedef struct CBPARM
 {
     PINSTANCELIST pil;

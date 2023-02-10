@@ -49,40 +49,9 @@
 #define REINTR( expr, rc ) \
     do ( rc ) = ( expr ); while(( rc ) == ERROR_INTERRUPT )
 
-static INLINE
-APIRET pipeOpen( const char *name, PHPIPE phpipe )
-{
-    HPIPE hpipe;
-    ULONG ulAction;
-    ULONG rc, rc2;
-
-    do
-    {
-        rc = DosOpen( name, &hpipe, &ulAction, 0, 0,
-                      OPEN_ACTION_OPEN_IF_EXISTS,
-                      OPEN_ACCESS_READWRITE | OPEN_SHARE_DENYREADWRITE |
-                      OPEN_FLAGS_FAIL_ON_ERROR,
-                      NULL );
-        if( rc == ERROR_PIPE_BUSY )
-            REINTR( DosWaitNPipe( name, -1 ), rc2 );
-    } while( rc == ERROR_PIPE_BUSY );
-
-    if( !rc )
-        *phpipe = hpipe;
-
-    return rc;
-}
-
-static INLINE
-void pipeClose( HPIPE hpipe )
-{
-    ULONG ulAck = 0;
-
-    // Send ack before closing a pipe
-    DosWrite( hpipe, &ulAck, sizeof( ulAck ), &ulAck );
-
-    DosClose( hpipe );
-}
+APIRET _kaiPipeTimedOpen( const char *name, PHPIPE phpipe, ULONG ms );
+APIRET _kaiPipeOpen( const char *name, PHPIPE phpipe );
+APIRET _kaiPipeClose( HPIPE hpipe );
 
 APIRET _kaiServerCheck( void );
 APIRET _kaiServerCaps( PKAICAPS pkaic );
@@ -111,6 +80,10 @@ APIRET _kaiServerMixerStreamClose( const PINSTANCELIST pilMixer,
 APIRET _kaiServerEnableSoftMixer( BOOL fEnable, const PKAISPEC pks );
 APIRET _kaiServerGetCardCount( VOID );
 APIRET _kaiServerCapsEx( ULONG ulDeviceIndex, PKAICAPS pkaic );
+
+#define pipeTimedOpen   _kaiPipeTimedOpen
+#define pipeOpen        _kaiPipeOpen
+#define pipeClose       _kaiPipeClose
 
 #define serverCheck             _kaiServerCheck
 #define serverCaps              _kaiServerCaps
