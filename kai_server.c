@@ -591,7 +591,7 @@ APIRET _kaiServerMixerStreamClose( const PINSTANCELIST pilMixer,
 APIRET _kaiServerEnableSoftMixer( BOOL fEnable, const PKAISPEC pks )
 {
     HPIPE hpipe;
-    ULONG ulCmd = KAISRV_MIXERSTREAMCLOSE;
+    ULONG ulCmd = KAISRV_ENABLESOFTMIXER;
     ULONG ulActual;
     ULONG rc;
 
