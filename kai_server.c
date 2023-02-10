@@ -25,6 +25,12 @@
 #include <string.h>
 #include <process.h>
 
+// While processing MCI_CLOSE in MCD such as ksoftseq, if the other MCI_CLOSE
+// of DART in the other process is called, it will be blocked. As a result,
+// trying to read rc from MCI_CLOSE of kaisrv in MCI_CLOSE of ksoftseq leads
+// to dead-lock.
+#define WAIT_CLOSE_RC   0
+
 typedef struct CBPARM
 {
     PINSTANCELIST pil;
@@ -407,7 +413,13 @@ APIRET _kaiServerMixerClose( const PINSTANCELIST pil )
     DosWrite( hpipe, &ulCmd, sizeof( ulCmd ), &ulActual );
     DosWrite( hpipe, &pil->hkai, sizeof( pil->hkai ), &ulActual );
 
+#if WAIT_CLOSE_RC
     DosRead( hpipe, &rc, sizeof( rc ), &ulActual );
+#else
+    // Assuming that rc will be 0 is reasonable. Because if an instance is
+    // valid, kaiClose()/kaiMixerClose()/kaiMixerStreamClose() almost succeeds.
+    rc = 0;
+#endif
 
     pipeClose( hpipe );
 
@@ -544,7 +556,13 @@ APIRET _kaiServerMixerStreamClose( const PINSTANCELIST pilMixer,
     DosWrite( hpipe, &pil->ks.pCallBackData, sizeof( pil->ks.pCallBackData ),
               &ulActual );
 
+#if WAIT_CLOSE_RC
     DosRead( hpipe, &rc, sizeof( rc ), &ulActual );
+#else
+    // Assuming that rc will be 0 is reasonable. Because if an instance is
+    // valid, kaiClose()/kaiMixerClose()/kaiMixerStreamClose() almost succeed.
+    rc = 0;
+#endif
 
     pipeClose( hpipe );
 
