@@ -27,6 +27,8 @@ static SPINLOCK m_lock = SPINLOCK_INIT;
 
 void _kaiDprintf( const char *format, ... )
 {
+    static int detached = -1;
+
     va_list args;
     char msg[ 256 ];
 
@@ -43,7 +45,17 @@ void _kaiDprintf( const char *format, ... )
 #endif
     va_end( args );
 
-    fprintf( stderr, "%08ld %s\n", clock() * 1000 / CLOCKS_PER_SEC, msg );
+    if( detached == -1 )
+    {
+        PPIB ppib;
+
+        DosGetInfoBlocks( NULL, &ppib );
+
+        detached = ppib->pib_ultype == 4;
+    }
+
+    if( !detached )
+        fprintf( stderr, "%08ld %s\n", clock() * 1000 / CLOCKS_PER_SEC, msg );
 
     spinUnlock( &m_lock );
 }
