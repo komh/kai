@@ -54,7 +54,7 @@ typedef struct MIXERDEVICE
     KAISPEC   spec;
 } MIXERDEVICE, *PMIXERDEVICE;
 
-MIXERDEVICE m_aDevices[ MAX_AUDIO_CARDS + 1 /* for default device */ ];
+static MIXERDEVICE m_aDevices[ MAX_AUDIO_CARDS + 1 /* for default device */ ];
 
 static KAISPEC m_spec0 = {
     0,                                      /* usDeviceIndex */
