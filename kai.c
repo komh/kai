@@ -34,7 +34,6 @@ static ULONG    m_ulInitCount = 0;
 static SPINLOCK m_lockInitCount = SPINLOCK_INIT;
 
 static KAIAPIS  m_kai = { NULL, };
-static LONG     m_lDefaultIndex = 0;
 static LONG     m_lCardCount = 0;
 static KAICAPS  m_aCaps[ MAX_AUDIO_CARDS + 1 /* for default device */];
 
@@ -280,8 +279,6 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         if( !rc )
         {
             int i;
-
-            m_lDefaultIndex = m_kai.pfnGetDefaultIndex();
 
             m_lCardCount = m_kai.pfnGetCardCount();
             for( i = 1; i <= m_lCardCount; i++ )
@@ -973,5 +970,5 @@ ULONG _kaiGetPlayLatency( VOID )
 
 APIRET _kaiGetDefaultIndex( VOID )
 {
-    return m_lDefaultIndex;
+    return m_kai.pfnGetDefaultIndex();
 }
