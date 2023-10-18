@@ -6,6 +6,15 @@
         Long Description: K Audio Interface v@VER@.
                           DART/UNIAUD implementation library.
 
+v2.2.1:
+    * Built with gcc v9.2.0(rpm)
+    * Fixed dart: `DART error(xxxx):Multiple defined.' error at startup
+    * Fixed dart: Dead-lock in dartStop()
+    * Fixed server: Dead-lock when calling kaiClose() in MCI_CLOSE of MCD
+                    such as ksoftseq(#11)
+    * Fixed kai: A default audio is not detected correctly even if it changes.
+                 (ksoftseq#12)
+
 v2.2.0:
     * Added a server mode
       - now, audio devices can be shared among all the programs using
@@ -124,7 +133,7 @@ v1.0.1:
     generated due to underrun. Fixed
 
       Proposed directory
-           for placement: /pub/os2/dev/mm
+           for placement: /pub/os2/dev/libraries/multimedia
 
                Your name: KO Myung-Hun
            Email address: komh@chollian.net
@@ -137,7 +146,7 @@ v1.0.1:
     included in listings? yes
 
 Operating System/Version:
- Additional requirements: kLIBC v0.6.6
+ Additional requirements: LIBCn v0.1.12
 
                 Replaces: (none)
 
