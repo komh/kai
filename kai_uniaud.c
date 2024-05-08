@@ -613,6 +613,10 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
         return err;
     }
 
+    /* the minimum number of buffers is 2. */
+    if( pks->ulNumBuffers < 2 )
+        pks->ulNumBuffers = 2;
+
     pui->pfnUniaudCB   = pks->pfnCallBack;
     pui->pUniaudCBData = pks->pCallBackData;
     pui->ulBufferSize  = pui->pcm->bufsize;
