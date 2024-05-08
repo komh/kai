@@ -504,8 +504,9 @@ static void uniaudPlayThread( void *arg )
                 state = uniaud_pcm_state( pui->pcm );
                 dprintf("UNIAUD: EAGAIN : written = %i of %i, state = %i", written, count, state );
 
-                uniaud_pcm_drop( pui->pcm );
+                DosSleep( 1 );
 
+                uniaud_pcm_drop( pui->pcm );
                 continue;
             }
 
@@ -518,8 +519,13 @@ static void uniaudPlayThread( void *arg )
                 {
                     dprintf("UNIAUD: part written = %i from %i, err = %i", written, count, err );
 
+                    DosSleep( 1 );
+
+                    uniaud_pcm_drop( pui->pcm );
                     break; // internal uniaud error
                 }
+
+                DosSleep( 1 );
 
                 state = uniaud_pcm_state( pui->pcm );
                 if((( state != SND_PCM_STATE_PREPARED ) &&
