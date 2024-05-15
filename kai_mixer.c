@@ -574,7 +574,6 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
 {
     PINSTANCELIST pilMixer;
     PINSTANCELIST pil;
-    ULONG ulBufSize;
 
     if( !kaiGetInitCount())
         return KAIE_NOT_INITIALIZED;
@@ -599,11 +598,6 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
 
     if( pksWanted->ulChannels > pilMixer->ks.ulChannels )
         return KAIE_INVALID_PARAMETER;
-
-    ulBufSize = pilMixer->ks.ulBufferSize *
-                pilMixer->ks.ulSamplingRate / pksWanted->ulSamplingRate;
-    if( pilMixer->ks.ulSamplingRate % pksWanted->ulSamplingRate )
-        ulBufSize += pilMixer->ks.ulBufferSize;
 
     pil = instanceNew( TRUE, &pilMixer->ks, pksWanted );
     if( pil )
