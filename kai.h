@@ -339,8 +339,8 @@ APIRET APIENTRY kaiMixerStreamClose( HKAIMIXER hkm, HKAIMIXERSTREAM hkms );
  *            TRUE to enable soft mixer mode
  *            FALSE to disable soft mixer mode
  * @param[in] pks Specification for a mixer
- *            If @fEnable is TRUE and @pks is NULL, spec of a mixer does not
- *            change.
+ *            If @a fEnable is TRUE and @a pks is NULL, spec of a mixer does
+ *            not change.
  * @return KAIE_NO_ERROR on success, or error codes
  * @remark pfnCallBack and pCallBackData of @a pks are ignored
  * @remark Default spec of a mixer is default device, 16 bits,
