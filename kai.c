@@ -149,55 +149,22 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
     m_fServer = ( getenv("KAI_NOSERVER") ? FALSE : TRUE ) &&
                 serverCheck() == 0;
 
-    // User the sampling rate of KAI_MIXERRATE if specified
-    pszEnv = getenv("KAI_MIXERRATE");
-    if( pszEnv )
-    {
-        ULONG ulRate = atoi( pszEnv );
-
-        if( ulRate != 0 )
-            m_spec0.ulSamplingRate = ulRate;
-    }
-
-    ulMinSamples0 = DEFAULT_MIN_SAMPLES;
+    // Use the sampling rate of KAI_MIXERRATE if specified
+    m_spec0.ulSamplingRate = getenvl("KAI_MIXERRATE", m_spec0.ulSamplingRate );
 
     // Use the minimum samples of KAI_MINSAMPLES if specified
-    pszEnv = getenv("KAI_MINSAMPLES");
-    if( pszEnv )
-    {
-        ULONG ulMinSamples = atoi( pszEnv );
+    ulMinSamples0 = getenvl("KAI_MINSAMPLES", DEFAULT_MIN_SAMPLES );
+    m_spec0.ulBufferSize = SAMPLESTOBYTES( ulMinSamples0, m_spec0 );
 
-        if( ulMinSamples != 0 )
-        {
-            ulMinSamples0 = ulMinSamples;
-            m_spec0.ulBufferSize = SAMPLESTOBYTES( ulMinSamples, m_spec0 );
-        }
-    }
-
-    // User the resampler quality of KAI_RESAMPLERQ if specified
-    pszEnv = getenv("KAI_RESAMPLERQ");
-    if( pszEnv )
-    {
-        int q = atoi( pszEnv );
-
-        if( q < 0 )
-            q = 0;
-        else if( q > 10 )
-            q = 10;
-
-        m_iResamplerQ = q;
-    }
+    // Use the resampler quality of KAI_RESAMPLERQ if specified
+    m_iResamplerQ = getenvl("KAI_RESAMPLERQ", 0 );
+    if( m_iResamplerQ < 0 )
+        m_iResamplerQ = 0;
+    else if( m_iResamplerQ > 10 )
+        m_iResamplerQ = 10;
 
     // Use the latency of KAI_PLAYLATENCY if specified
-    pszEnv = getenv("KAI_PLAYLATENCY");
-    if( pszEnv )
-    {
-        int latency = atoi( pszEnv );
-        if( latency < 0 )
-            latency = 0;
-
-        m_ulPlayLatency = latency;
-    }
+    m_ulPlayLatency = getenvl("KAI_PLAYLATENCY", 100 );
 
     for( i = 0; i <= MAX_AUDIO_CARDS; i++ )
     {
@@ -205,19 +172,9 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         PMIXERDEVICE pDevice = &m_aDevices[ i ];
         char szEnvName[ 30 ];
 
-        // Init minimum samples for devices
-        *pulMinSamples = ulMinSamples0;
-
-        // Override the minimum samples if a device-specific one is given
+        // Use the minimum samples if a device-specific one is given
         sprintf( szEnvName, "KAI_MINSAMPLES%d", i );
-        pszEnv = getenv( szEnvName );
-        if( pszEnv )
-        {
-            ULONG ulMinSamples = atoi( pszEnv );
-
-            if( ulMinSamples != 0 )
-                *pulMinSamples = ulMinSamples;
-        }
+        *pulMinSamples = getenvl( szEnvName, ulMinSamples0 );
 
         // Init mixer devices
         spinLockInit( &pDevice->lock );
@@ -229,16 +186,10 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         pDevice->spec.ulBufferSize =
             SAMPLESTOBYTES( *pulMinSamples, pDevice->spec );
 
-        // Override a sampling rate if a device-specific one is given
+        // Use the sampling rate if a device-specific one is given
         sprintf( szEnvName, "KAI_MIXERRATE%d", i );
-        pszEnv = getenv( szEnvName );
-        if( pszEnv )
-        {
-            ULONG ulRate = atoi( pszEnv );
-
-            if( ulRate != 0 )
-                pDevice->spec.ulSamplingRate = ulRate;
-        }
+        pDevice->spec.ulSamplingRate =
+            getenvl( szEnvName, m_spec0.ulSamplingRate );
     }
 
     if( m_fServer )

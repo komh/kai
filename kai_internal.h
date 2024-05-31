@@ -139,6 +139,24 @@ do {                                                                    \
     }                                                                   \
 } while( 0 )
 
+static INLINE
+long getenvl( const char *pszEnv, long defVal )
+{
+    const char *pszVal = getenv( pszEnv );
+    char *pszEnd;
+    long val;
+
+    if( pszVal == NULL )
+        return defVal;
+
+    val = strtol( pszVal, &pszEnd, 0 );
+
+    if( pszVal == pszEnd )
+        return defVal;
+
+    return val;
+}
+
 #ifdef __cplusplus
 }
 #endif
