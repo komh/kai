@@ -28,7 +28,8 @@
 
 #define MAX_AUDIO_CARDS 16  /* Up to 16 audio cards */
 
-#define DEFAULT_MIN_SAMPLES 2048
+#define DEFAULT_SAMPLES     2048
+#define DEFAULT_MIN_SAMPLES 512
 
 static ULONG    m_ulInitCount = 0;
 static SPINLOCK m_lockInitCount = SPINLOCK_INIT;
@@ -63,7 +64,7 @@ static KAISPEC m_spec0 = {
     0,                                      /* ulDataFormat */
     2,                                      /* ulChannels */
     2,                                      /* ulNumBuffers */
-    DEFAULT_MIN_SAMPLES * 2/* 16 bits */ *
+    DEFAULT_SAMPLES * 2/* 16 bits */ *
     2/* stereo */,                          /* ulBufferSize */
     TRUE,                                   /* fShareable */
     NULL,                                   /* pfnCallBack */
@@ -118,6 +119,7 @@ static PMIXERDEVICE getMixerDevice( ULONG ulDeviceIndex )
 APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
 {
     const char *pszEnv;
+    ULONG ulSamples0;
     ULONG ulMinSamples0;
     int i;
     APIRET rc = KAIE_INVALID_PARAMETER;
@@ -152,9 +154,12 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
     // Use the sampling rate of KAI_MIXERRATE if specified
     m_spec0.ulSamplingRate = getenvl("KAI_MIXERRATE", m_spec0.ulSamplingRate );
 
+    // Use the buffer size in samples of KAI_MIXERSAMPLES if specified
+    ulSamples0 = getenvl("KAI_MIXERSAMPLES", DEFAULT_SAMPLES );
+    m_spec0.ulBufferSize = SAMPLESTOBYTES( ulSamples0, m_spec0 );
+
     // Use the minimum samples of KAI_MINSAMPLES if specified
     ulMinSamples0 = getenvl("KAI_MINSAMPLES", DEFAULT_MIN_SAMPLES );
-    m_spec0.ulBufferSize = SAMPLESTOBYTES( ulMinSamples0, m_spec0 );
 
     // Use the resampler quality of KAI_RESAMPLERQ if specified
     m_iResamplerQ = getenvl("KAI_RESAMPLERQ", 0 );
@@ -171,6 +176,7 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         PULONG pulMinSamples = &m_aulMinSamples[ i ];
         PMIXERDEVICE pDevice = &m_aDevices[ i ];
         char szEnvName[ 30 ];
+        ULONG ulSamples;
 
         // Use the minimum samples if a device-specific one is given
         sprintf( szEnvName, "KAI_MINSAMPLES%d", i );
@@ -183,13 +189,17 @@ APIRET DLLEXPORT APIENTRY kaiInit( ULONG ulMode )
         pDevice->spec = m_spec0;
 
         pDevice->spec.usDeviceIndex = i;
-        pDevice->spec.ulBufferSize =
-            SAMPLESTOBYTES( *pulMinSamples, pDevice->spec );
 
         // Use the sampling rate if a device-specific one is given
         sprintf( szEnvName, "KAI_MIXERRATE%d", i );
         pDevice->spec.ulSamplingRate =
             getenvl( szEnvName, m_spec0.ulSamplingRate );
+
+        // Use the buffer size in samples if a device-specific one is given
+        sprintf( szEnvName, "KAI_MIXERSAMPLES%d", i );
+        ulSamples = getenvl( szEnvName, ulSamples0 );
+        pDevice->spec.ulBufferSize =
+            SAMPLESTOBYTES( ulSamples, pDevice->spec );
     }
 
     if( m_fServer )
