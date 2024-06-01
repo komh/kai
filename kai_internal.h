@@ -50,7 +50,7 @@ extern "C" {
 
 #define THREAD_STACK_SIZE   ( 1024 * 1024 )
 
-#define INITIAL_TIMEOUT ( 10 * 1000 )
+#define INITIAL_TIMEOUT ( 3 * 1000 )
 
 typedef struct tagKAIAPIS
 {
