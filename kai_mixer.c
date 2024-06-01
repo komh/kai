@@ -354,7 +354,7 @@ static VOID fillBuffer( PINSTANCELIST pil, void *arg )
     if( !ISSTREAM( pil ) || pil->hkai != pilMixer->hkai || !pms->fPlaying )
         return;
 
-    /* wWiting to play remainig buffers passed to audio driver such as DART */
+    /* Waiting to play remainig buffers passed to audio driver such as DART */
     if( pms->fEOS && --pms->lCountDown == 0 )
     {
         STORE( &pms->fFilling, FALSE );
