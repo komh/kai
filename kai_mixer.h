@@ -22,6 +22,8 @@
 
 #include "speex/speex_resampler.h"
 
+#include "kai_audiobuffer.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,14 +48,10 @@ typedef struct tagMIXERSTREAM
 
     TID tid;
     PKAISPEC pksMixer;
-    BUFFER buf;
-    BUFFER bufFill;
+    BUFFER bufRes;
+    PKAIAUDIOBUFFER pbuf;
 
-    BOOL fMoreData;
     BOOL fFilling;
-
-    HEV hevFill;
-    HEV hevFillDone;
 } MIXERSTREAM;
 
 // VAC++ 3.08 does not like multiple definition of the same type

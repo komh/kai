@@ -83,24 +83,25 @@ static void normalize( PVOID pBuffer, ULONG ulLen, PINSTANCELIST pil )
         /* resampling */
         spx_uint32_t inSamples = samples;
         spx_uint32_t outSamples =
-            BYTESTOSAMPLES( pms->bufFill.ulSize, *pksMixer );
+            BYTESTOSAMPLES( pms->bufRes.ulSize, *pksMixer );
 
         speex_resampler_set_rate( pms->srs,
             pks->ulSamplingRate, pksMixer->ulSamplingRate );
 
         speex_resampler_process_interleaved_int( pms->srs,
             ( spx_int16_t * )pBuffer, &inSamples,
-            ( spx_int16_t * )pms->bufFill.pch, &outSamples );
+            ( spx_int16_t * )pms->bufRes.pch, &outSamples );
 
         ulLen = SAMPLESTOBYTES( outSamples, *pksMixer );
     }
     else
     {
         /* straight copy */
-        memcpy( pms->bufFill.pch, pBuffer, ulLen );
+        memcpy( pms->bufRes.pch, pBuffer, ulLen );
     }
 
-    pms->bufFill.ulLen = ulLen;
+    pms->bufRes.ulLen = ulLen;
+    pms->bufRes.ulPos = 0;
 }
 
 static void mixerFillThread( void *arg )
@@ -108,32 +109,55 @@ static void mixerFillThread( void *arg )
     PINSTANCELIST pil = arg;
     PMIXERSTREAM pms = pil->pms;
     PKAISPEC pks = &pil->ks;
-    ULONG ulSize = pks->ulBufferSize;
-    ULONG ulLen = ulSize;
-    PCHAR pchBuf = alloca( ulSize );
+    ULONG ulBufSize;
+    ULONG ulBufLen;
+    PCH pchBuf;
+    ULONG ulCbBufSize = pks->ulBufferSize;
+    ULONG ulCbBufLen;
+    PCH pchCbBuf = alloca( ulCbBufSize );
+    BOOL fMoreData = TRUE;
 
     boostThread();
 
-    while( pms->fMoreData )
+    while( fMoreData || pms->bufRes.ulLen > 0 )
     {
-        ULONG ulPost;
-
-        while( DosWaitEventSem( pms->hevFill, SEM_INDEFINITE_WAIT ) ==
-                    ERROR_INTERRUPT )
-            /* nothing */;
-
-        DosResetEventSem( pms->hevFill, &ulPost );
+        bufWriteLock( pms->pbuf, ( PVOID * )&pchBuf, &ulBufSize );
 
         if( !pms->fFilling )
             break;
 
-        ulLen = pil->pfnUserCb( pil->pUserData, pchBuf, ulSize );
-        normalize( pchBuf, ulLen, pil );
+        ulBufLen = 0;
 
-        if( ulLen < ulSize )
-            STORE( &pms->fMoreData, FALSE );
+        do
+        {
+            if( pms->bufRes.ulLen == 0 )
+            {
+                if( !fMoreData )
+                    break;
 
-        DosPostEventSem( pms->hevFillDone );
+                ulCbBufLen = pil->pfnUserCb( pil->pUserData,
+                                             pchCbBuf, ulCbBufSize );
+
+                if( ulCbBufLen < ulCbBufSize )
+                    fMoreData = FALSE;
+
+                normalize( pchCbBuf, ulCbBufLen, pil );
+            }
+
+            ulCbBufLen = pms->bufRes.ulLen < ulBufSize ?
+                         pms->bufRes.ulLen : ulBufSize;
+
+            memcpy( pchBuf + ulBufLen, pms->bufRes.pch + pms->bufRes.ulPos,
+                    ulCbBufLen );
+
+            ulBufLen += ulCbBufLen;
+            ulBufSize -= ulCbBufLen;
+
+            pms->bufRes.ulLen -= ulCbBufLen;
+            pms->bufRes.ulPos += ulCbBufLen;
+        } while( ulBufSize > 0 );
+
+        bufWriteUnlock( pms->pbuf, ulBufLen );
     }
 }
 
@@ -187,27 +211,24 @@ APIRET _kaiStreamPlay( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
     PINSTANCELIST pilMixer;
-    ULONG ulCount;
     APIRET rc = KAIE_NO_ERROR;
 
     if( pms->fPlaying )
         return KAIE_NO_ERROR;
 
-    pms->buf.ulLen = 0;
-    pms->buf.ulPos = 0;
+    pilMixer = instanceVerify( pil->hkai, IVF_MIXER );
 
-    DosPostEventSem( pms->hevFill );
-    DosResetEventSem( pms->hevFillDone, &ulCount );
+    pms->pbuf = bufCreate( pilMixer->ks.ulNumBuffers,
+                           pilMixer->ks.ulBufferSize );
+    if( !pms->pbuf )
+        return KAIE_NOT_ENOUGH_MEMORY;
 
-    STORE( &pms->fMoreData, TRUE );
     STORE( &pms->fFilling, TRUE );
 
     pms->tid = _beginthread( mixerFillThread, NULL, THREAD_STACK_SIZE, pil );
 
     // prevent initial buffer-underrun and unnecessary latency
-    DosWaitEventSem( pms->hevFillDone, INITIAL_TIMEOUT );
-
-    pilMixer = instanceVerify( pil->hkai, IVF_MIXER );
+    bufReadWaitDone( pms->pbuf, INITIAL_TIMEOUT );
 
     instanceLock( pilMixer );
 
@@ -255,9 +276,11 @@ APIRET _kaiStreamStop( PINSTANCELIST pil )
     {
         STORE( &pms->fFilling, FALSE );
 
-        DosPostEventSem( pms->hevFill );
+        bufWritePostFill( pms->pbuf );
         while( DosWaitThread( &pms->tid, DCWW_WAIT ) == ERROR_INTERRUPT )
             /* nothing */;
+
+        bufDestroy( pms->pbuf );
 
         STORE( &pms->fPlaying, FALSE );
         STORE( &pms->fPaused, FALSE );
@@ -302,7 +325,7 @@ APIRET _kaiStreamClearBuffer( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
 
-    memset( pms->buf.pch, pil->ks.bSilence, pms->buf.ulSize );
+    bufClear( pms->pbuf, pil->ks.bSilence );
 
     return KAIE_NO_ERROR;
 }
@@ -331,21 +354,19 @@ typedef struct fillBufferArgs
     ULONG ulBufSize;
     PCHAR pchBuf;
     ULONG ulMaxLen;
-    ULONG ulTimeout;
 } FILLBUFFERARGS, *PFILLBUFFERARGS;
 
 static VOID fillBuffer( PINSTANCELIST pil, void *arg )
 {
     PFILLBUFFERARGS pargs = arg;
     PINSTANCELIST pilMixer = pargs->pilMixer;
-    PVOID pBuffer = pargs->pBuffer;
-    ULONG ulBufSize = pargs->ulBufSize;
+    PVOID pMixerBuffer = pargs->pBuffer;
+    ULONG ulMixerBufSize = pargs->ulBufSize;
     PCHAR pchBuf = pargs->pchBuf;
-    ULONG ulTimeout = pargs->ulTimeout;
 
     PMIXERSTREAM pms = pil->pms;
-    ULONG ulLen = 0;
-    ULONG ulRem = ulBufSize;
+    PVOID pBuffer;
+    ULONG ulLen;
 
     short *pDst;
     short *pSrc;
@@ -360,7 +381,7 @@ static VOID fillBuffer( PINSTANCELIST pil, void *arg )
         STORE( &pms->fFilling, FALSE );
 
         /* Terminate fill thread */
-        DosPostEventSem( pms->hevFill );
+        bufWritePostFill( pms->pbuf );
 
         STORE( &pms->fPlaying, FALSE );
         STORE( &pms->fPaused, FALSE );
@@ -372,54 +393,20 @@ static VOID fillBuffer( PINSTANCELIST pil, void *arg )
 
     /* Read from normalized buffer */
     if( pms->fEOS || pms->fPaused ||
-        ( pms->fMoreData && pms->buf.ulLen < ulBufSize &&
-          DosWaitEventSem( pms->hevFillDone, ulTimeout )))
+        bufReadLock( pms->pbuf, &pBuffer, &ulLen ) == -1 )
     {
         if( !pms->fEOS && !pms->fPaused )
             dprintf("MIXER: buffer underrun!");
 
-        pargs->ulMaxLen = ulBufSize;
+        pargs->ulMaxLen = ulMixerBufSize;
 
         return;
     }
     else
     {
-        ULONG ulCopyLen;
+        memcpy( pchBuf, pBuffer, ulLen );
 
-        if( pms->buf.ulLen < ulBufSize )
-        {
-            /* hevFillDone posted */
-
-            ULONG ulCount;
-
-            DosResetEventSem( pms->hevFillDone, &ulCount );
-
-            /* Copy remained buffer */
-            memcpy( pchBuf, pms->buf.pch + pms->buf.ulPos,
-                    pms->buf.ulLen );
-
-            ulLen += pms->buf.ulLen;
-            ulRem -= pms->buf.ulLen;
-
-            memcpy( pms->buf.pch, pms->bufFill.pch, pms->bufFill.ulLen );
-            pms->buf.ulLen = pms->bufFill.ulLen;
-            pms->buf.ulPos = 0;
-
-            if( pms->fMoreData )
-                DosPostEventSem( pms->hevFill );
-            else
-                pms->bufFill.ulLen = 0;
-        }
-
-        /* Transfer from normalized buffer */
-        ulCopyLen = ulRem < pms->buf.ulLen ? ulRem : pms->buf.ulLen;
-        memcpy( pchBuf + ulLen, pms->buf.pch + pms->buf.ulPos, ulCopyLen );
-
-        pms->buf.ulLen -= ulCopyLen;
-        pms->buf.ulPos += ulCopyLen;
-
-        ulLen += ulCopyLen;
-        ulRem -= ulCopyLen;
+        bufReadUnlock( pms->pbuf );
     }
 
     /* Process soft volume */
@@ -429,18 +416,18 @@ static VOID fillBuffer( PINSTANCELIST pil, void *arg )
         APPLY_SOFT_VOLUME( PSHORT, pchBuf, ulLen, pil );
 
     /* End of stream ? */
-    if( ulLen < ulBufSize )
+    if( ulLen < ulMixerBufSize )
     {
         pms->fEOS = TRUE;
         pms->lCountDown = pil->ks.ulNumBuffers;
 
-        memset( pchBuf + ulLen, 0, ulRem );
+        memset( pchBuf + ulLen, 0, ulMixerBufSize - ulLen );
 
-        ulLen = ulBufSize;
+        ulLen = ulMixerBufSize;
     }
 
     /* Synthesize audio streams */
-    pDst = pBuffer;
+    pDst = pMixerBuffer;
     pSrc = ( short * )pchBuf;
     pEnd = pSrc + ulLen / sizeof( *pSrc );
 
@@ -475,13 +462,6 @@ static ULONG APIENTRY kaiMixerCallBack( PVOID pCBData, PVOID pBuffer,
     args.ulBufSize = ulBufSize;
     args.pchBuf = alloca( ulBufSize );
     args.ulMaxLen = 0;
-
-    /* On DART mode, callback is called many times without playing at inital
-       time. This may lead to buffer-underrun.
-       So if only one stream, wait for like initial time. Buffer-underrun will
-       be processed in DART or UNIAUD interface. */
-    args.ulTimeout = instancePlayingStreamCount( args.pilMixer->hkai ) == 1 ?
-                     INITIAL_TIMEOUT : SEM_IMMEDIATE_RETURN;
 
     instanceLoop( fillBuffer, &args );
 
@@ -607,9 +587,6 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
                                               pksWanted->ulSamplingRate,
                                               pilMixer->ks.ulSamplingRate,
                                               _kaiGetResamplerQ(), &err );
-
-        DosCreateEventSem( NULL, &pil->pms->hevFill, 0, FALSE );
-        DosCreateEventSem( NULL, &pil->pms->hevFillDone, 0, FALSE );
     }
 
     if( !pil || !pil->pms->srs )

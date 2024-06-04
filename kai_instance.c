@@ -42,12 +42,9 @@ PINSTANCELIST _kaiInstanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks )
 
         pms = pilNew->pms = calloc( 1, sizeof( MIXERSTREAM ));
         if( pms )
-        {
-            pms->buf.pch = malloc( ulBufSize );
-            pms->bufFill.pch = malloc( ulBufSize );
-        }
+            pms->bufRes.pch = malloc( ulBufSize );
 
-        if( !pms || !pms->buf.pch || !pms->bufFill.pch )
+        if( !pms || !pms->bufRes.pch )
         {
             instanceFree( pilNew );
 
@@ -55,8 +52,7 @@ PINSTANCELIST _kaiInstanceNew( BOOL fStream, PKAISPEC pksMixer, PKAISPEC pks )
         }
 
         pms->pksMixer = pksMixer;
-        pms->buf.ulSize = ulBufSize;
-        pms->bufFill.ulSize = ulBufSize;
+        pms->bufRes.ulSize = ulBufSize;
     }
 
     pilNew->lLeftVol    = 100;
@@ -81,15 +77,10 @@ VOID _kaiInstanceFree( PINSTANCELIST pil )
 
         if( pms )
         {
-            DosCloseEventSem( pms->hevFill );
-            DosCloseEventSem( pms->hevFillDone );
-
             if( pms->srs )
                 speex_resampler_destroy( pms->srs );
 
-            free( pms->buf.pch );
-            free( pms->bufFill.pch );
-
+            free( pms->bufRes.pch );
             free( pms );
         }
 
