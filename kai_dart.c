@@ -222,7 +222,7 @@ static APIRET APIENTRY dartStop( HKAI hkai )
 
     STORE( &pdi->fFilling, FALSE );
 
-    bufWritePostFill( pdi->pbuf );
+    bufWriteCancel( pdi->pbuf );
     while( DosWaitThread( &pdi->tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT )
         /* nothing */;
 

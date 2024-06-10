@@ -175,7 +175,7 @@ LONG _kaiBufWriteUnlock( PKAIAUDIOBUFFER pbuf, ULONG ulLength )
     return 0;
 }
 
-VOID _kaiBufWritePostFill( PKAIAUDIOBUFFER pbuf )
+VOID _kaiBufWriteCancel( PKAIAUDIOBUFFER pbuf )
 {
     DosPostEventSem( pbuf->abufelm[ pbuf->ulWritePos ].hevFill );
 }

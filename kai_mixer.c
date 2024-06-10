@@ -276,7 +276,7 @@ APIRET _kaiStreamStop( PINSTANCELIST pil )
     {
         STORE( &pms->fFilling, FALSE );
 
-        bufWritePostFill( pms->pbuf );
+        bufWriteCancel( pms->pbuf );
         while( DosWaitThread( &pms->tid, DCWW_WAIT ) == ERROR_INTERRUPT )
             /* nothing */;
 
@@ -381,7 +381,7 @@ static VOID fillBuffer( PINSTANCELIST pil, void *arg )
         STORE( &pms->fFilling, FALSE );
 
         /* Terminate fill thread */
-        bufWritePostFill( pms->pbuf );
+        bufWriteCancel( pms->pbuf );
 
         STORE( &pms->fPlaying, FALSE );
         STORE( &pms->fPaused, FALSE );

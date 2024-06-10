@@ -554,7 +554,7 @@ static void uniaudPlayThread( void *arg )
 
     STORE( &pui->fFilling, FALSE );
 
-    bufWritePostFill( pui->pbuf );
+    bufWriteCancel( pui->pbuf );
     while( DosWaitThread( &tidFillThread, DCWW_WAIT ) == ERROR_INTERRUPT )
         /* nothing */;
 

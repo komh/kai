@@ -33,7 +33,7 @@ LONG _kaiBufReadUnlock( PKAIAUDIOBUFFER pbuf );
 VOID _kaiBufReadWaitFull( PKAIAUDIOBUFFER pbuf );
 LONG _kaiBufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize );
 LONG _kaiBufWriteUnlock( PKAIAUDIOBUFFER pbuf, ULONG ulLength );
-VOID _kaiBufWritePostFill( PKAIAUDIOBUFFER pbuf );
+VOID _kaiBufWriteCancel( PKAIAUDIOBUFFER pbuf );
 VOID _kaiBufClear( PKAIAUDIOBUFFER pbuf, UCHAR uch );
 
 #define bufCreate           _kaiBufCreate
@@ -43,7 +43,7 @@ VOID _kaiBufClear( PKAIAUDIOBUFFER pbuf, UCHAR uch );
 #define bufReadWaitFull     _kaiBufReadWaitFull
 #define bufWriteLock        _kaiBufWriteLock
 #define bufWriteUnlock      _kaiBufWriteUnlock
-#define bufWritePostFill    _kaiBufWritePostFill
+#define bufWriteCancel      _kaiBufWriteCancel
 #define bufClear            _kaiBufClear
 
 #ifdef __cplusplus
