@@ -228,7 +228,7 @@ APIRET _kaiStreamPlay( PINSTANCELIST pil )
     pms->tid = _beginthread( mixerFillThread, NULL, THREAD_STACK_SIZE, pil );
 
     // prevent initial buffer-underrun and unnecessary latency
-    bufReadWaitDone( pms->pbuf, INITIAL_TIMEOUT );
+    bufReadWaitFull( pms->pbuf );
 
     instanceLock( pilMixer );
 

@@ -461,7 +461,7 @@ static void uniaudPlayThread( void *arg )
     timeout *= pui->pcm->channels;
 
     // prevent initial buffer-underrun and unnecessary latency
-    bufReadWaitDone( pui->pbuf, INITIAL_TIMEOUT );
+    bufReadWaitFull( pui->pbuf );
 
     STORE( &pui->fPlaying, TRUE );
     STORE( &pui->fPaused, FALSE );

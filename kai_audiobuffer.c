@@ -36,6 +36,7 @@ struct KAIAUDIOBUFFER {
     ULONG ulNumBuffers;
     ULONG ulReadPos;
     ULONG ulWritePos;
+    HEV   hevFull;
 
     KAIAUDIOBUFFERELEMENT abufelm[ 1 ];
 };
@@ -49,6 +50,13 @@ PKAIAUDIOBUFFER _kaiBufCreate( ULONG ulNum, ULONG ulSize )
                       ( ulNum - 1 ) * sizeof( KAIAUDIOBUFFERELEMENT ));
     if( !pbuf )
         return NULL;
+
+    if( DosCreateEventSem( NULL, &pbuf->hevFull, 0, FALSE ))
+    {
+        free( pbuf);
+
+        return NULL;
+    }
 
     for( i = 0; i < ulNum; i++ )
     {
@@ -89,6 +97,7 @@ VOID _kaiBufDestroy( PKAIAUDIOBUFFER pbuf )
         DosCloseEventSem( pbufelm->hevDone );
     }
 
+    DosCloseEventSem( pbuf->hevFull );
     free( pbuf );
 }
 
@@ -122,11 +131,11 @@ LONG _kaiBufReadUnlock( PKAIAUDIOBUFFER pbuf )
     return 0;
 }
 
-VOID _kaiBufReadWaitDone( PKAIAUDIOBUFFER pbuf, ULONG ulTimeout )
+VOID _kaiBufReadWaitFull( PKAIAUDIOBUFFER pbuf )
 {
-    PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ pbuf->ulReadPos ];
-
-    DosWaitEventSem( pbufelm->hevDone, ulTimeout );
+    while( DosWaitEventSem( pbuf->hevFull, SEM_INDEFINITE_WAIT )
+           == ERROR_INTERRUPT )
+        /* nothing */;
 }
 
 LONG _kaiBufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize )
@@ -149,10 +158,17 @@ LONG _kaiBufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize )
 LONG _kaiBufWriteUnlock( PKAIAUDIOBUFFER pbuf, ULONG ulLength )
 {
     PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ pbuf->ulWritePos ];
+    PKAIAUDIOBUFFERELEMENT pbufelmNext;
 
     pbufelm->ulLength = ulLength;
 
     pbuf->ulWritePos = ( pbuf->ulWritePos + 1 ) % pbuf->ulNumBuffers;
+
+    pbufelmNext = &pbuf->abufelm[ pbuf->ulWritePos ];
+    if( ulLength < pbufelm->ulSize  /* Last buffer */
+        || DosWaitEventSem( pbufelmNext->hevFill, SEM_IMMEDIATE_RETURN )
+           != NO_ERROR /* Buffer full */)
+        DosPostEventSem( pbuf->hevFull );
 
     DosPostEventSem( pbufelm->hevDone );
 
