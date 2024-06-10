@@ -218,7 +218,7 @@ APIRET _kaiStreamPlay( PINSTANCELIST pil )
 
     pilMixer = instanceVerify( pil->hkai, IVF_MIXER );
 
-    pms->pbuf = bufCreate( pil->ks.ulNumBuffers,
+    pms->pbuf = bufCreate( pilMixer->ks.ulNumBuffers,
                            pilMixer->ks.ulBufferSize );
     if( !pms->pbuf )
         return KAIE_NOT_ENOUGH_MEMORY;
@@ -497,6 +497,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
         SAMPLESTOBYTES( _kaiGetMinSamples( pksWanted->usDeviceIndex ),
                         *pksWanted );
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
+    pil->ks.ulNumBuffers = 2;   /* Limit buffers of backend to 2 */
     if( pil->ks.ulBufferSize > 0 && pil->ks.ulBufferSize < ulMinBufferSize )
         pil->ks.ulBufferSize = ulMinBufferSize;
     pil->ks.pfnCallBack   = kaiMixerCallBack;
@@ -511,6 +512,11 @@ APIRET DLLEXPORT APIENTRY kaiMixerOpen( const PKAISPEC pksWanted,
 
         return rc;
     }
+
+    /* Record an user supplied a number of buffers to use later, and it should
+       be 2 at least */
+    if( pil->ks.ulNumBuffers < pksWanted->ulNumBuffers )
+        pil->ks.ulNumBuffers = pksWanted->ulNumBuffers;
 
     memcpy( pksObtained, &pil->ks, sizeof( KAISPEC ));
     pksObtained->pfnCallBack   = NULL;
@@ -598,7 +604,7 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
 
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
     pil->ks.usDeviceIndex = pilMixer->ks.usDeviceIndex;
-    pil->ks.ulNumBuffers  = 2;  /* always 2 for streams */
+    pil->ks.ulNumBuffers  = pilMixer->ks.ulNumBuffers;
     pil->ks.ulBufferSize  =
         SAMPLESTOBYTES( BYTESTOSAMPLES(pilMixer->ks.ulBufferSize,
                                        pilMixer->ks), pil->ks);
