@@ -314,7 +314,7 @@ APIRET APIENTRY kaiMixerClose( HKAIMIXER hkm );
  * @param[out] pksObtained Obtained specification
  * @param[out] phkms Opened KAIMIXERSTREAM instance
  * @return KAIE_NO_ERROR on success, or error codes
- * @remark usDeviceIndex, ulNumBuffer, ulBufferSize and fShareble of
+ * @remark usDeviceIndex, ulBufferSize and fShareble of
  *         @a pksWanted are ignored
  * @remark fShareble of @a pksObtained is always TRUE
  */

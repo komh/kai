@@ -218,7 +218,7 @@ APIRET _kaiStreamPlay( PINSTANCELIST pil )
 
     pilMixer = instanceVerify( pil->hkai, IVF_MIXER );
 
-    pms->pbuf = bufCreate( pilMixer->ks.ulNumBuffers,
+    pms->pbuf = bufCreate( pil->ks.ulNumBuffers,
                            pilMixer->ks.ulBufferSize );
     if( !pms->pbuf )
         return KAIE_NOT_ENOUGH_MEMORY;
@@ -604,7 +604,10 @@ APIRET DLLEXPORT APIENTRY kaiMixerStreamOpen( HKAIMIXER hkm,
 
     memcpy( &pil->ks, pksWanted, sizeof( KAISPEC ));
     pil->ks.usDeviceIndex = pilMixer->ks.usDeviceIndex;
-    pil->ks.ulNumBuffers  = pilMixer->ks.ulNumBuffers;
+    /* A number of buffers as twice as a mixer at least */
+    pil->ks.ulNumBuffers  = pilMixer->ks.ulNumBuffers * 2;
+    if( pil->ks.ulNumBuffers < pksWanted->ulNumBuffers )
+        pil->ks.ulNumBuffers = pksWanted->ulNumBuffers;
     pil->ks.ulBufferSize  =
         SAMPLESTOBYTES( BYTESTOSAMPLES(pilMixer->ks.ulBufferSize,
                                        pilMixer->ks), pil->ks);
