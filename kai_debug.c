@@ -46,12 +46,12 @@ void _kaiDprintf( const char *format, ... )
     va_start( args, format );
 #ifndef __IBMC__
     vsnprintf( msg, sizeof( msg ), format, args );
-    snprintf( tmsg, sizeof( tmsg ), "%02d%02d%02d%02d%02d%02d %s\n",
+    snprintf( tmsg, sizeof( tmsg ), "%02d-%02d %02d:%02d:%02d.%02d %s\n",
               dt.month, dt.day,
               dt.hours, dt.minutes, dt.seconds, dt.hundredths, msg );
 #else
     vsprintf( msg, format, args );
-    sprintf( tmsg, "%02d%02d%02d%02d%02d%02d %s\n",
+    sprintf( tmsg, "%02d-%02d %02d:%02d:%02d.%02d %s\n",
              dt.month, dt.day,
              dt.hours, dt.minutes, dt.seconds, dt.hundredths, msg );
 #endif
