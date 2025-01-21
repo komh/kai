@@ -104,7 +104,7 @@ static void normalize( PVOID pBuffer, ULONG ulLen, PINSTANCELIST pil )
     pms->bufRes.ulPos = 0;
 }
 
-static void mixerFillThread( void *arg )
+static void streamFillThread( void *arg )
 {
     PINSTANCELIST pil = arg;
     PMIXERSTREAM pms = pil->pms;
@@ -116,8 +116,6 @@ static void mixerFillThread( void *arg )
     ULONG ulCbBufLen;
     PCH pchCbBuf = alloca( ulCbBufSize );
     BOOL fMoreData = TRUE;
-
-    boostThread();
 
     while( fMoreData || pms->bufRes.ulLen > 0 )
     {
@@ -159,6 +157,83 @@ static void mixerFillThread( void *arg )
 
         bufWriteUnlock( pms->pbuf, ulBufLen );
     }
+}
+
+static void streamPlayThread( void *arg )
+{
+    PINSTANCELIST pil = arg;
+    PMIXERSTREAM pms = pil->pms;
+    PINSTANCELIST pilMixer;
+
+    boostThread();
+
+    pilMixer = instanceVerify( pil->hkai, IVF_MIXER );
+
+    pms->pbuf = bufCreate( pil->ks.ulNumBuffers, pilMixer->ks.ulBufferSize );
+    if( !pms->pbuf )
+    {
+        dprintf("MIXER: cannot allocate audio buffers!");
+
+        goto exit_error;
+    }
+
+    STORE( &pms->fFilling, TRUE );
+
+    pms->tid = _beginthread( streamFillThread, NULL, THREAD_STACK_SIZE, pil );
+    if( pms->tid == -1)
+    {
+        dprintf("MIXER: cannot create a filling thread!");
+
+        bufDestroy( pms->pbuf );
+
+        goto exit_error;
+    }
+
+    // prevent initial buffer-underrun and unnecessary latency
+    bufReadWaitFull( pms->pbuf );
+
+    instanceLock( pilMixer );
+
+    STORE( &pms->fActive, TRUE );
+
+    if( instancePlayingStreamCount( pil->hkai ) == 1 )
+    {
+        APIRET rc;
+
+        /* Ensure to stop playing in sub-system before trying to play in
+           sub-system because sub-system plays a little more even if playing
+           a mixer stream is completed. Otherwise sub-system does not start
+           to play because it thinks it is already playing */
+        _kaiGetApi()->pfnStop( pil->hkai );
+
+        rc =_kaiGetApi()->pfnPlay( pil->hkai );
+        if( rc != KAIE_NO_ERROR )
+        {
+            dprintf("MIXER: backend pfnPlay() failed!, rc = %04X", rc );
+
+            streamStop( pil );  // clean up
+
+            instanceUnlock( pilMixer );
+
+            goto exit_error;
+        }
+    }
+
+    instanceUnlock( pilMixer );
+
+    DosPostEventSem( pms->hevPlayInited );
+
+    return;
+
+exit_error:
+    STORE( &pms->fFilling, FALSE );
+    STORE( &pms->fPlaying, FALSE );
+    STORE( &pms->fPaused, FALSE );
+    STORE( &pms->fCompleted, FALSE );
+    STORE( &pms->fActive, FALSE );
+
+    DosPostEventSem( pms->hevPlayInited );
+    DosCloseEventSem( pms->hevPlayInited );
 }
 
 APIRET _kaiStreamOpen( PKAISPEC pksMixer, PHKAIMIXER phkm,
@@ -210,50 +285,33 @@ APIRET _kaiStreamClose( PHKAIMIXER phkm, HKAIMIXERSTREAM hkms )
 APIRET _kaiStreamPlay( PINSTANCELIST pil )
 {
     PMIXERSTREAM pms = pil->pms;
-    PINSTANCELIST pilMixer;
-    APIRET rc = KAIE_NO_ERROR;
+    TID tid;
 
     if( pms->fPlaying )
         return KAIE_NO_ERROR;
 
-    pilMixer = instanceVerify( pil->hkai, IVF_MIXER );
-
-    pms->pbuf = bufCreate( pil->ks.ulNumBuffers,
-                           pilMixer->ks.ulBufferSize );
-    if( !pms->pbuf )
+    if( DosCreateEventSem( NULL, &pms->hevPlayInited, 0, FALSE ))
         return KAIE_NOT_ENOUGH_MEMORY;
-
-    STORE( &pms->fFilling, TRUE );
-
-    pms->tid = _beginthread( mixerFillThread, NULL, THREAD_STACK_SIZE, pil );
-
-    // prevent initial buffer-underrun and unnecessary latency
-    bufReadWaitFull( pms->pbuf );
-
-    instanceLock( pilMixer );
 
     /* Set fPlaying to TRUE before calling pfnPlay() to prevent
        calling call back function from being stopped */
     STORE( &pms->fPlaying, TRUE );
     STORE( &pms->fPaused, FALSE );
     STORE( &pms->fCompleted, FALSE );
+    STORE( &pms->fActive, FALSE );
 
-    if( instancePlayingStreamCount( pil->hkai ) == 1 )
+    tid = _beginthread( streamPlayThread, NULL, THREAD_STACK_SIZE, pil );
+    if( tid == -1 )
     {
-        /* Ensure to stop playing in sub-system before trying to play in
-           sub-system because sub-system plays a little more even if playing
-           a mixer stream is completed. Otherwise sub-system does not start
-           to play because it thinks it is already playing */
-        _kaiGetApi()->pfnStop( pil->hkai );
+        STORE( &pms->fPlaying, FALSE );
 
-        rc = _kaiGetApi()->pfnPlay( pil->hkai );
-        if( rc )
-            streamStop( pil );  // clean up
+        DosPostEventSem( pms->hevPlayInited );
+        DosCloseEventSem( pms->hevPlayInited );
+
+        return KAIE_NOT_ENOUGH_MEMORY;
     }
 
-    instanceUnlock( pilMixer );
-
-    return rc;
+    return KAIE_NO_ERROR;
 }
 
 APIRET _kaiStreamStop( PINSTANCELIST pil )
@@ -264,6 +322,11 @@ APIRET _kaiStreamStop( PINSTANCELIST pil )
 
     if( !pms->fPlaying )
         return KAIE_NO_ERROR;
+
+    /* wait for a play thread to finalize */
+    while( DosWaitEventSem( pms->hevPlayInited, SEM_INDEFINITE_WAIT )
+           == ERROR_INTERRUPT )
+        /* nothing */;
 
     pilMixer = instanceVerify( pil->hkai, IVF_MIXER );
 
@@ -284,6 +347,9 @@ APIRET _kaiStreamStop( PINSTANCELIST pil )
 
         STORE( &pms->fPlaying, FALSE );
         STORE( &pms->fPaused, FALSE );
+        STORE( &pms->fActive, FALSE );
+
+        DosCloseEventSem( pms->hevPlayInited );
     }
 
     instanceUnlock( pilMixer );
@@ -372,7 +438,8 @@ static VOID fillBuffer( PINSTANCELIST pil, void *arg )
     short *pSrc;
     short *pEnd;
 
-    if( !ISSTREAM( pil ) || pil->hkai != pilMixer->hkai || !pms->fPlaying )
+    if( !ISSTREAM( pil ) || pil->hkai != pilMixer->hkai || !pms->fPlaying
+        || !pms->fActive )
         return;
 
     /* Waiting to play remainig buffers passed to audio driver such as DART */
@@ -386,6 +453,8 @@ static VOID fillBuffer( PINSTANCELIST pil, void *arg )
         STORE( &pms->fPlaying, FALSE );
         STORE( &pms->fPaused, FALSE );
         STORE( &pms->fCompleted, TRUE );
+        STORE( &pms->fActive, FALSE );
+
         pms->fEOS = FALSE;
 
         return;

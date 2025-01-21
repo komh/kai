@@ -41,6 +41,7 @@ typedef struct tagMIXERSTREAM
     BOOL fPlaying;
     BOOL fPaused;
     BOOL fCompleted;
+    BOOL fActive;
     BOOL fEOS;
     LONG lCountDown;
 
@@ -52,6 +53,7 @@ typedef struct tagMIXERSTREAM
     PKAIAUDIOBUFFER pbuf;
 
     BOOL fFilling;
+    HEV  hevPlayInited;
 } MIXERSTREAM;
 
 // VAC++ 3.08 does not like multiple definition of the same type

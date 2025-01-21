@@ -57,6 +57,7 @@ typedef struct tagUNIAUDINFO
     BOOL             fPaused;
     BOOL             fCompleted;
     BOOL             fFilling;
+    BOOL             fQuit;
 } UNIAUDINFO, *PUNIAUDINFO;
 #pragma pack()
 
@@ -426,11 +427,13 @@ static APIRET APIENTRY uniaudStop( HKAI hkai )
 
     tid = pui->tidPlayThread;
 
-    STORE( &pui->fPlaying, FALSE );
-    STORE( &pui->fPaused, FALSE );
+    STORE( &pui->fQuit, TRUE );
 
     while( DosWaitThread( &tid, DCWW_WAIT ) == ERROR_INTERRUPT )
         /* nothing */;
+
+    STORE( &pui->fPlaying, FALSE );
+    STORE( &pui->fPaused, FALSE );
 
     return KAIE_NO_ERROR;
 }
@@ -484,8 +487,12 @@ static void uniaudPlayThread( void *arg )
     pui->pbuf = bufCreate( pui->ulNumBuffers, pui->ulBufferSize );
     if( !pchBuffer || !pui->pbuf )
     {
+        dprintf("UNIAUD: cannot allocate buffers!");
+
         bufDestroy( pui->pbuf );
         free( pchBuffer );
+
+        STORE( &pui->fPlaying, FALSE );
 
         return;
     }
@@ -494,17 +501,25 @@ static void uniaudPlayThread( void *arg )
 
     tidFillThread = _beginthread( uniaudFillThread, NULL, THREAD_STACK_SIZE,
                                   pui );
+    if( tidFillThread == -1 )
+    {
+        dprintf("UNIAUD: cannot create a filling thread!");
+
+        bufDestroy( pui->pbuf );
+        free( pchBuffer );
+
+        STORE( &pui->fFilling, FALSE );
+        STORE( &pui->fPlaying, FALSE );
+
+        return;
+    }
 
     timeout *= pui->pcm->channels;
 
     // prevent initial buffer-underrun and unnecessary latency
     bufReadWaitFull( pui->pbuf );
 
-    STORE( &pui->fPlaying, TRUE );
-    STORE( &pui->fPaused, FALSE );
-    STORE( &pui->fCompleted, FALSE );
-
-    while( pui->fPlaying )
+    while( !pui->fQuit )
     {
         if( bufReadLock( pui->pbuf, &pBuffer, &ulLength )
             == 0 )
@@ -523,7 +538,7 @@ static void uniaudPlayThread( void *arg )
         }
 
         written = 0;
-        while( pui->fPlaying && written < count )
+        while( !pui->fQuit && written < count )
         {
             if( pui->fPaused )
             {
@@ -738,8 +753,19 @@ static APIRET APIENTRY uniaudPlay( HKAI hkai )
 
     uniaud_pcm_prepare( pui->pcm );
 
+    STORE( &pui->fPlaying, TRUE );
+    STORE( &pui->fPaused, FALSE );
+    STORE( &pui->fCompleted, FALSE );
+    STORE( &pui->fQuit, FALSE );
+
     pui->tidPlayThread = _beginthread( uniaudPlayThread, NULL,
                                        THREAD_STACK_SIZE, pui );
+    if( pui->tidPlayThread == -1 )
+    {
+        STORE( &pui->fPlaying, FALSE );
+
+        return KAIE_NOT_ENOUGH_MEMORY;
+    }
 
     return KAIE_NO_ERROR;
 }

@@ -133,9 +133,7 @@ LONG _kaiBufReadUnlock( PKAIAUDIOBUFFER pbuf )
 
 VOID _kaiBufReadWaitFull( PKAIAUDIOBUFFER pbuf )
 {
-    while( DosWaitEventSem( pbuf->hevFull, SEM_INDEFINITE_WAIT )
-           == ERROR_INTERRUPT )
-        /* nothing */;
+    DosWaitEventSem( pbuf->hevFull, INITIAL_TIMEOUT );
 }
 
 LONG _kaiBufWriteLock( PKAIAUDIOBUFFER pbuf, PPVOID ppBuffer, PULONG pulSize )

@@ -69,6 +69,7 @@ typedef struct DARTINFO
     BOOL                fPaused;
     BOOL                fCompleted;
     SPINLOCK            lockStop;
+    HEV                 hevPlayInited;
 } DARTINFO, *PDARTINFO;
 #pragma pack()
 
@@ -203,6 +204,11 @@ static APIRET APIENTRY dartStop( HKAI hkai )
         return KAIE_NO_ERROR;
     }
 
+    /* wait for a play thread to finalize */
+    while( DosWaitEventSem( pdi->hevPlayInited, SEM_INDEFINITE_WAIT )
+           == ERROR_INTERRUPT )
+        /* nothing */;
+
     memset( &GenericParms, 0, sizeof( GenericParms ));
 
     GenericParms.hwndCallback = 0;
@@ -230,6 +236,8 @@ static APIRET APIENTRY dartStop( HKAI hkai )
 
     STORE( &pdi->fPlaying, FALSE );
     STORE( &pdi->fPaused , FALSE );
+
+    DosCloseEventSem( pdi->hevPlayInited );
 
     spinUnlock( &pdi->lockStop );
 
@@ -276,8 +284,6 @@ static void dartFillThread( void *arg )
     PVOID pBuffer;
     ULONG ulSize;
     ULONG ulLength;
-
-    boostThread();
 
     do
     {
@@ -614,34 +620,35 @@ static BOOL isReady( HKAI hkai )
     return StatusParms.ulReturn;
 }
 
-static APIRET APIENTRY dartPlay( HKAI hkai )
+static void dartPlayThread( void *arg )
 {
-    PDARTINFO pdi = ( PDARTINFO )hkai;
-    ULONG     ulLatency;
+    PDARTINFO pdi = arg;
     int       i;
     ULONG     rc;
 
-    if( pdi->fPlaying )
-        return KAIE_NO_ERROR;
-
-    if( !isReady( hkai ))
-        return KAIE_NOT_READY;
-
-    /* Workaround for dart which does not progress when trying to play
-       right after completed */
-    ulLatency = _kaiGetPlayLatency();
-    if( ulLatency )
-        DosSleep( ulLatency );
+    boostThread();
 
     pdi->pbuf = bufCreate( pdi->ulNumBuffers, pdi->ulBufferSize );
     if( !pdi->pbuf )
-        return KAIE_NOT_ENOUGH_MEMORY;
+    {
+        dprintf("DART: cannot allocate audio buffers!");
+
+        goto exit_error;
+    }
 
     STORE( &pdi->fWaitStreamEnd, FALSE );
     STORE( &pdi->fFilling, TRUE );
 
     pdi->tidFillThread = _beginthread( dartFillThread, NULL,
                                        THREAD_STACK_SIZE, pdi );
+    if( pdi->tidFillThread == -1 )
+    {
+        dprintf("DART: cannot create a filling thread!");
+
+        bufDestroy( pdi->pbuf );
+
+        goto exit_error;
+    }
 
     // prevent initial buffer-underrun and unnecessary latency
     bufReadWaitFull( pdi->pbuf );
@@ -665,14 +672,61 @@ static APIRET APIENTRY dartPlay( HKAI hkai )
                                        pdi->pMixBuffers, i );
     if( dartError( rc ))
     {
-        dartStop( hkai );
+        dartStop(( HKAI )pdi );
 
-        return LOUSHORT( rc );
+        goto exit_error;
     }
+
+    DosPostEventSem( pdi->hevPlayInited );
+
+    return;
+
+exit_error:
+    STORE( &pdi->fWaitStreamEnd, FALSE );
+    STORE( &pdi->fFilling, FALSE );
+    STORE( &pdi->fPlaying, FALSE );
+    STORE( &pdi->fPaused, FALSE );
+    STORE( &pdi->fCompleted, FALSE );
+
+    DosPostEventSem( pdi->hevPlayInited );
+    DosCloseEventSem( pdi->hevPlayInited );
+}
+
+static APIRET APIENTRY dartPlay( HKAI hkai )
+{
+    PDARTINFO pdi = ( PDARTINFO )hkai;
+    ULONG     ulLatency;
+    TID       tid;
+
+    if( pdi->fPlaying )
+        return KAIE_NO_ERROR;
+
+    if( !isReady( hkai ))
+        return KAIE_NOT_READY;
+
+    if( DosCreateEventSem( NULL, &pdi->hevPlayInited, 0, FALSE ))
+        return KAIE_NOT_ENOUGH_MEMORY;
+
+    /* Workaround for dart which does not progress when trying to play
+       right after completed */
+    ulLatency = _kaiGetPlayLatency();
+    if( ulLatency )
+        DosSleep( ulLatency );
 
     STORE( &pdi->fPlaying, TRUE );
     STORE( &pdi->fPaused, FALSE );
     STORE( &pdi->fCompleted, FALSE );
+
+    tid = _beginthread( dartPlayThread, NULL, THREAD_STACK_SIZE, pdi );
+    if( tid == -1 )
+    {
+        STORE( &pdi->fPlaying, FALSE );
+
+        DosPostEventSem( pdi->hevPlayInited );
+        DosCloseEventSem( pdi->hevPlayInited );
+
+        return KAIE_NOT_ENOUGH_MEMORY;
+    }
 
     return KAIE_NO_ERROR;
 }

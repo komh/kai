@@ -219,7 +219,8 @@ LONG _kaiInstancePlayingStreamCount( HKAIMIXER hkm )
 
     for( pil = m_pilStart; pil; pil = pil->pilNext )
     {
-        if( pil->hkai == hkm && ISSTREAM( pil ) && pil->pms->fPlaying )
+        if( pil->hkai == hkm && ISSTREAM( pil ) && pil->pms->fPlaying
+            && pil->pms->fActive )
             count++;
     }
 
