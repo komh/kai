@@ -60,6 +60,14 @@ typedef struct tagUNIAUDINFO
 } UNIAUDINFO, *PUNIAUDINFO;
 #pragma pack()
 
+static HMODULE m_hmodMDM = NULLHANDLE;
+
+#define mciSendCommand      m_pfnmciSendCommand
+#define mciGetErrorString   m_pfnmciGetErrorString
+
+static DECLARE_PFN( ULONG, APIENTRY, mciSendCommand, ( USHORT, USHORT, ULONG, PVOID, USHORT ));
+static DECLARE_PFN( ULONG, APIENTRY, mciGetErrorString, ( ULONG, PSZ, USHORT ));
+
 #define uniaud_mixer_get_power_state        m_pfnUniaudMixerGetPowerState
 #define uniaud_mixer_set_power_state        m_pfnUniaudMixerSetPowerState
 #define uniaud_mixer_get_ctls_number        m_pfnUniaudMixerGetCtlsNumber
@@ -172,6 +180,32 @@ static APIRET APIENTRY uniaudGetCardCount( VOID );
 static APIRET APIENTRY uniaudGetCardName( ULONG ulDeviceIndex,
                                           PSZ pszName, ULONG cbName );
 static APIRET APIENTRY uniaudCapsEx( ULONG ulDeviceIndex, PKAICAPS pkc );
+
+static BOOL loadMDM( VOID )
+{
+    CHAR szFailedName[ 256 ];
+
+    if( m_hmodMDM )
+        return TRUE;
+
+    if( DosLoadModule( szFailedName, sizeof( szFailedName ), "MDM", &m_hmodMDM ))
+        goto exit_error;
+
+    if( DosQueryProcAddr( m_hmodMDM, 1, NULL, ( PFN * )&mciSendCommand ))
+        goto exit_error;
+
+    if( DosQueryProcAddr( m_hmodMDM, 3, NULL, ( PFN * )&mciGetErrorString ))
+        goto exit_error;
+
+    return TRUE;
+
+exit_error:
+    // In case of this, MDM.DLL is not a MMOS2 DLL.
+    DosFreeModule( m_hmodMDM );
+    m_hmodMDM = NULLHANDLE;
+
+    return FALSE;
+}
 
 static VOID freeUniaud( VOID )
 {
@@ -345,6 +379,9 @@ exit_error :
 
 APIRET APIENTRY _kaiUniaudInit( PKAIAPIS pkai, PKAICAPS pkc )
 {
+    if( !loadMDM())
+        return KAIE_CANNOT_LOAD_SUB_MODULE;
+
     if( !loadUniaud())
         return KAIE_CANNOT_LOAD_SUB_MODULE;
 
@@ -575,6 +612,36 @@ static APIRET APIENTRY uniaudChNum( ULONG ulDeviceIndex )
     return uniaud_get_max_channels( ulDeviceIndex );
 }
 
+/* Sync volume with the system master volume */
+static void uniaudSyncVolume( PUNIAUDINFO pui )
+{
+    MCI_MASTERAUDIO_PARMS MasterAudioParms = { 0, };
+    ULONG ulUniaudVol;
+    BOOL fUniaudState;
+    ULONG rc;
+
+    rc = mciSendCommand( 0, MCI_MASTERAUDIO,
+                         MCI_WAIT | MCI_QUERYCURRENTSETTING | MCI_MASTERVOL,
+                        &MasterAudioParms, 0 );
+    if( LOUSHORT( rc ))
+    {
+        CHAR szErrorCode[ 256 ];
+
+        mciGetErrorString( rc, ( PSZ )szErrorCode, sizeof( szErrorCode ));
+
+        dprintf("UNIAUD: ignore: cannot query master audio(%lx):%s",
+                rc, szErrorCode );
+
+        return;
+    }
+
+    ulUniaudVol = MasterAudioParms.ulReturn;
+    fUniaudState = ulUniaudVol != 0;
+
+    uniaudSetVolume(( HKAI )pui, MCI_SET_AUDIO_ALL, ulUniaudVol );
+    uniaudSetSoundState(( HKAI )pui, MCI_SET_AUDIO_ALL, fUniaudState );
+}
+
 static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
 {
     PUNIAUDINFO pui;
@@ -631,6 +698,9 @@ static APIRET APIENTRY uniaudOpen( PKAISPEC pks, PHKAI phkai )
 
     pks->ulBufferSize = pui->ulBufferSize;
     pks->bSilence     = pui->bSilence;
+
+    if( !getenv("KAI_UNIAUD_NOSYNCVOL"))
+        uniaudSyncVolume( pui );
 
     uniaud_pcm_prepare( pui->pcm );
 
