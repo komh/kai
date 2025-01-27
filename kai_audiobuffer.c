@@ -175,7 +175,11 @@ LONG _kaiBufWriteUnlock( PKAIAUDIOBUFFER pbuf, ULONG ulLength )
 
 VOID _kaiBufWriteCancel( PKAIAUDIOBUFFER pbuf )
 {
-    DosPostEventSem( pbuf->abufelm[ pbuf->ulWritePos ].hevFill );
+    int i;
+
+    /* Wake up all waiters */
+    for( i = pbuf->ulNumBuffers - 1; i >= 0; i-- )
+        DosPostEventSem( pbuf->abufelm[ i ].hevFill );
 }
 
 VOID _kaiBufClear( PKAIAUDIOBUFFER pbuf, UCHAR uch )
