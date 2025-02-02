@@ -29,6 +29,7 @@
 static BYTE m_abBuf[ BUF_SIZE ];
 static int  m_iBufIndex = 0;
 static int  m_iBufLen = 0;
+static LONG m_lPlayedLen = 0;
 
 static HMMIO m_hmmio;
 
@@ -56,6 +57,7 @@ ULONG APIENTRY kaiCallback ( PVOID pCBData, PVOID Buffer, ULONG BufferSize )
             lLen = BufferSize;
         memcpy( pbBuffer, &m_abBuf[ m_iBufIndex ], lLen );
         m_iBufIndex  += lLen;
+        m_lPlayedLen += lLen;
         pbBuffer     += lLen;
         BufferSize   -= lLen;
     }
@@ -200,9 +202,10 @@ int main( int argc, char *argv[])
     while( 1 )
     {
         m_ulStatus = kaiStatus( hkai );
-        printf("Status : [%9s], vol = [%3ld%%]\r",
+        printf("Status : [%9s], vol = [%3ld%%], Bytes = %-10ld\r",
                getStatusName( m_ulStatus ),
-               kaiGetVolume( hkai, MCI_STATUS_AUDIO_ALL ));
+               kaiGetVolume( hkai, MCI_STATUS_AUDIO_ALL ),
+               m_lPlayedLen);
         fflush( stdout );
 
         key = read_key();
@@ -214,7 +217,12 @@ int main( int argc, char *argv[])
             kaiStop( hkai );
 
         if( key == 'w')
+        {
+            if( !( kaiStatus( hkai ) & KAIS_PLAYING ))
+                m_lPlayedLen = 0;
+
             kaiPlay( hkai );
+        }
 
         if( key == 'e')
             kaiPause( hkai );
