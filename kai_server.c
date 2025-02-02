@@ -43,7 +43,7 @@ APIRET _kaiPipeTimedOpen( const char *name, PHPIPE phpipe, ULONG ms )
                   OPEN_FLAGS_FAIL_ON_ERROR,
                   NULL );
 
-    if( rc == ERROR_PIPE_BUSY && ms != 0 )
+    while( rc == ERROR_PIPE_BUSY && ms != 0 )
     {
         ULONG rc2;
 
