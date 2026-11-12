@@ -494,7 +494,7 @@ APIRET _kaiServerMixerStreamOpen( const PINSTANCELIST pilMixer,
     HPIPE hpipeCmd;
     ULONG ulCmd = pilMixer ? KAISRV_MIXERSTREAMOPEN : KAISRV_OPEN;
     char szPipeName[ CCHMAXPATH ];
-    TID tid;
+    TID tid = -1;
     int state = 0;
     CBPARM cbparm;
     ULONG ulActual;
