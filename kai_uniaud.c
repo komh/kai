@@ -423,14 +423,14 @@ static APIRET APIENTRY uniaudStop( HKAI hkai )
     if( !pui->fPlaying )
         return KAIE_NO_ERROR;
 
-    uniaud_pcm_drop( pui->pcm );
-
     tid = pui->tidPlayThread;
 
     STORE( &pui->fQuit, TRUE );
 
     while( DosWaitThread( &tid, DCWW_WAIT ) == ERROR_INTERRUPT )
         /* nothing */;
+
+    uniaud_pcm_drop( pui->pcm );
 
     STORE( &pui->fPlaying, FALSE );
     STORE( &pui->fPaused, FALSE );
