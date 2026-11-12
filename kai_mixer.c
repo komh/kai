@@ -92,6 +92,14 @@ static void normalize( PVOID pBuffer, ULONG ulLen, PINSTANCELIST pil )
             ( spx_int16_t * )pBuffer, &inSamples,
             ( spx_int16_t * )pms->bufRes.pch, &outSamples );
 
+        if( inSamples < samples )
+        {
+            dprintf("MIXER: dropped %d sample(s) while resampling %ldHz to "
+                    "%ldHz!\n",
+                    samples - inSamples,
+                    pks->ulSamplingRate, pksMixer->ulSamplingRate );
+        }
+
         ulLen = SAMPLESTOBYTES( outSamples, *pksMixer );
     }
     else
