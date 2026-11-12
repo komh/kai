@@ -689,10 +689,10 @@ APIRET DLLEXPORT APIENTRY kaiGetVolume( HKAI hkai, ULONG ulCh )
         lRightVol = pil->ks.ulChannels > 1 ? pil->lRightVol : lLeftVol;
 
         if( ulCh == MCI_STATUS_AUDIO_LEFT )
-            return lLeftVol;
+            lRightVol = lLeftVol;
 
         if( ulCh == MCI_STATUS_AUDIO_RIGHT )
-            return lRightVol;
+            lLeftVol = lRightVol;
 
         /* ulCh == MCI_STATUS_AUDIO_ALL */
         rc = ( lLeftVol + lRightVol ) / 2;
