@@ -58,6 +58,8 @@ PKAIAUDIOBUFFER _kaiBufCreate( ULONG ulNum, ULONG ulSize )
         return NULL;
     }
 
+    pbuf->ulNumBuffers = ulNum;
+
     for( i = 0; i < ulNum; i++ )
     {
         PKAIAUDIOBUFFERELEMENT pbufelm = &pbuf->abufelm[ i ];
@@ -69,8 +71,6 @@ PKAIAUDIOBUFFER _kaiBufCreate( ULONG ulNum, ULONG ulSize )
 
         pbufelm->ulSize = ulSize;
     }
-
-    pbuf->ulNumBuffers = ulNum;
 
     return pbuf;
 
